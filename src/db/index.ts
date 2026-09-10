@@ -18,3 +18,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export const db = drizzle(client, { schema })
+
+/** Close the underlying postgres.js pool (needed for one-shot CLI scripts). */
+export async function closeDb(): Promise<void> {
+  await client.end({ timeout: 5 })
+  globalForDb.__hlidacPg = undefined
+}
