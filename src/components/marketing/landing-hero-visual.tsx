@@ -1,6 +1,6 @@
 /**
  * Full-bleed cadastral grid + shield-pin mark for the marketing hero.
- * Visual direction: parcel mesh as atmosphere, brand shield as focal mark.
+ * Mobile: smaller shield in the upper field so copy stays clear at the bottom.
  */
 export function LandingHeroVisual() {
   return (
@@ -8,10 +8,10 @@ export function LandingHeroVisual() {
       aria-hidden
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_75%_35%,rgba(58,160,184,0.28),transparent_60%),radial-gradient(ellipse_50%_40%_at_15%_85%,rgba(36,90,114,0.55),transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(58,160,184,0.32),transparent_55%),radial-gradient(ellipse_70%_55%_at_85%_40%,rgba(58,160,184,0.22),transparent_60%),radial-gradient(ellipse_50%_40%_at_10%_90%,rgba(36,90,114,0.55),transparent_55%)]" />
 
       <svg
-        className="landing-grid-drift absolute inset-0 h-full w-full opacity-[0.35]"
+        className="landing-grid-drift absolute inset-0 h-full w-full opacity-[0.28] md:opacity-[0.35]"
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="xMidYMid slice"
       >
@@ -39,12 +39,16 @@ export function LandingHeroVisual() {
         <rect width="100%" height="100%" fill="url(#landing-cadastre)" />
       </svg>
 
-      <div className="absolute -right-8 bottom-[-6%] h-[58%] w-auto max-w-[70vw] md:right-[4%] md:bottom-auto md:top-1/2 md:h-[72%] md:-translate-y-1/2">
+      {/* Mobile: upper-right mark. Desktop: large side focal. */}
+      <div
+        className="absolute top-[4.5rem] right-[-8%] h-[42vmin] w-[42vmin] max-h-[240px] max-w-[240px] opacity-80 sm:top-24 sm:right-0 sm:h-[46vmin] sm:w-[46vmin] sm:max-h-[280px] sm:max-w-[280px] md:right-[2%] md:top-1/2 md:h-[min(72%,520px)] md:w-auto md:max-h-none md:max-w-[46vw] md:-translate-y-1/2 md:opacity-90"
+      >
         <svg
-          className="landing-shield-rise h-full w-auto"
+          className="landing-shield-rise h-full w-full md:w-auto"
           viewBox="0 0 200 240"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
+          preserveAspectRatio="xMidYMid meet"
         >
           <path
             fill="rgba(247,245,240,0.94)"
@@ -57,8 +61,9 @@ export function LandingHeroVisual() {
         </svg>
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#1A3F52] to-transparent md:hidden" />
-      <div className="absolute inset-y-0 left-0 w-[55%] bg-gradient-to-r from-[#1A3F52] via-[#1A3F52]/75 to-transparent max-md:hidden" />
+      {/* Mobile readability scrim over lower half */}
+      <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-[#1A3F52] via-[#1A3F52]/92 to-transparent md:hidden" />
+      <div className="absolute inset-y-0 left-0 hidden w-[58%] bg-gradient-to-r from-[#1A3F52] via-[#1A3F52]/80 to-transparent md:block" />
     </div>
   )
 }
