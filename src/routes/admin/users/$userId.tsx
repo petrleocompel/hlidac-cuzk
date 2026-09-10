@@ -66,7 +66,7 @@ function AdminUserDetailPage() {
   }
 
   return (
-    <DashboardShell email={session.user.email} isAdmin>
+    <DashboardShell user={session.user} isAdmin>
       <div className="mb-6">
         <Link
           to="/admin"

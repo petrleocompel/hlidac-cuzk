@@ -33,7 +33,7 @@ function WatchDetailPage() {
 
   return (
     <DashboardShell
-      email={session.user.email}
+      user={session.user}
       isAdmin={session.user.role === 'admin'}
     >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">

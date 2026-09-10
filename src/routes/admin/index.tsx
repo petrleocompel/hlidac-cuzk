@@ -51,7 +51,7 @@ function AdminUsersPage() {
   }
 
   return (
-    <DashboardShell email={session.user.email} isAdmin>
+    <DashboardShell user={session.user} isAdmin>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

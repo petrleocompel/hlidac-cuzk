@@ -33,7 +33,7 @@ function DashboardPage() {
 
   return (
     <DashboardShell
-      email={session.user.email}
+      user={session.user}
       isAdmin={session.user.role === 'admin'}
     >
       <div className="mb-6 flex items-center justify-between gap-4">

@@ -133,7 +133,7 @@ function SettingsPage() {
 
   return (
     <DashboardShell
-      email={session.user.email}
+      user={session.user}
       isAdmin={session.user.role === 'admin'}
     >
       <Card className="mx-auto max-w-xl">
