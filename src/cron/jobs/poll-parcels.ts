@@ -12,6 +12,7 @@ import {
   
 } from '#/lib/cuzk/snapshot'
 import type {ParcelSnapshot, RizeniSnapshot, SnapshotChange} from '#/lib/cuzk/snapshot';
+import { sendDiscordWebhook } from '#/lib/notifications/discord'
 import { sendGotify } from '#/lib/notifications/gotify'
 import { sendSlackWebhook } from '#/lib/notifications/slack'
 
@@ -157,6 +158,11 @@ async function notifyUser(
   if (settings.slackWebhookUrl) {
     await sendSlackWebhook(settings.slackWebhookUrl, {
       text: `*${title}*\n${message}`,
+    })
+  }
+  if (settings.discordWebhookUrl) {
+    await sendDiscordWebhook(settings.discordWebhookUrl, {
+      content: `**${title}**\n${message}`,
     })
   }
 }

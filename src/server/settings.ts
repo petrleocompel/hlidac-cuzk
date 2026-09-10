@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { requireSession } from '#/auth/session'
 import { db } from '#/db'
 import { userNotificationSettings } from '#/db/schema'
+import { sendDiscordWebhook } from '#/lib/notifications/discord'
 import { sendGotify } from '#/lib/notifications/gotify'
 import { sendSlackWebhook } from '#/lib/notifications/slack'
 
@@ -16,6 +17,7 @@ const SettingsInput = z.object({
   gotifyToken: z.union([z.string(), z.literal(''), z.null()]).optional(),
   gotifyPriority: z.coerce.number().int().min(0).max(10).optional(),
   slackWebhookUrl: optionalUrl,
+  discordWebhookUrl: optionalUrl,
 })
 
 export type SettingsDto = {
@@ -24,7 +26,28 @@ export type SettingsDto = {
   gotifyToken: string | null
   gotifyPriority: number | null
   slackWebhookUrl: string | null
+  discordWebhookUrl: string | null
   updatedAt: string
+}
+
+function toDto(row: {
+  userId: string
+  gotifyUrl: string | null
+  gotifyToken: string | null
+  gotifyPriority: number | null
+  slackWebhookUrl: string | null
+  discordWebhookUrl: string | null
+  updatedAt: Date
+}): SettingsDto {
+  return {
+    userId: row.userId,
+    gotifyUrl: row.gotifyUrl,
+    gotifyToken: row.gotifyToken,
+    gotifyPriority: row.gotifyPriority,
+    slackWebhookUrl: row.slackWebhookUrl,
+    discordWebhookUrl: row.discordWebhookUrl,
+    updatedAt: row.updatedAt.toISOString(),
+  }
 }
 
 export const getNotificationSettings = createServerFn({ method: 'GET' }).handler(
@@ -40,17 +63,11 @@ export const getNotificationSettings = createServerFn({ method: 'GET' }).handler
         gotifyToken: null,
         gotifyPriority: 5,
         slackWebhookUrl: null,
+        discordWebhookUrl: null,
         updatedAt: new Date().toISOString(),
       }
     }
-    return {
-      userId: row.userId,
-      gotifyUrl: row.gotifyUrl,
-      gotifyToken: row.gotifyToken,
-      gotifyPriority: row.gotifyPriority,
-      slackWebhookUrl: row.slackWebhookUrl,
-      updatedAt: row.updatedAt.toISOString(),
-    }
+    return toDto(row)
   },
 )
 
@@ -64,6 +81,7 @@ export const saveNotificationSettings = createServerFn({ method: 'POST' })
       gotifyToken: emptyToNull(data.gotifyToken),
       gotifyPriority: data.gotifyPriority ?? 5,
       slackWebhookUrl: emptyToNull(data.slackWebhookUrl),
+      discordWebhookUrl: emptyToNull(data.discordWebhookUrl),
       updatedAt: new Date(),
     }
     const [row] = await db
@@ -76,18 +94,12 @@ export const saveNotificationSettings = createServerFn({ method: 'POST' })
           gotifyToken: values.gotifyToken,
           gotifyPriority: values.gotifyPriority,
           slackWebhookUrl: values.slackWebhookUrl,
+          discordWebhookUrl: values.discordWebhookUrl,
           updatedAt: values.updatedAt,
         },
       })
       .returning()
-    return {
-      userId: row.userId,
-      gotifyUrl: row.gotifyUrl,
-      gotifyToken: row.gotifyToken,
-      gotifyPriority: row.gotifyPriority,
-      slackWebhookUrl: row.slackWebhookUrl,
-      updatedAt: row.updatedAt.toISOString(),
-    }
+    return toDto(row)
   })
 
 function emptyToNull(v: string | null | undefined): string | null {
@@ -103,6 +115,10 @@ const TestGotifyInput = z.object({
 
 const TestSlackInput = z.object({
   slackWebhookUrl: z.string().url(),
+})
+
+const TestDiscordInput = z.object({
+  discordWebhookUrl: z.string().url(),
 })
 
 export const testGotifyNotification = createServerFn({ method: 'POST' })
@@ -124,6 +140,17 @@ export const testSlackNotification = createServerFn({ method: 'POST' })
     await requireSession()
     await sendSlackWebhook(data.slackWebhookUrl, {
       text: '*Hlídač ČÚZK — test*\nTestovací notifikace z nastavení. Pokud tohle vidíte, webhook funguje.',
+    })
+    return { ok: true as const }
+  })
+
+export const testDiscordNotification = createServerFn({ method: 'POST' })
+  .inputValidator((v) => TestDiscordInput.parse(v))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    await requireSession()
+    await sendDiscordWebhook(data.discordWebhookUrl, {
+      content:
+        '**Hlídač ČÚZK — test**\nTestovací notifikace z nastavení. Pokud tohle vidíte, Discord webhook funguje.',
     })
     return { ok: true as const }
   })

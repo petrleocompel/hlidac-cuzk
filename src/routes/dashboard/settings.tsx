@@ -16,6 +16,7 @@ import { Separator } from '#/components/ui/separator'
 import {
   getNotificationSettings,
   saveNotificationSettings,
+  testDiscordNotification,
   testGotifyNotification,
   testSlackNotification,
 } from '#/server/settings'
@@ -37,6 +38,7 @@ function SettingsPage() {
   const [pending, setPending] = useState(false)
   const [testingGotify, setTestingGotify] = useState(false)
   const [testingSlack, setTestingSlack] = useState(false)
+  const [testingDiscord, setTestingDiscord] = useState(false)
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -51,6 +53,7 @@ function SettingsPage() {
           gotifyToken: String(fd.get('gotifyToken') ?? ''),
           gotifyPriority: Number(fd.get('gotifyPriority') ?? 5),
           slackWebhookUrl: String(fd.get('slackWebhookUrl') ?? ''),
+          discordWebhookUrl: String(fd.get('discordWebhookUrl') ?? ''),
         },
       })
       setMessage('Uloženo')
@@ -105,6 +108,29 @@ function SettingsPage() {
     }
   }
 
+  async function onTestDiscord(form: HTMLFormElement) {
+    const fd = new FormData(form)
+    setTestingDiscord(true)
+    setError(null)
+    setMessage(null)
+    try {
+      await testDiscordNotification({
+        data: {
+          discordWebhookUrl: String(fd.get('discordWebhookUrl') ?? '').trim(),
+        },
+      })
+      setMessage('Discord: test odeslán')
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Discord: ${err.message}`
+          : `Discord: ${String(err)}`,
+      )
+    } finally {
+      setTestingDiscord(false)
+    }
+  }
+
   return (
     <DashboardShell
       email={session.user.email}
@@ -114,8 +140,8 @@ function SettingsPage() {
         <CardHeader>
           <CardTitle>Notifikace</CardTitle>
           <CardDescription>
-            Gotify a Slack webhook (Slack-kompatibilní JSON). Test používá
-            hodnoty z formuláře — nemusíte nejdřív ukládat.
+            Gotify, Discord a Slack. Test používá hodnoty z formuláře — nemusíte
+            nejdřív ukládat.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -173,9 +199,42 @@ function SettingsPage() {
 
             <section className="space-y-4">
               <div>
+                <h2 className="text-sm font-medium">Discord webhook</h2>
+                <p className="text-xs text-muted-foreground">
+                  Native Discord webhook (`content` payload)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="discordWebhookUrl">Webhook URL</Label>
+                <Input
+                  id="discordWebhookUrl"
+                  name="discordWebhookUrl"
+                  defaultValue={settings.discordWebhookUrl ?? ''}
+                  placeholder="https://discord.com/api/webhooks/…"
+                  autoComplete="off"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={testingDiscord || pending}
+                onClick={(e) => {
+                  const form = e.currentTarget.form
+                  if (form) void onTestDiscord(form)
+                }}
+              >
+                {testingDiscord ? 'Testuji Discord…' : 'Test Discord'}
+              </Button>
+            </section>
+
+            <Separator />
+
+            <section className="space-y-4">
+              <div>
                 <h2 className="text-sm font-medium">Slack webhook</h2>
                 <p className="text-xs text-muted-foreground">
-                  Incoming webhook URL (i Discord v Slack režimu)
+                  Slack Incoming Webhook (`text`). Discord URL sem nepatří —
+                  použijte sekci Discord.
                 </p>
               </div>
               <div className="space-y-2">
@@ -185,6 +244,7 @@ function SettingsPage() {
                   name="slackWebhookUrl"
                   defaultValue={settings.slackWebhookUrl ?? ''}
                   placeholder="https://hooks.slack.com/…"
+                  autoComplete="off"
                 />
               </div>
               <Button

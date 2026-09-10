@@ -1,0 +1,1 @@
+ALTER TABLE "user_notification_settings" ADD COLUMN "discord_webhook_url" text;

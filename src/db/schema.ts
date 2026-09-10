@@ -99,6 +99,7 @@ export const userNotificationSettings = pgTable('user_notification_settings', {
   gotifyToken: text('gotify_token'),
   gotifyPriority: integer('gotify_priority').default(5),
   slackWebhookUrl: text('slack_webhook_url'),
+  discordWebhookUrl: text('discord_webhook_url'),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
