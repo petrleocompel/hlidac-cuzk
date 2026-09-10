@@ -2,10 +2,12 @@ import { and, desc, eq } from 'drizzle-orm'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { requireSession } from '#/auth/session'
+import { pollWatchById } from '#/cron/jobs/poll-parcels'
 import { db } from '#/db'
 import { parcelWatches, watchEvents } from '#/db/schema'
 import type { ParcelWatch, WatchEvent } from '#/db/schema'
 import { resolveIsknId } from '#/lib/cuzk/client'
+import { buildParcelSnapshot } from '#/lib/cuzk/snapshot'
 
 const CreateWatchInput = z.object({
   label: z.string().min(1).max(200),
@@ -138,6 +140,14 @@ export const createWatch = createServerFn({ method: 'POST' })
       poddeleniCislaParcely: data.parcelSubdivision ?? null,
     })
 
+    const now = new Date()
+    let snapshot = null as Awaited<ReturnType<typeof buildParcelSnapshot>> | null
+    try {
+      snapshot = await buildParcelSnapshot(isknId, now)
+    } catch {
+      // Watch can still be created; first cron/refresh will fill snapshot.
+    }
+
     const [row] = await db
       .insert(parcelWatches)
       .values({
@@ -150,6 +160,8 @@ export const createWatch = createServerFn({ method: 'POST' })
         druhCislovani: data.druhCislovani,
         isknId,
         pollIntervalMinutes: data.pollIntervalMinutes,
+        lastCheckedAt: snapshot ? now : null,
+        lastSnapshotJson: snapshot,
       })
       .returning()
 
@@ -183,6 +195,34 @@ export const updateWatch = createServerFn({ method: 'POST' })
 
     return toWatchDto(row)
   })
+
+export const refreshWatch = createServerFn({ method: 'POST' })
+  .inputValidator((v) => IdInput.parse(v))
+  .handler(
+    async ({
+      data,
+    }): Promise<{ watch: WatchDto; notified: boolean; changeCount: number }> => {
+      const session = await requireSession()
+      const existing = await db.query.parcelWatches.findFirst({
+        where: and(
+          eq(parcelWatches.id, data.id),
+          eq(parcelWatches.userId, session.user.id),
+        ),
+      })
+      if (!existing) throw new Error('not_found')
+
+      const result = await pollWatchById(existing.id)
+      const watch = await db.query.parcelWatches.findFirst({
+        where: eq(parcelWatches.id, existing.id),
+      })
+      if (!watch) throw new Error('not_found')
+      return {
+        watch: toWatchDto(watch),
+        notified: result.notified,
+        changeCount: result.changes.length,
+      }
+    },
+  )
 
 export const deleteWatch = createServerFn({ method: 'POST' })
   .inputValidator((v) => IdInput.parse(v))

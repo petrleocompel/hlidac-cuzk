@@ -8,6 +8,11 @@ export type RizeniDef = {
   rok?: number
   typRizeni?: string | { kod?: string; nazev?: string }
   kodPracoviste?: number
+  datumPrijeti?: string
+  stav?: string | null
+  stavUhrady?: string | null
+  provedeneOperace?: Array<{ nazev?: string; datumProvedeni?: string }> | null
+  poznamky?: string[] | null
   [key: string]: unknown
 }
 
@@ -25,6 +30,21 @@ export type Parcela = {
   kmenoveCisloParcely?: number
   poddeleniCislaParcely?: number | null
   katastralniUzemi?: { kod?: number; nazev?: string }
+  lv?: {
+    id?: number
+    cislo?: number
+    katastralniUzemi?: { kod?: number; nazev?: string }
+  } | null
+  vymera?: number
+  mapovyList?: { kod?: number; oznaceni?: string } | null
+  zpusobUrceniVymery?: unknown
+  druhPozemku?: unknown
+  zpusobVyuziti?: unknown
+  zpusobyOchrany?: unknown[] | null
+  bpej?: unknown[] | null
+  definicniBod?: { id?: number; x?: number; y?: number } | null
+  stavba?: { id?: number } | null
+  pravoStavby?: { id?: number } | null
   rizeniPlomby?: RizeniDef[] | null
   [key: string]: unknown
 }

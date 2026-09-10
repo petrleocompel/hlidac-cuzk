@@ -2,12 +2,16 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db'
 import { parcelWatches, userNotificationSettings, watchEvents } from '#/db/schema'
 import {
-  formatRizeniLabel,
-  getParcelById,
-  rizeniFingerprint,
-  snapshotRizeniPlomby,
-} from '#/lib/cuzk/client'
-import type { RizeniDef } from '#/lib/cuzk/client'
+  buildParcelSnapshot,
+  diffSnapshots,
+  formatLvLabel,
+  formatRizeniHeadline,
+  parseSnapshot
+  
+  
+  
+} from '#/lib/cuzk/snapshot'
+import type {ParcelSnapshot, RizeniSnapshot, SnapshotChange} from '#/lib/cuzk/snapshot';
 import { sendGotify } from '#/lib/notifications/gotify'
 import { sendSlackWebhook } from '#/lib/notifications/slack'
 
@@ -19,6 +23,44 @@ function isDue(
   if (!lastCheckedAt) return true
   const elapsed = now.getTime() - lastCheckedAt.getTime()
   return elapsed >= intervalMinutes * 60_000
+}
+
+export async function pollWatchById(
+  watchId: string,
+  now = new Date(),
+): Promise<{ notified: boolean; changes: SnapshotChange[] }> {
+  const watch = await db.query.parcelWatches.findFirst({
+    where: eq(parcelWatches.id, watchId),
+  })
+  if (!watch) throw new Error('not_found')
+
+  const next = await buildParcelSnapshot(watch.isknId, now)
+  const previous = parseSnapshot(watch.lastSnapshotJson)
+  const changes = diffSnapshots(previous, next)
+
+  await db
+    .update(parcelWatches)
+    .set({
+      lastCheckedAt: now,
+      lastSnapshotJson: next,
+      lastError: null,
+      updatedAt: now,
+    })
+    .where(eq(parcelWatches.id, watch.id))
+
+  for (const change of changes) {
+    await db.insert(watchEvents).values({
+      watchId: watch.id,
+      kind: change.kind,
+      payloadJson: change,
+    })
+  }
+
+  if (changes.length > 0) {
+    await notifyUser(watch.userId, watch.label, changes, next)
+    return { notified: true, changes }
+  }
+  return { notified: false, changes }
 }
 
 export async function pollDueWatches(now = new Date()): Promise<{
@@ -39,43 +81,8 @@ export async function pollDueWatches(now = new Date()): Promise<{
     checked += 1
 
     try {
-      const response = await getParcelById(watch.isknId)
-      const parcel = response.data
-      if (!parcel) throw new Error('Prázdná odpověď ČÚZK')
-
-      const nextSnapshot = snapshotRizeniPlomby(parcel)
-      const prevSnapshot = (watch.lastSnapshotJson as RizeniDef[] | null) ?? null
-      const prevFp = prevSnapshot ? rizeniFingerprint(prevSnapshot) : null
-      const nextFp = rizeniFingerprint(nextSnapshot)
-
-      const firstPoll = prevSnapshot === null
-      const changed = !firstPoll && prevFp !== nextFp
-
-      await db
-        .update(parcelWatches)
-        .set({
-          lastCheckedAt: now,
-          lastSnapshotJson: nextSnapshot,
-          lastError: null,
-          updatedAt: now,
-        })
-        .where(eq(parcelWatches.id, watch.id))
-
-      if (changed) {
-        const added = nextSnapshot.filter(
-          (r) =>
-            !prevSnapshot.some(
-              (p) => String(p.id ?? '') === String(r.id ?? ''),
-            ),
-        )
-        await db.insert(watchEvents).values({
-          watchId: watch.id,
-          kind: 'new_rizeni',
-          payloadJson: { previous: prevSnapshot, next: nextSnapshot, added },
-        })
-        await notifyUser(watch.userId, watch.label, added, nextSnapshot)
-        notified += 1
-      }
+      const result = await pollWatchById(watch.id, now)
+      if (result.notified) notified += 1
     } catch (err) {
       errors += 1
       const message = err instanceof Error ? err.message : String(err)
@@ -98,24 +105,47 @@ export async function pollDueWatches(now = new Date()): Promise<{
   return { checked, notified, errors }
 }
 
+function describeChanges(changes: SnapshotChange[]): string {
+  const lines: string[] = []
+  for (const change of changes) {
+    if (change.kind === 'new_rizeni') {
+      if (change.added.length > 0) {
+        lines.push('Nová řízení / plomby:')
+        for (const r of change.added) {
+          const mark = r.isVklad ? ' (vklad — možné vlastnictví)' : ''
+          lines.push(`• ${formatRizeniHeadline(r)}${mark}`)
+        }
+      }
+      if (change.removed.length > 0) {
+        lines.push('Odstraněné plomby:')
+        for (const r of change.removed) {
+          lines.push(`• ${formatRizeniHeadline(r)}`)
+        }
+      }
+    } else if (change.kind === 'lv_change') {
+      lines.push(
+        `Změna LV (indikátor vlastnictví): ${formatLvLabel(change.previous)} → ${formatLvLabel(change.next)}`,
+      )
+    } else {
+      lines.push(`Změna atributů parcely: ${change.fields.join(', ')}`)
+    }
+  }
+  return lines.join('\n')
+}
+
 async function notifyUser(
   userId: string,
   label: string,
-  added: RizeniDef[],
-  all: RizeniDef[],
+  changes: SnapshotChange[],
+  _snapshot: ParcelSnapshot,
 ) {
   const settings = await db.query.userNotificationSettings.findFirst({
     where: eq(userNotificationSettings.userId, userId),
   })
   if (!settings) return
 
-  const detail =
-    added.length > 0
-      ? added.map((r) => `• ${formatRizeniLabel(r)}`).join('\n')
-      : `Změna plomb (${all.length} řízení)`
-
   const title = `Hlídač ČÚZK: ${label}`
-  const message = `Nové / změněné řízení na parcele:\n${detail}`
+  const message = describeChanges(changes) || 'Změna na parcele'
 
   if (settings.gotifyUrl && settings.gotifyToken) {
     await sendGotify(settings.gotifyUrl, settings.gotifyToken, {
@@ -130,3 +160,5 @@ async function notifyUser(
     })
   }
 }
+
+export type { RizeniSnapshot, SnapshotChange }
