@@ -1,0 +1,8 @@
+# Self-host overlay: publish the app HTTP port.
+#
+#   export HLIDAC_CUZK_IMAGE=ghcr.io/<owner>/<repo>:latest
+#   docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk up -d
+services:
+  app:
+    ports:
+      - "${APP_HOST_PORT:-3000}:3000"
