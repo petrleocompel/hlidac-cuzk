@@ -14,11 +14,13 @@ import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminSsoRouteImport } from './routes/admin/sso'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard/account'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users/$userId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiSsoLinkCallbackRouteImport } from './routes/api/sso-link/callback'
 import { Route as DashboardWatchesIdRouteImport } from './routes/dashboard/watches/$id'
 import { Route as DashboardWatchesNewRouteImport } from './routes/dashboard/watches/new'
 
@@ -47,6 +49,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSsoRoute = AdminSsoRouteImport.update({
+  id: '/admin/sso',
+  path: '/admin/sso',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
@@ -72,6 +79,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSsoLinkCallbackRoute = ApiSsoLinkCallbackRouteImport.update({
+  id: '/api/sso-link/callback',
+  path: '/api/sso-link/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardWatchesIdRoute = DashboardWatchesIdRouteImport.update({
   id: '/dashboard/watches/$id',
   path: '/dashboard/watches/$id',
@@ -88,12 +100,14 @@ export interface FileRoutesByFullPath {
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin/sso': typeof AdminSsoRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/sso-link/callback': typeof ApiSsoLinkCallbackRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
 }
@@ -102,12 +116,14 @@ export interface FileRoutesByTo {
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin/sso': typeof AdminSsoRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/sso-link/callback': typeof ApiSsoLinkCallbackRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
 }
@@ -117,12 +133,14 @@ export interface FileRoutesById {
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin/sso': typeof AdminSsoRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/sso-link/callback': typeof ApiSsoLinkCallbackRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
 }
@@ -133,12 +151,14 @@ export interface FileRouteTypes {
     | '/healthz'
     | '/login'
     | '/signup'
+    | '/admin/sso'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin/'
     | '/dashboard/'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/sso-link/callback'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
   fileRoutesByTo: FileRoutesByTo
@@ -147,12 +167,14 @@ export interface FileRouteTypes {
     | '/healthz'
     | '/login'
     | '/signup'
+    | '/admin/sso'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin'
     | '/dashboard'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/sso-link/callback'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
   id:
@@ -161,12 +183,14 @@ export interface FileRouteTypes {
     | '/healthz'
     | '/login'
     | '/signup'
+    | '/admin/sso'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin/'
     | '/dashboard/'
     | '/admin/users/$userId'
     | '/api/auth/$'
+    | '/api/sso-link/callback'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
   fileRoutesById: FileRoutesById
@@ -176,12 +200,14 @@ export interface RootRouteChildren {
   HealthzRoute: typeof HealthzRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  AdminSsoRoute: typeof AdminSsoRoute
   DashboardAccountRoute: typeof DashboardAccountRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiSsoLinkCallbackRoute: typeof ApiSsoLinkCallbackRoute
   DashboardWatchesIdRoute: typeof DashboardWatchesIdRoute
   DashboardWatchesNewRoute: typeof DashboardWatchesNewRoute
 }
@@ -223,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/sso': {
+      id: '/admin/sso'
+      path: '/admin/sso'
+      fullPath: '/admin/sso'
+      preLoaderRoute: typeof AdminSsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/': {
       id: '/dashboard/'
       path: '/dashboard'
@@ -258,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sso-link/callback': {
+      id: '/api/sso-link/callback'
+      path: '/api/sso-link/callback'
+      fullPath: '/api/sso-link/callback'
+      preLoaderRoute: typeof ApiSsoLinkCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/watches/$id': {
       id: '/dashboard/watches/$id'
       path: '/dashboard/watches/$id'
@@ -280,12 +320,14 @@ const rootRouteChildren: RootRouteChildren = {
   HealthzRoute: HealthzRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  AdminSsoRoute: AdminSsoRoute,
   DashboardAccountRoute: DashboardAccountRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiSsoLinkCallbackRoute: ApiSsoLinkCallbackRoute,
   DashboardWatchesIdRoute: DashboardWatchesIdRoute,
   DashboardWatchesNewRoute: DashboardWatchesNewRoute,
 }

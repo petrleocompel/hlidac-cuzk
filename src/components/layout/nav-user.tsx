@@ -99,7 +99,7 @@ export function NavUser({ user }: { user: ShellUser }) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link to="/dashboard/account">
+                <Link to="/dashboard/account" search={{}}>
                   <BadgeCheck />
                   Účet
                 </Link>

@@ -26,4 +26,11 @@ async function runMigrations(): Promise<void> {
   } finally {
     await client.end({ timeout: 5 })
   }
+
+  try {
+    const { bootstrapSsoFromEnv } = await import('./bootstrap-sso')
+    await bootstrapSsoFromEnv()
+  } catch (error) {
+    console.error('[sso-bootstrap] failed:', error)
+  }
 }

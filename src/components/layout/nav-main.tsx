@@ -2,6 +2,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import {
   Bell,
   ChevronRight,
+  KeyRound,
   LayoutDashboard,
   MapPinned,
   Users,
@@ -122,10 +123,29 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
             <CollapsibleContent>
               <SidebarMenuSub>
                 <SidebarMenuSubItem>
-                  <SidebarMenuSubButton asChild isActive={adminOpen}>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={
+                      pathname === '/admin' || pathname.startsWith('/admin/')
+                        ? pathname === '/admin' ||
+                          pathname.startsWith('/admin/users')
+                        : false
+                    }
+                  >
                     <Link to="/admin" search={{ page: 1 }}>
                       <Users />
                       <span>Uživatelé</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={pathname.startsWith('/admin/sso')}
+                  >
+                    <Link to="/admin/sso">
+                      <KeyRound />
+                      <span>SSO</span>
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>

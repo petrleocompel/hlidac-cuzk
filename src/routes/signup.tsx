@@ -12,6 +12,7 @@ import {
 } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
+import { SsoSignInButtons } from '#/components/auth/sso-sign-in-buttons'
 
 export const Route = createFileRoute('/signup')({
   component: SignupPage,
@@ -93,6 +94,9 @@ function SignupPage() {
               {pending ? 'Vytvářím…' : 'Vytvořit účet'}
             </Button>
           </form>
+          <div className="mt-4">
+            <SsoSignInButtons />
+          </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Už máte účet?{' '}
             <Link to="/login" className="text-primary underline-offset-4 hover:underline">

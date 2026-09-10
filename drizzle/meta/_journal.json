@@ -15,6 +15,13 @@
       "when": 1789046088267,
       "tag": "0001_productive_meltdown",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789069448777,
+      "tag": "0002_clever_stark_industries",
+      "breakpoints": true
     }
   ]
 }
