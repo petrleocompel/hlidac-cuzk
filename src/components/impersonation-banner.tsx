@@ -3,7 +3,7 @@ import { authClient, useSession } from '#/auth/client'
 import { Button } from '#/components/ui/button'
 
 /**
- * Amber bar while an admin is impersonating another user
+ * Warning bar while an admin is impersonating another user
  * (better-auth sets session.impersonatedBy).
  */
 export function ImpersonationBanner() {
@@ -26,7 +26,7 @@ export function ImpersonationBanner() {
   }
 
   return (
-    <div className="flex items-center justify-center gap-3 bg-amber-100 px-4 py-2 text-sm text-amber-950">
+    <div className="flex items-center justify-center gap-3 border-b border-warning-border bg-warning px-4 py-2 text-sm text-warning-foreground">
       <span>
         Impersonace: jste přihlášeni jako{' '}
         <strong>{data.user.email}</strong>
@@ -36,7 +36,7 @@ export function ImpersonationBanner() {
         size="sm"
         variant="outline"
         disabled={busy}
-        className="h-7 border-amber-400 bg-amber-50"
+        className="h-7 border-warning-border bg-background/40 text-warning-foreground hover:bg-background/70"
         onClick={() => void onStop()}
       >
         {busy ? 'Ukončuji…' : 'Ukončit impersonaci'}

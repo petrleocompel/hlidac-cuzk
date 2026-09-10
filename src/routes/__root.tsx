@@ -2,6 +2,8 @@ import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-r
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { ImpersonationBanner } from '#/components/impersonation-banner'
+import { ThemeProvider } from '#/components/theme-provider'
+import { themeInitScript } from '#/lib/theme'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -34,18 +36,19 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <>
+    <ThemeProvider>
       <ImpersonationBanner />
       <Outlet />
-    </>
+    </ThemeProvider>
   )
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="cs">
+    <html lang="cs" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
         {children}

@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
-@theme {
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: oklch(0.99 0.005 95);
+  --foreground: oklch(0.22 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 250);
+  --primary: oklch(0.42 0.09 230);
+  --primary-foreground: oklch(0.98 0.01 95);
+  --secondary: oklch(0.94 0.02 95);
+  --secondary-foreground: oklch(0.28 0.03 250);
+  --muted: oklch(0.95 0.01 95);
+  --muted-foreground: oklch(0.5 0.02 250);
+  --accent: oklch(0.93 0.03 200);
+  --accent-foreground: oklch(0.28 0.04 230);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.88 0.015 95);
+  --input: oklch(0.88 0.015 95);
+  --ring: oklch(0.5 0.09 230);
+  --warning: oklch(0.92 0.06 85);
+  --warning-foreground: oklch(0.35 0.06 55);
+  --warning-border: oklch(0.78 0.1 75);
+  --radius: 0.6rem;
+  --surface-glow-a: oklch(0.9 0.05 200 / 0.5);
+  --surface-glow-b: oklch(0.92 0.04 95 / 0.6);
+}
+
+.dark {
+  --background: oklch(0.16 0.02 250);
+  --foreground: oklch(0.95 0.01 95);
+  --card: oklch(0.2 0.02 250);
+  --card-foreground: oklch(0.95 0.01 95);
+  --primary: oklch(0.72 0.1 230);
+  --primary-foreground: oklch(0.18 0.03 250);
+  --secondary: oklch(0.26 0.02 250);
+  --secondary-foreground: oklch(0.92 0.01 95);
+  --muted: oklch(0.24 0.02 250);
+  --muted-foreground: oklch(0.72 0.02 250);
+  --accent: oklch(0.28 0.04 220);
+  --accent-foreground: oklch(0.94 0.02 200);
+  --destructive: oklch(0.62 0.2 25);
+  --destructive-foreground: oklch(0.98 0.01 95);
+  --border: oklch(0.32 0.02 250);
+  --input: oklch(0.32 0.02 250);
+  --ring: oklch(0.68 0.1 230);
+  --warning: oklch(0.32 0.06 75);
+  --warning-foreground: oklch(0.92 0.05 90);
+  --warning-border: oklch(0.55 0.1 75);
+  --surface-glow-a: oklch(0.3 0.06 230 / 0.35);
+  --surface-glow-b: oklch(0.28 0.04 200 / 0.25);
+}
+
+@theme inline {
   --font-sans: "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-display: "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --color-background: oklch(0.99 0.005 95);
-  --color-foreground: oklch(0.22 0.02 250);
-  --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.22 0.02 250);
-  --color-primary: oklch(0.42 0.09 230);
-  --color-primary-foreground: oklch(0.98 0.01 95);
-  --color-secondary: oklch(0.94 0.02 95);
-  --color-secondary-foreground: oklch(0.28 0.03 250);
-  --color-muted: oklch(0.95 0.01 95);
-  --color-muted-foreground: oklch(0.5 0.02 250);
-  --color-accent: oklch(0.93 0.03 200);
-  --color-accent-foreground: oklch(0.28 0.04 230);
-  --color-destructive: oklch(0.55 0.2 25);
-  --color-destructive-foreground: oklch(0.98 0 0);
-  --color-border: oklch(0.88 0.015 95);
-  --color-input: oklch(0.88 0.015 95);
-  --color-ring: oklch(0.5 0.09 230);
-  --radius: 0.6rem;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-border: var(--warning-border);
+  --radius: var(--radius);
 }
 
 * {
@@ -36,10 +92,10 @@ body,
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--color-background);
-  color: var(--color-foreground);
+  background-color: var(--background);
+  color: var(--foreground);
   background-image:
-    radial-gradient(ellipse 80% 50% at 10% -10%, oklch(0.9 0.05 200 / 0.5), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, oklch(0.92 0.04 95 / 0.6), transparent);
+    radial-gradient(ellipse 80% 50% at 10% -10%, var(--surface-glow-a), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, var(--surface-glow-b), transparent);
   background-attachment: fixed;
 }

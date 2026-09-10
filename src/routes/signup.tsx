@@ -1,6 +1,7 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient } from '#/auth/client'
+import { ThemeToggle } from '#/components/theme-toggle'
 import { Button } from '#/components/ui/button'
 import {
   Card,
@@ -42,7 +43,10 @@ function SignupPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-6">
+    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center p-6">
+      <div className="absolute right-6 top-6">
+        <ThemeToggle compact />
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Registrace</CardTitle>
