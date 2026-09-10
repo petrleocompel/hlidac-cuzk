@@ -78,7 +78,7 @@ function DashboardPage() {
                 <Link
                   to="/dashboard/watches/$id"
                   params={{ id: w.id }}
-                  className="block rounded-xl border bg-card p-4 shadow-sm transition hover:border-primary/40"
+                  className="block rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 dark:shadow-none"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>

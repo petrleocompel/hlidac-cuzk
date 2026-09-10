@@ -104,7 +104,7 @@ function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
