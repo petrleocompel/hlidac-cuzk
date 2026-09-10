@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { requireSession } from '#/auth/session'
 import { db } from '#/db'
 import { userNotificationSettings } from '#/db/schema'
+import { sendGotify } from '#/lib/notifications/gotify'
+import { sendSlackWebhook } from '#/lib/notifications/slack'
 
 const optionalUrl = z
   .union([z.string().url(), z.literal(''), z.null()])
@@ -92,3 +94,36 @@ function emptyToNull(v: string | null | undefined): string | null {
   if (v == null || v === '') return null
   return v
 }
+
+const TestGotifyInput = z.object({
+  gotifyUrl: z.string().url(),
+  gotifyToken: z.string().min(1),
+  gotifyPriority: z.coerce.number().int().min(0).max(10).default(5),
+})
+
+const TestSlackInput = z.object({
+  slackWebhookUrl: z.string().url(),
+})
+
+export const testGotifyNotification = createServerFn({ method: 'POST' })
+  .inputValidator((v) => TestGotifyInput.parse(v))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    await requireSession()
+    await sendGotify(data.gotifyUrl, data.gotifyToken, {
+      title: 'Hlídač ČÚZK — test',
+      message:
+        'Testovací notifikace z nastavení. Pokud tohle vidíte, Gotify funguje.',
+      priority: data.gotifyPriority,
+    })
+    return { ok: true as const }
+  })
+
+export const testSlackNotification = createServerFn({ method: 'POST' })
+  .inputValidator((v) => TestSlackInput.parse(v))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    await requireSession()
+    await sendSlackWebhook(data.slackWebhookUrl, {
+      text: '*Hlídač ČÚZK — test*\nTestovací notifikace z nastavení. Pokud tohle vidíte, webhook funguje.',
+    })
+    return { ok: true as const }
+  })
