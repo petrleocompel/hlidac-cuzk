@@ -1,0 +1,52 @@
+/**
+ * Bootstrap an admin user:
+ *   ADMIN_EMAIL=… ADMIN_PASSWORD=… ADMIN_NAME=… pnpm db:seed-admin
+ */
+import { ensureDbReady } from '../src/db/migrate.ts'
+import { seedAdmin } from '../src/db/seed-admin.ts'
+
+const MIN_PASSWORD = 12
+
+async function main(): Promise<void> {
+  const email = process.env.ADMIN_EMAIL?.trim()
+  const password = process.env.ADMIN_PASSWORD
+  const name = process.env.ADMIN_NAME?.trim() || undefined
+
+  if (!email) fail('ADMIN_EMAIL is required')
+  if (!password) fail('ADMIN_PASSWORD is required')
+  if (password.length < MIN_PASSWORD) {
+    fail(`ADMIN_PASSWORD must be at least ${MIN_PASSWORD} characters`)
+  }
+
+  await ensureDbReady()
+  const result = await seedAdmin({ email, password, name })
+
+  switch (result.status) {
+    case 'created':
+      console.log(`[seed-admin] created admin user ${email} (${result.userId})`)
+      break
+    case 'promoted':
+      console.log(
+        `[seed-admin] promoted existing user ${email} to admin (${result.userId})`,
+      )
+      break
+    case 'already-admin':
+      console.log(
+        `[seed-admin] ${email} is already an admin (${result.userId}) — nothing to do`,
+      )
+      break
+  }
+}
+
+function fail(message: string): never {
+  console.error(`[seed-admin] ${message}`)
+  process.exit(1)
+}
+
+main().then(
+  () => process.exit(0),
+  (err) => {
+    console.error('[seed-admin] failed', err)
+    process.exit(1)
+  },
+)

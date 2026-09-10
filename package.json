@@ -1,0 +1,86 @@
+{
+  "name": "hlidac-cuzk",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "NODE_OPTIONS='--import ./instrument.server.mjs' vite dev --port 3000",
+    "generate-routes": "tsr generate",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node --import ./instrument.server.mjs .output/server/index.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write . && eslint --fix",
+    "check": "prettier --check .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:seed-admin": "tsx scripts/seed-admin.ts",
+    "cron": "tsx scripts/cron.ts",
+    "seed-admin": "tsx scripts/seed-admin.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-avatar": "^1.2.6",
+    "@radix-ui/react-checkbox": "^1.3.11",
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-label": "^2.1.15",
+    "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-separator": "^1.1.15",
+    "@radix-ui/react-slot": "^1.3.3",
+    "@radix-ui/react-tooltip": "^1.2.16",
+    "@sentry/tanstackstart-react": "^10.74.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-devtools": "latest",
+    "@tanstack/react-router": "latest",
+    "@tanstack/react-router-devtools": "latest",
+    "@tanstack/react-start": "latest",
+    "better-auth": "^1.6.31",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.44.0",
+    "nitro": "3.0.260610-beta",
+    "node-cron": "^4.6.0",
+    "postgres": "^3.4.9",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.1.18",
+    "zod": "^4.6.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tanstack/devtools-vite": "latest",
+    "@tanstack/eslint-config": "latest",
+    "@tanstack/router-cli": "^1.132.0",
+    "@types/node": "^22.10.2",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.20.0",
+    "prettier": "^3.8.1",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^8.0.0",
+    "vitest": "^5.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lightningcss"
+    ]
+  }
+}

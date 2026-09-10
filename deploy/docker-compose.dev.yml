@@ -1,0 +1,7 @@
+# Local development overlay: publish Postgres on loopback.
+#
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up -d db
+services:
+  db:
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
