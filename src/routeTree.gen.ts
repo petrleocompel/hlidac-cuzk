@@ -10,12 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users/$userId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as DashboardWatchesIdRouteImport } from './routes/dashboard/watches/$id'
 import { Route as DashboardWatchesNewRouteImport } from './routes/dashboard/watches/new'
@@ -23,11 +24,6 @@ import { Route as DashboardWatchesNewRouteImport } from './routes/dashboard/watc
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthzRoute = HealthzRouteImport.update({
@@ -45,6 +41,11 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
@@ -53,6 +54,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/dashboard/settings',
   path: '/dashboard/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
+  id: '/admin/users/$userId',
+  path: '/admin/users/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -73,24 +79,26 @@ const DashboardWatchesNewRoute = DashboardWatchesNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
@@ -98,12 +106,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
+  '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
@@ -112,36 +121,39 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
     | '/healthz'
     | '/login'
     | '/signup'
     | '/dashboard/settings'
+    | '/admin/'
     | '/dashboard/'
+    | '/admin/users/$userId'
     | '/api/auth/$'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/healthz'
     | '/login'
     | '/signup'
     | '/dashboard/settings'
+    | '/admin'
     | '/dashboard'
+    | '/admin/users/$userId'
     | '/api/auth/$'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
   id:
     | '__root__'
     | '/'
-    | '/admin'
     | '/healthz'
     | '/login'
     | '/signup'
     | '/dashboard/settings'
+    | '/admin/'
     | '/dashboard/'
+    | '/admin/users/$userId'
     | '/api/auth/$'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
@@ -149,12 +161,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
   HealthzRoute: typeof HealthzRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   DashboardWatchesIdRoute: typeof DashboardWatchesIdRoute
   DashboardWatchesNewRoute: typeof DashboardWatchesNewRoute
@@ -167,13 +180,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/healthz': {
@@ -197,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/': {
       id: '/dashboard/'
       path: '/dashboard'
@@ -209,6 +222,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/settings'
       fullPath: '/dashboard/settings'
       preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users/$userId': {
+      id: '/admin/users/$userId'
+      path: '/admin/users/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AdminUsersUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -237,12 +257,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
   HealthzRoute: HealthzRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  AdminUsersUserIdRoute: AdminUsersUserIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   DashboardWatchesIdRoute: DashboardWatchesIdRoute,
   DashboardWatchesNewRoute: DashboardWatchesNewRoute,
@@ -250,12 +271,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
