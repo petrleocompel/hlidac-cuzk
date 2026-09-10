@@ -1,9 +1,10 @@
 /**
- * Bootstrap an admin user:
+ * Bootstrap an admin user (+ optional demo parcel watch):
  *   ADMIN_EMAIL=… ADMIN_PASSWORD=… ADMIN_NAME=… pnpm db:seed-admin
  */
 import { ensureDbReady } from '../src/db/migrate.ts'
 import { seedAdmin } from '../src/db/seed-admin.ts'
+import { seedDemoWatch } from '../src/db/seed-demo-watch.ts'
 
 const MIN_PASSWORD = 12
 
@@ -11,6 +12,7 @@ async function main(): Promise<void> {
   const email = process.env.ADMIN_EMAIL?.trim()
   const password = process.env.ADMIN_PASSWORD
   const name = process.env.ADMIN_NAME?.trim() || undefined
+  const seedWatch = process.env.SEED_DEMO_WATCH !== '0'
 
   if (!email) fail('ADMIN_EMAIL is required')
   if (!password) fail('ADMIN_PASSWORD is required')
@@ -35,6 +37,13 @@ async function main(): Promise<void> {
         `[seed-admin] ${email} is already an admin (${result.userId}) — nothing to do`,
       )
       break
+  }
+
+  if (seedWatch && process.env.CUZK_API_KEY) {
+    const watch = await seedDemoWatch(result.userId)
+    console.log(
+      `[seed-admin] demo watch ${watch.status}: ${watch.watchId} iskn=${watch.isknId}`,
+    )
   }
 }
 

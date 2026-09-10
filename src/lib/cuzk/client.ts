@@ -4,10 +4,18 @@ export type DruhCislovaniParcely = 1 | 2
 
 export type RizeniDef = {
   id?: number
-  cislo?: string
+  poradoveCislo?: number
   rok?: number
   typRizeni?: string | { kod?: string; nazev?: string }
+  kodPracoviste?: number
   [key: string]: unknown
+}
+
+export type KatastralniUzemi = {
+  kod: number
+  nazev: string
+  kodObce?: number
+  platnostDo?: string | null
 }
 
 export type Parcela = {
@@ -112,6 +120,33 @@ export async function getRizeniById(
   return cuzkFetch(`/api/v1/Rizeni/${id}`)
 }
 
+let kuCache: KatastralniUzemi[] | null = null
+let kuCacheAt = 0
+const KU_CACHE_TTL_MS = 24 * 60 * 60_000
+
+export async function listKatastralniUzemi(): Promise<KatastralniUzemi[]> {
+  const now = Date.now()
+  if (kuCache && now - kuCacheAt < KU_CACHE_TTL_MS) return kuCache
+  const result = await cuzkFetch<CuzkListResponse<KatastralniUzemi>>(
+    '/api/v1/CiselnikyUzemnichJednotek/KatastralniUzemi',
+  )
+  kuCache = result.data ?? []
+  kuCacheAt = now
+  return kuCache
+}
+
+/** Case-insensitive substring match on KU name; max 20 hits. */
+export async function searchKatastralniUzemi(
+  query: string,
+): Promise<KatastralniUzemi[]> {
+  const q = query.trim().toLocaleLowerCase('cs')
+  if (q.length < 2) return []
+  const all = await listKatastralniUzemi()
+  return all
+    .filter((ku) => ku.nazev.toLocaleLowerCase('cs').includes(q))
+    .slice(0, 20)
+}
+
 /** Resolve a unique ISKN id from search params; throws if 0 or >1 matches. */
 export async function resolveIsknId(
   params: SearchParcelParams,
@@ -138,7 +173,19 @@ export function snapshotRizeniPlomby(parcel: Parcela): RizeniDef[] {
 
 export function rizeniFingerprint(items: RizeniDef[]): string {
   const ids = items
-    .map((r) => String(r.id ?? `${r.cislo}-${r.rok}`))
+    .map((r) =>
+      String(r.id ?? `${r.poradoveCislo ?? '?'}-${r.rok ?? '?'}`),
+    )
     .sort()
   return JSON.stringify(ids)
+}
+
+export function formatRizeniLabel(r: RizeniDef): string {
+  const cislo = r.poradoveCislo ?? '?'
+  const rok = r.rok ?? '?'
+  const typ =
+    typeof r.typRizeni === 'string'
+      ? r.typRizeni
+      : (r.typRizeni?.kod ?? r.typRizeni?.nazev ?? '')
+  return typ ? `${typ} ${cislo}/${rok}` : `${cislo}/${rok}`
 }

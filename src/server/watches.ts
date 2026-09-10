@@ -12,7 +12,7 @@ const CreateWatchInput = z.object({
   kuCode: z.string().min(1).max(20),
   kuName: z.string().min(1).max(200),
   parcelNumber: z.coerce.number().int().positive(),
-  parcelSubdivision: z.coerce.number().int().nonnegative().nullable().optional(),
+  parcelSubdivision: z.coerce.number().int().positive().nullable().optional(),
   druhCislovani: z.coerce.number().int().min(1).max(2).default(2),
   pollIntervalMinutes: z.coerce.number().int().min(5).max(24 * 60).default(60),
 })

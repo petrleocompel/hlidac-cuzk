@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db'
 import { parcelWatches, userNotificationSettings, watchEvents } from '#/db/schema'
 import {
+  formatRizeniLabel,
   getParcelById,
   rizeniFingerprint,
   snapshotRizeniPlomby,
@@ -110,9 +111,7 @@ async function notifyUser(
 
   const detail =
     added.length > 0
-      ? added
-          .map((r) => `• ${r.cislo ?? r.id ?? '?'}/${r.rok ?? '?'}`)
-          .join('\n')
+      ? added.map((r) => `• ${formatRizeniLabel(r)}`).join('\n')
       : `Změna plomb (${all.length} řízení)`
 
   const title = `Hlídač ČÚZK: ${label}`

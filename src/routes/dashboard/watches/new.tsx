@@ -12,6 +12,7 @@ import {
 } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
+import { searchKu } from '#/server/cuzk'
 import { createWatch } from '#/server/watches'
 
 export const Route = createFileRoute('/dashboard/watches/new')({
@@ -23,11 +24,34 @@ export const Route = createFileRoute('/dashboard/watches/new')({
   component: NewWatchPage,
 })
 
+type KuHit = { kod: string; nazev: string }
+
 function NewWatchPage() {
   const { session } = Route.useLoaderData()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [kuName, setKuName] = useState('Vejprnice')
+  const [kuCode, setKuCode] = useState('777552')
+  const [kuHits, setKuHits] = useState<KuHit[]>([])
+  const [kuSearching, setKuSearching] = useState(false)
+
+  async function onLookupKu() {
+    setKuSearching(true)
+    setError(null)
+    try {
+      const hits = await searchKu({ data: { query: kuName } })
+      setKuHits(hits)
+      if (hits.length === 1) {
+        setKuCode(hits[0].kod)
+        setKuName(hits[0].nazev)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setKuSearching(false)
+    }
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -39,8 +63,8 @@ function NewWatchPage() {
       const watch = await createWatch({
         data: {
           label: String(fd.get('label') ?? ''),
-          kuCode: String(fd.get('kuCode') ?? ''),
-          kuName: String(fd.get('kuName') ?? ''),
+          kuCode,
+          kuName,
           parcelNumber: Number(fd.get('parcelNumber')),
           parcelSubdivision: subdivRaw === '' ? null : Number(subdivRaw),
           druhCislovani: Number(fd.get('druhCislovani') ?? 2),
@@ -73,16 +97,65 @@ function NewWatchPage() {
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-2">
               <Label htmlFor="label">Název</Label>
-              <Input id="label" name="label" required placeholder="Vejprnice 1133/77" />
+              <Input
+                id="label"
+                name="label"
+                required
+                defaultValue="Vejprnice 1133/77"
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="kuName">Katastrální území</Label>
-                <Input id="kuName" name="kuName" required placeholder="Vejprnice" />
+                <div className="flex gap-2">
+                  <Input
+                    id="kuName"
+                    name="kuName"
+                    required
+                    value={kuName}
+                    onChange={(e) => setKuName(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void onLookupKu()}
+                    disabled={kuSearching || kuName.trim().length < 2}
+                  >
+                    {kuSearching ? '…' : 'Hledat'}
+                  </Button>
+                </div>
+                {kuHits.length > 1 ? (
+                  <ul className="max-h-40 space-y-1 overflow-auto rounded-md border p-2 text-sm">
+                    {kuHits.map((hit) => (
+                      <li key={hit.kod}>
+                        <button
+                          type="button"
+                          className="w-full rounded px-2 py-1 text-left hover:bg-accent"
+                          onClick={() => {
+                            setKuCode(hit.kod)
+                            setKuName(hit.nazev)
+                            setKuHits([])
+                          }}
+                        >
+                          {hit.nazev}{' '}
+                          <span className="text-muted-foreground">
+                            ({hit.kod})
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="kuCode">Kód KÚ</Label>
-                <Input id="kuCode" name="kuCode" required placeholder="744081" />
+                <Input
+                  id="kuCode"
+                  name="kuCode"
+                  required
+                  value={kuCode}
+                  onChange={(e) => setKuCode(e.target.value)}
+                />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -94,6 +167,7 @@ function NewWatchPage() {
                   type="number"
                   required
                   min={1}
+                  defaultValue={1133}
                 />
               </div>
               <div className="space-y-2">
@@ -102,7 +176,8 @@ function NewWatchPage() {
                   id="parcelSubdivision"
                   name="parcelSubdivision"
                   type="number"
-                  min={0}
+                  min={1}
+                  defaultValue={77}
                   placeholder="volitelné"
                 />
               </div>

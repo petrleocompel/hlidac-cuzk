@@ -34,6 +34,13 @@ pnpm dev
 
 Open http://127.0.0.1:3000
 
+### Admin
+
+- E-mail: `admin@example.com`
+- Heslo: `***REMOVED***` (vygenerováno při scaffoldu; také v `.env` / `deploy/.env`)
+
+`pnpm db:seed-admin` zároveň založí demo sledování **Vejprnice 1133/77** (KÚ `777552`, ISKN `51616522010`), pokud je nastaven `CUZK_API_KEY`.
+
 ## Commands
 
 | Command | Purpose |

@@ -9,6 +9,8 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-hlidac}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hlidac}
@@ -27,6 +29,8 @@ services:
       dockerfile: Dockerfile
     restart: "no"
     command: ["pnpm", "db:migrate"]
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-hlidac}:${POSTGRES_PASSWORD:-hlidac}@db:5432/${POSTGRES_DB:-hlidac_cuzk}}
@@ -40,6 +44,8 @@ services:
       context: ..
       dockerfile: Dockerfile
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -71,6 +77,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     entrypoint: ["sh", "-c", "while true; do pnpm cron --once poll-parcels; sleep 300; done"]
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-hlidac}:${POSTGRES_PASSWORD:-hlidac}@db:5432/${POSTGRES_DB:-hlidac_cuzk}}
