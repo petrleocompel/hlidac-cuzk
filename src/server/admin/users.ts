@@ -110,13 +110,21 @@ export const listUsersAdmin = createServerFn({ method: 'GET' })
         banReason: user.banReason,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
-        watchCount: sql<number>`(
-          select count(*)::int from parcel_watches pw
-          where pw.user_id = ${user.id}
-        )`,
+        watchCount: count(parcelWatches.id),
       })
       .from(user)
+      .leftJoin(parcelWatches, eq(parcelWatches.userId, user.id))
       .where(where)
+      .groupBy(
+        user.id,
+        user.name,
+        user.email,
+        user.role,
+        user.banned,
+        user.banReason,
+        user.emailVerified,
+        user.createdAt,
+      )
       .orderBy(desc(user.createdAt))
       .limit(data.pageSize)
       .offset(offset)
