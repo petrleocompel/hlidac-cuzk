@@ -8,6 +8,28 @@ import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
   head: () => ({
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap',
+      },
+      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+      {
+        rel: 'icon',
+        href: '/favicon-32x32.png',
+        type: 'image/png',
+        sizes: '32x32',
+      },
+      {
+        rel: 'icon',
+        href: '/favicon-16x16.png',
+        type: 'image/png',
+        sizes: '16x16',
+      },
+      { rel: 'shortcut icon', href: '/favicon.ico' },
+      { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' },
+    ],
     meta: [
       { charSet: 'utf-8' },
       {
@@ -21,13 +43,8 @@ export const Route = createRootRoute({
         name: 'description',
         content: 'Sledování parcel ČÚZK a notifikace změn',
       },
-    ],
-    links: [
-      { rel: 'stylesheet', href: appCss },
-      {
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap',
-      },
+      { name: 'theme-color', content: '#245A72' },
+      { name: 'apple-mobile-web-app-title', content: 'Hlídač ČÚZK' },
     ],
   }),
   component: RootComponent,
