@@ -1,5 +1,6 @@
 import cron from 'node-cron'
 import { pollDueWatches } from './jobs/poll-parcels'
+import { deliverDueNotifications } from '#/lib/notifications/outbox'
 
 export type Job = {
   schedule: string
@@ -14,6 +15,14 @@ const JOBS: ReadonlyArray<Job> = [
     run: async () => {
       const result = await pollDueWatches()
       console.log('[cron] poll-parcels', result)
+    },
+  },
+  {
+    schedule: '* * * * *',
+    name: 'deliver-notifications',
+    run: async () => {
+      const result = await deliverDueNotifications()
+      console.log('[cron] deliver-notifications', result)
     },
   },
 ]
@@ -33,11 +42,17 @@ export async function startCronWorker(): Promise<void> {
     if (!cron.validate(job.schedule)) {
       throw new Error(`Invalid cron schedule for ${job.name}: ${job.schedule}`)
     }
-    cron.schedule(job.schedule, () => {
-      job.run().catch((err) => {
-        console.error(`[cron] job ${job.name} failed`, err)
-      })
-    })
+    cron.schedule(
+      job.schedule,
+      async () => {
+        try {
+          await job.run()
+        } catch (err) {
+          console.error(`[cron] job ${job.name} failed`, err)
+        }
+      },
+      { noOverlap: true },
+    )
     console.log(`[cron] scheduled ${job.name} (${job.schedule})`)
   }
 }

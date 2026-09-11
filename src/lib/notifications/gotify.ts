@@ -1,3 +1,5 @@
+import { postNotification } from './http'
+
 export type GotifyMessage = {
   title: string
   message: string
@@ -10,7 +12,7 @@ export async function sendGotify(
   msg: GotifyMessage,
 ): Promise<void> {
   const url = new URL('/message', baseUrl.replace(/\/$/, ''))
-  const res = await fetch(url, {
+  await postNotification(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -22,8 +24,4 @@ export async function sendGotify(
       priority: msg.priority ?? 5,
     }),
   })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Gotify ${res.status}: ${body.slice(0, 300)}`)
-  }
 }

@@ -3,11 +3,13 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { requireSession } from '#/auth/session'
 import { pollWatchById } from '#/cron/jobs/poll-parcels'
+import type { PollResult } from '#/cron/jobs/poll-parcels'
 import { db } from '#/db'
 import { parcelWatches, watchEvents } from '#/db/schema'
-import type { ParcelWatch, WatchEvent } from '#/db/schema'
+import type { NotificationDelivery, ParcelWatch, WatchEvent } from '#/db/schema'
 import { resolveIsknId } from '#/lib/cuzk/client'
 import { buildParcelSnapshot } from '#/lib/cuzk/snapshot'
+import { retryNotificationDelivery } from '#/lib/notifications/outbox'
 
 const CreateWatchInput = z.object({
   label: z.string().min(1).max(200),
@@ -16,25 +18,29 @@ const CreateWatchInput = z.object({
   parcelNumber: z.coerce.number().int().positive(),
   parcelSubdivision: z.coerce.number().int().positive().nullable().optional(),
   druhCislovani: z.coerce.number().int().min(1).max(2).default(2),
-  pollIntervalMinutes: z.coerce.number().int().min(5).max(24 * 60).default(60),
+  pollIntervalMinutes: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(24 * 60)
+    .default(60),
 })
 
 const UpdateWatchInput = z.object({
   id: z.string().uuid(),
   label: z.string().min(1).max(200).optional(),
-  pollIntervalMinutes: z.coerce.number().int().min(5).max(24 * 60).optional(),
+  pollIntervalMinutes: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(24 * 60)
+    .optional(),
   enabled: z.boolean().optional(),
 })
 
 const IdInput = z.object({ id: z.string().uuid() })
 
-type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | Json[]
-  | { [key: string]: Json }
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
 
 export type WatchDto = {
   id: string
@@ -55,9 +61,20 @@ export type WatchDto = {
   updatedAt: string
 }
 
+export type NotificationDeliveryDto = {
+  id: string
+  channel: NotificationDelivery['channel']
+  status: NotificationDelivery['status']
+  attemptCount: number
+  nextAttemptAt: string
+  sentAt: string | null
+  lastError: string | null
+}
+
 export type WatchEventDto = {
   id: string
   watchId: string
+  deliveries: NotificationDeliveryDto[]
   kind: string
   payloadJson: Json
   createdAt: string
@@ -88,10 +105,21 @@ function toWatchDto(row: ParcelWatch): WatchDto {
   }
 }
 
-function toEventDto(row: WatchEvent): WatchEventDto {
+function toEventDto(
+  row: WatchEvent & { deliveries: NotificationDelivery[] },
+): WatchEventDto {
   return {
     id: row.id,
     watchId: row.watchId,
+    deliveries: row.deliveries.map((delivery) => ({
+      id: delivery.id,
+      channel: delivery.channel,
+      status: delivery.status,
+      attemptCount: delivery.attemptCount,
+      nextAttemptAt: delivery.nextAttemptAt.toISOString(),
+      sentAt: delivery.sentAt?.toISOString() ?? null,
+      lastError: delivery.lastError,
+    })),
     kind: row.kind,
     payloadJson: asJson(row.payloadJson),
     createdAt: row.createdAt.toISOString(),
@@ -111,22 +139,25 @@ export const listWatches = createServerFn({ method: 'GET' }).handler(
 
 export const getWatch = createServerFn({ method: 'GET' })
   .inputValidator((v) => IdInput.parse(v))
-  .handler(async ({ data }): Promise<{ watch: WatchDto; events: WatchEventDto[] }> => {
-    const session = await requireSession()
-    const watch = await db.query.parcelWatches.findFirst({
-      where: and(
-        eq(parcelWatches.id, data.id),
-        eq(parcelWatches.userId, session.user.id),
-      ),
-    })
-    if (!watch) throw new Error('not_found')
-    const events = await db.query.watchEvents.findMany({
-      where: eq(watchEvents.watchId, watch.id),
-      orderBy: [desc(watchEvents.createdAt)],
-      limit: 50,
-    })
-    return { watch: toWatchDto(watch), events: events.map(toEventDto) }
-  })
+  .handler(
+    async ({ data }): Promise<{ watch: WatchDto; events: WatchEventDto[] }> => {
+      const session = await requireSession()
+      const watch = await db.query.parcelWatches.findFirst({
+        where: and(
+          eq(parcelWatches.id, data.id),
+          eq(parcelWatches.userId, session.user.id),
+        ),
+      })
+      if (!watch) throw new Error('not_found')
+      const events = await db.query.watchEvents.findMany({
+        where: eq(watchEvents.watchId, watch.id),
+        orderBy: [desc(watchEvents.createdAt)],
+        limit: 50,
+        with: { deliveries: true },
+      })
+      return { watch: toWatchDto(watch), events: events.map(toEventDto) }
+    },
+  )
 
 export const createWatch = createServerFn({ method: 'POST' })
   .inputValidator((v) => CreateWatchInput.parse(v))
@@ -141,7 +172,9 @@ export const createWatch = createServerFn({ method: 'POST' })
     })
 
     const now = new Date()
-    let snapshot = null as Awaited<ReturnType<typeof buildParcelSnapshot>> | null
+    let snapshot = null as Awaited<
+      ReturnType<typeof buildParcelSnapshot>
+    > | null
     try {
       snapshot = await buildParcelSnapshot(isknId, now)
     } catch {
@@ -201,7 +234,12 @@ export const refreshWatch = createServerFn({ method: 'POST' })
   .handler(
     async ({
       data,
-    }): Promise<{ watch: WatchDto; notified: boolean; changeCount: number }> => {
+    }): Promise<{
+      watch: WatchDto
+      queued: number
+      changeCount: number
+      pollStatus: PollResult['status']
+    }> => {
       const session = await requireSession()
       const existing = await db.query.parcelWatches.findFirst({
         where: and(
@@ -218,7 +256,8 @@ export const refreshWatch = createServerFn({ method: 'POST' })
       if (!watch) throw new Error('not_found')
       return {
         watch: toWatchDto(watch),
-        notified: result.notified,
+        queued: result.queued,
+        pollStatus: result.status,
         changeCount: result.changes.length,
       }
     },
@@ -237,4 +276,12 @@ export const deleteWatch = createServerFn({ method: 'POST' })
     if (!existing) throw new Error('not_found')
     await db.delete(parcelWatches).where(eq(parcelWatches.id, data.id))
     return { ok: true as const }
+  })
+
+export const retryDelivery = createServerFn({ method: 'POST' })
+  .inputValidator((v) => IdInput.parse(v))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    const session = await requireSession()
+    await retryNotificationDelivery(data.id, session.user.id)
+    return { ok: true }
   })

@@ -1,3 +1,4 @@
+import { postNotification } from './http'
 import { isDiscordWebhookUrl, sendDiscordWebhook } from './discord'
 
 /** Slack incoming webhook payload. */
@@ -23,7 +24,7 @@ export async function sendSlackWebhook(
   const text = payload.text.trim()
   if (!text) throw new Error('Slack: empty message')
 
-  const res = await fetch(webhookUrl, {
+  await postNotification(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -31,8 +32,4 @@ export async function sendSlackWebhook(
       ...(payload.blocks ? { blocks: payload.blocks } : {}),
     }),
   })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Slack webhook ${res.status}: ${body.slice(0, 300)}`)
-  }
 }

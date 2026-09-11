@@ -24,7 +24,7 @@ Compose runs four logical pieces (same image for app / migrate / cron):
 | `db` | PostgreSQL 16 |
 | `migrate` | One-shot Drizzle migrations (+ optional SSO env bootstrap) |
 | `app` | TanStack Start HTTP server on port 3000 |
-| `cron` | Polls watched parcels every 5 minutes |
+| `cron` | Polls watched parcels every 5 minutes; delivers queued notifications every minute |
 
 ```text
 Browser ──HTTPS──▶ reverse proxy (optional) ──▶ app:3000
@@ -256,6 +256,36 @@ Per-user settings in **Notifikace** (`/dashboard/settings`):
 - Discord webhook
 
 Server-level `GOTIFY_*` in `.env` is optional; in-app settings are the primary path.
+
+### Delivery queue and retries
+
+Detected changes, their events and per-channel notification jobs are committed together in PostgreSQL. The worker delivers up to 50 jobs per run, once a minute, independently of parcel polling. Each event produces one message for each channel configured when the change is detected. History shows pending, sending, sent and failed deliveries; **Obnovit stav doručení** reloads these states without requesting new ČÚZK data.
+
+Failed requests time out after 15 seconds and are retried after 1, 2, 4, 8, 16, 32 and 60 minutes (at the next available worker run). After eight unsuccessful attempts, delivery requires **Opakovat doručení** in the event history. This resets the attempt budget and queues the message; it does not send from the browser. Other channels continue even when one fails.
+
+Retries use the owner's **current** channel settings, so fixing a token or webhook also fixes pending messages. Credentials are not copied into the queue. Removing a channel causes its existing jobs to report a configuration error; they are not marked as sent. Pausing a watch stops new parcel checks but does not cancel pending deliveries. Deleting the watch deletes its events and queued jobs.
+
+A claimed job can be recovered two minutes after a worker crash. If a provider accepted a message but the worker crashed before recording success, a retry can deliver a duplicate. “Sent” means the HTTP provider accepted the request, not that a person read it.
+
+The queue is introduced by migration `0003_notification_outbox.sql`. Apply migrations before starting the new app/worker, and recreate the Compose cron container so it uses the long-running scheduler. Existing event history is preserved; old events are not sent retroactively. A custom deployment previously invoking only `poll-parcels` must also schedule `deliver-notifications` every minute or use `pnpm cron`.
+
+Run a single delivery batch:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk \
+  run --rm app pnpm cron --once deliver-notifications
+```
+
+The database backup includes pending deliveries. Restoring an older backup can therefore redeliver messages accepted after that backup was taken; inspect the queue before starting the restored worker.
+
+### Concurrent parcel checks
+
+Migration `0004_parcel_poll_lease.sql` adds a two-minute PostgreSQL lease for each watch. Both scheduled checks and manual refresh must acquire it before calling ČÚZK. A busy manual refresh reports that a check is already running; cron skips the watch and rechecks its enabled state and polling interval when acquiring the lease. Separate watches keep their own state and notification history, even when they refer to the same parcel.
+
+The lease uses database time. The full parcel request, including its procedure details, has a 90-second deadline. Errors release the lease and preserve the previous snapshot; a forcibly stopped process is recoverable once the lease expires, at the next poll or manual refresh. An expired or replaced worker cannot save a snapshot, event, notification job or error over the replacement worker's result. A request that times out while reading a procedure detail is not saved as a successful partial snapshot.
+
+Apply migrations and replace **all** old app and cron processes before resuming checks: older versions do not honor the lease. No new environment variables or additional services are needed. A restored database can contain an unexpired lease; wait for expiry rather than manually clearing a running worker's lock.
+
 
 ---
 

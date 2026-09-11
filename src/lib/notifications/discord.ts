@@ -1,3 +1,4 @@
+import { postNotification } from './http'
 /** Native Discord incoming webhook (`content`, not Slack `text`). */
 export type DiscordWebhookPayload = {
   content: string
@@ -25,7 +26,7 @@ export async function sendDiscordWebhook(
     throw new Error('Discord: empty message')
   }
 
-  const res = await fetch(webhookUrl, {
+  await postNotification(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -34,8 +35,4 @@ export async function sendDiscordWebhook(
       ...(payload.embeds ? { embeds: payload.embeds } : {}),
     }),
   })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Discord webhook ${res.status}: ${body.slice(0, 300)}`)
-  }
 }

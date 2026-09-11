@@ -1,11 +1,5 @@
-import {
-  formatRizeniLabel,
-  getParcelById,
-  getRizeniById
-  
-  
-} from './client'
-import type {Parcela, RizeniDef} from './client';
+import { formatRizeniLabel, getParcelById, getRizeniById } from './client'
+import type { Parcela, RizeniDef } from './client'
 
 export type KodNazev = { kod?: number | string | null; nazev?: string | null }
 
@@ -107,9 +101,7 @@ function lvFromParcel(parcel: Parcela): LvSnapshot | null {
 
 function baseRizeni(r: RizeniDef): RizeniSnapshot {
   const typ =
-    typeof r.typRizeni === 'string'
-      ? r.typRizeni
-      : (r.typRizeni?.kod ?? null)
+    typeof r.typRizeni === 'string' ? r.typRizeni : (r.typRizeni?.kod ?? null)
   return {
     id: String(r.id ?? `${r.poradoveCislo}-${r.rok}`),
     typRizeni: typ,
@@ -128,8 +120,9 @@ function baseRizeni(r: RizeniDef): RizeniSnapshot {
 export async function buildParcelSnapshot(
   isknId: string | number,
   now = new Date(),
+  signal?: AbortSignal,
 ): Promise<ParcelSnapshot> {
-  const response = await getParcelById(isknId)
+  const response = await getParcelById(isknId, signal)
   const parcel = response.data
   if (!parcel) throw new Error('Prázdná odpověď ČÚZK')
 
@@ -143,7 +136,7 @@ export async function buildParcelSnapshot(
       continue
     }
     try {
-      const detailRes = await getRizeniById(item.id)
+      const detailRes = await getRizeniById(item.id, signal)
       const d = detailRes.data
       if (!d) {
         rizeni.push(base)
@@ -152,7 +145,7 @@ export async function buildParcelSnapshot(
       const typ =
         typeof d.typRizeni === 'string'
           ? d.typRizeni
-          : ((d.typRizeni)?.kod ?? base.typRizeni)
+          : (d.typRizeni?.kod ?? base.typRizeni)
       rizeni.push({
         id: String(d.id ?? base.id),
         typRizeni: typ,
@@ -162,8 +155,7 @@ export async function buildParcelSnapshot(
         datumPrijeti:
           typeof d.datumPrijeti === 'string' ? d.datumPrijeti : null,
         stav: typeof d.stav === 'string' ? d.stav : null,
-        stavUhrady:
-          typeof d.stavUhrady === 'string' ? d.stavUhrady : null,
+        stavUhrady: typeof d.stavUhrady === 'string' ? d.stavUhrady : null,
         provedeneOperace: Array.isArray(d.provedeneOperace)
           ? d.provedeneOperace.map((op) => {
               const o = op
@@ -179,6 +171,7 @@ export async function buildParcelSnapshot(
         isVklad: typ === 'V' || typ === 'ZPV',
       })
     } catch {
+      signal?.throwIfAborted()
       rizeni.push(base)
     }
   }

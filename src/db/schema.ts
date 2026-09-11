@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -143,6 +144,8 @@ export const parcelWatches = pgTable(
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     lastSnapshotJson: jsonb('last_snapshot_json'),
     lastError: text('last_error'),
+    pollClaimToken: uuid('poll_claim_token'),
+    pollLockedUntil: timestamp('poll_locked_until', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -171,6 +174,55 @@ export const watchEvents = pgTable(
       .notNull(),
   },
   (table) => [index('watch_events_watchId_idx').on(table.watchId)],
+)
+
+export const notificationDeliveries = pgTable(
+  'notification_deliveries',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => watchEvents.id, { onDelete: 'cascade' }),
+    channel: text('channel', {
+      enum: ['gotify', 'slack', 'discord'],
+    }).notNull(),
+    status: text('status', {
+      enum: ['pending', 'processing', 'sent', 'failed'],
+    })
+      .notNull()
+      .default('pending'),
+    // Persist the message, but resolve credentials from current settings at send time.
+    title: text('title').notNull(),
+    message: text('message').notNull(),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    claimToken: uuid('claim_token'),
+    lastError: text('last_error'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('notification_deliveries_event_channel_idx').on(
+      table.eventId,
+      table.channel,
+    ),
+    index('notification_deliveries_due_idx').on(
+      table.status,
+      table.nextAttemptAt,
+    ),
+    index('notification_deliveries_lease_idx').on(
+      table.status,
+      table.lockedUntil,
+    ),
+  ],
 )
 
 export const userRelations = relations(user, ({ many, one }) => ({
@@ -208,14 +260,26 @@ export const parcelWatchesRelations = relations(
   }),
 )
 
-export const watchEventsRelations = relations(watchEvents, ({ one }) => ({
+export const watchEventsRelations = relations(watchEvents, ({ one, many }) => ({
   watch: one(parcelWatches, {
     fields: [watchEvents.watchId],
     references: [parcelWatches.id],
   }),
+  deliveries: many(notificationDeliveries),
 }))
+
+export const notificationDeliveriesRelations = relations(
+  notificationDeliveries,
+  ({ one }) => ({
+    event: one(watchEvents, {
+      fields: [notificationDeliveries.eventId],
+      references: [watchEvents.id],
+    }),
+  }),
+)
 
 export type ParcelWatch = typeof parcelWatches.$inferSelect
 export type WatchEvent = typeof watchEvents.$inferSelect
+export type NotificationDelivery = typeof notificationDeliveries.$inferSelect
 export type UserNotificationSettings =
   typeof userNotificationSettings.$inferSelect

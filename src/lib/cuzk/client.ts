@@ -83,7 +83,11 @@ function apiKey() {
   return key
 }
 
-async function cuzkFetch<T>(path: string, query?: Record<string, string>): Promise<T> {
+async function cuzkFetch<T>(
+  path: string,
+  query?: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<T> {
   const url = new URL(path, apiBase())
   if (query) {
     for (const [k, v] of Object.entries(query)) {
@@ -91,6 +95,7 @@ async function cuzkFetch<T>(path: string, query?: Record<string, string>): Promi
     }
   }
   const res = await fetch(url, {
+    signal,
     headers: {
       ApiKey: apiKey(),
       Accept: 'application/json',
@@ -130,14 +135,16 @@ export async function searchParcel(
 
 export async function getParcelById(
   id: number | string,
+  signal?: AbortSignal,
 ): Promise<CuzkItemResponse<Parcela>> {
-  return cuzkFetch(`/api/v1/Parcely/${id}`)
+  return cuzkFetch(`/api/v1/Parcely/${id}`, undefined, signal)
 }
 
 export async function getRizeniById(
   id: number | string,
+  signal?: AbortSignal,
 ): Promise<CuzkItemResponse<RizeniDef>> {
-  return cuzkFetch(`/api/v1/Rizeni/${id}`)
+  return cuzkFetch(`/api/v1/Rizeni/${id}`, undefined, signal)
 }
 
 let kuCache: KatastralniUzemi[] | null = null
@@ -174,7 +181,10 @@ export async function resolveIsknId(
   const result = await searchParcel(params)
   const rows = result.data ?? []
   if (rows.length === 0) {
-    const msg = result.zpravy?.map((z) => z.text).filter(Boolean).join('; ')
+    const msg = result.zpravy
+      ?.map((z) => z.text)
+      .filter(Boolean)
+      .join('; ')
     throw new Error(msg || 'Parcela nenalezena')
   }
   if (rows.length > 1) {
@@ -193,9 +203,7 @@ export function snapshotRizeniPlomby(parcel: Parcela): RizeniDef[] {
 
 export function rizeniFingerprint(items: RizeniDef[]): string {
   const ids = items
-    .map((r) =>
-      String(r.id ?? `${r.poradoveCislo ?? '?'}-${r.rok ?? '?'}`),
-    )
+    .map((r) => String(r.id ?? `${r.poradoveCislo ?? '?'}-${r.rok ?? '?'}`))
     .sort()
   return JSON.stringify(ids)
 }

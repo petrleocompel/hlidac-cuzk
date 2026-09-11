@@ -76,7 +76,7 @@ services:
       context: ..
       dockerfile: Dockerfile
     restart: unless-stopped
-    entrypoint: ["sh", "-c", "while true; do pnpm cron --once poll-parcels; sleep 300; done"]
+    command: ["pnpm", "cron"]
     env_file:
       - .env
     environment:

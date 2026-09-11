@@ -49,10 +49,30 @@ Open http://127.0.0.1:3000
 | `pnpm typecheck` | TypeScript |
 | `pnpm lint` | ESLint |
 | `pnpm test` | Vitest |
+| `pnpm test:integration` | PostgreSQL integration tests (disposable `TEST_DATABASE_URL`) |
 | `pnpm cron --once poll-parcels` | One poll cycle |
+| `pnpm cron --once deliver-notifications` | Deliver one batch of pending notifications |
 | `pnpm db:generate` | Drizzle migration from schema |
 | `pnpm db:migrate` | Apply migrations |
 | `pnpm db:seed-admin` | Bootstrap admin |
+
+Notifications are stored durably in PostgreSQL with each detected event and delivered by the worker independently of parcel checks. Per-channel delivery status and manual retries are available in watch history. See [delivery behavior and deployment](docs/self-hosting.md#delivery-queue-and-retries).
+
+### Integration tests
+
+Use a disposable PostgreSQL database whose name starts with `hlidac_test_`; the test suite applies migrations and deletes its test data. It uses a local HTTP fixture for ČÚZK and notification providers, including a separate worker process to verify recovery. No real API key or notification destination is needed.
+
+```bash
+docker run --rm -d --name hlidac-integration-db \
+  -e POSTGRES_PASSWORD=integration-test-only -e POSTGRES_DB=hlidac_test_local \
+  -p 127.0.0.1:55432:5432 postgres:16-alpine
+# Wait until this command reports that PostgreSQL accepts connections:
+docker exec hlidac-integration-db pg_isready -U postgres
+TEST_DATABASE_URL=postgres://postgres:integration-test-only@127.0.0.1:55432/hlidac_test_local pnpm test:integration
+docker stop hlidac-integration-db
+```
+
+GitHub and GitLab CI run this suite using a dedicated PostgreSQL service.
 
 ## CI & container image
 

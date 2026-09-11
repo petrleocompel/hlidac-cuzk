@@ -32,10 +32,7 @@ function WatchDetailPage() {
   const snapshot = parseSnapshot(watch.lastSnapshotJson)
 
   return (
-    <DashboardShell
-      user={session.user}
-      isAdmin={session.user.role === 'admin'}
-    >
+    <DashboardShell user={session.user} isAdmin={session.user.role === 'admin'}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -55,15 +52,17 @@ function WatchDetailPage() {
               try {
                 const result = await refreshWatch({ data: { id: watch.id } })
                 setFlash(
-                  result.changeCount > 0
-                    ? `Načteno — ${result.changeCount} změna/y`
-                    : 'Načteno — bez změn',
+                  result.pollStatus === 'busy'
+                    ? 'Kontrola této parcely už probíhá. Za chvíli obnovte stav.'
+                    : result.pollStatus === 'superseded'
+                      ? 'Výsledek této kontroly už není aktuální. Obnovte stav parcely.'
+                      : result.changeCount > 0
+                        ? `Zachyceno změn: ${result.changeCount}. Upozornění ve frontě: ${result.queued}.`
+                        : 'Načteno — bez změn',
                 )
                 await router.invalidate()
               } catch (err) {
-                setFlash(
-                  err instanceof Error ? err.message : 'Načtení selhalo',
-                )
+                setFlash(err instanceof Error ? err.message : 'Načtení selhalo')
               } finally {
                 setRefreshing(false)
               }
@@ -99,7 +98,9 @@ function WatchDetailPage() {
       </div>
 
       {flash ? (
-        <p className="mb-4 text-sm text-muted-foreground">{flash}</p>
+        <p role="status" className="mb-4 text-sm text-muted-foreground">
+          {flash}
+        </p>
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">

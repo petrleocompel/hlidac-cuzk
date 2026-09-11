@@ -1,3 +1,8 @@
+import { useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
+import { Button } from '#/components/ui/button'
+import { retryDelivery } from '#/server/watches'
+import type { NotificationDeliveryDto } from '#/server/watches'
 import { Badge } from '#/components/ui/badge'
 import {
   Card,
@@ -14,6 +19,7 @@ export type WatchEventView = {
   kind: string
   createdAt: string
   payloadJson: unknown
+  deliveries: NotificationDeliveryDto[]
 }
 
 const KIND_LABELS: Record<string, string> = {
@@ -42,7 +48,7 @@ function EventBody({ event }: { event: WatchEventView }) {
       event.payloadJson &&
       typeof event.payloadJson === 'object' &&
       'message' in event.payloadJson
-        ? String((event.payloadJson).message)
+        ? String(event.payloadJson.message)
         : JSON.stringify(event.payloadJson)
     return <p className="text-sm text-destructive">{msg}</p>
   }
@@ -105,12 +111,77 @@ function EventBody({ event }: { event: WatchEventView }) {
     )
   }
 
+  return <p className="text-sm">Změněná pole: {change.fields.join(', ')}</p>
+}
+
+const CHANNEL_LABELS = { gotify: 'Gotify', slack: 'Slack', discord: 'Discord' }
+const DELIVERY_LABELS = {
+  pending: 'Čeká na doručení',
+  processing: 'Odesílá se',
+  sent: 'Odesláno',
+  failed: 'Doručení selhalo',
+}
+
+function DeliveryStatus({ delivery }: { delivery: NotificationDeliveryDto }) {
+  const router = useRouter()
+  const [pending, setPending] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const channel = CHANNEL_LABELS[delivery.channel]
+  const canRetry =
+    delivery.status === 'failed' ||
+    (delivery.status === 'pending' && delivery.lastError)
   return (
-    <p className="text-sm">Změněná pole: {change.fields.join(', ')}</p>
+    <li className="space-y-1 text-xs">
+      <p>
+        {channel}: {DELIVERY_LABELS[delivery.status]} · pokusy:{' '}
+        {delivery.attemptCount}
+      </p>
+      {delivery.sentAt ? (
+        <p>Odesláno {new Date(delivery.sentAt).toLocaleString('cs')}</p>
+      ) : null}
+      {delivery.status === 'pending' ? (
+        <p>
+          Další pokus nejdříve{' '}
+          {new Date(delivery.nextAttemptAt).toLocaleString('cs')}
+        </p>
+      ) : null}
+      {delivery.lastError ? (
+        <p className="text-destructive">{delivery.lastError}</p>
+      ) : null}
+      {canRetry ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={async () => {
+            setPending(true)
+            setFeedback(null)
+            try {
+              await retryDelivery({ data: { id: delivery.id } })
+              setFeedback('Zařazeno k dalšímu pokusu o doručení.')
+              await router.invalidate()
+            } catch {
+              setFeedback(
+                'Opakování se nepodařilo. Obnovte stav a zkuste to znovu.',
+              )
+            } finally {
+              setPending(false)
+            }
+          }}
+        >
+          {pending ? 'Zařazuji…' : `Opakovat doručení přes ${channel}`}
+        </Button>
+      ) : null}
+      <p role="status">{feedback}</p>
+    </li>
   )
 }
 
 export function WatchEventsPanel({ events }: { events: WatchEventView[] }) {
+  const router = useRouter()
+  const [refreshing, setRefreshing] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
   return (
     <Card>
       <CardHeader>
@@ -118,12 +189,32 @@ export function WatchEventsPanel({ events }: { events: WatchEventView[] }) {
         <CardDescription>
           Detekované rozdíly mezi kontrolami (plomby, LV, atributy)
         </CardDescription>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={refreshing}
+          onClick={async () => {
+            setRefreshing(true)
+            try {
+              await router.invalidate()
+              setFeedback('Stav doručení byl obnoven.')
+            } catch {
+              setFeedback('Stav se nepodařilo obnovit.')
+            } finally {
+              setRefreshing(false)
+            }
+          }}
+        >
+          {refreshing ? 'Obnovuji…' : 'Obnovit stav doručení'}
+        </Button>
+        <p role="status" className="text-xs">
+          {feedback}
+        </p>
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Zatím žádné události.
-          </p>
+          <p className="text-sm text-muted-foreground">Zatím žádné události.</p>
         ) : (
           <ul className="space-y-3">
             {events.map((ev) => (
@@ -145,6 +236,28 @@ export function WatchEventsPanel({ events }: { events: WatchEventView[] }) {
                   </span>
                 </div>
                 <EventBody event={ev} />
+                {ev.kind !== 'error' ? (
+                  <div className="mt-3 border-t pt-3">
+                    {ev.deliveries.length ? (
+                      <ul
+                        className="space-y-3"
+                        aria-label="Doručení upozornění"
+                      >
+                        {ev.deliveries.map((delivery) => (
+                          <DeliveryStatus
+                            key={delivery.id}
+                            delivery={delivery}
+                          />
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Změna zachycena. Doručení není evidováno (starší událost
+                        nebo žádný nastavený kanál).
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
