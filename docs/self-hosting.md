@@ -429,6 +429,10 @@ App: http://127.0.0.1:3000
 
 ---
 
+## Docker build context
+
+The repository `.dockerignore` excludes local `.env` variants (including nested deploy files), private key files, dependency trees, generated output, logs and backup exports before they are sent to Docker. Public `.env.example` templates and Drizzle SQL migrations remain available to the build. Keep private material under the excluded paths; do not place secrets in arbitrary source files or Docker build arguments. Builds use package manifests and produce fresh application output inside the builder stage.
+
 ## Container image (GHCR)
 
 GitHub Actions builds and publishes on pushes to `main` and on version tags:

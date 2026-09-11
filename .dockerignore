@@ -1,0 +1,47 @@
+# Repository metadata and local tooling
+.git
+**/.git
+**/.DS_Store
+**/.idea
+**/.vscode
+**/.codex
+**/.agents
+
+# Secrets: allow only the deliberately public configuration templates
+**/.env
+**/.env.*
+!**/.env.example
+**/*.local
+**/secrets
+**/.ssh
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+
+# Dependency trees, package caches and generated outputs
+**/node_modules
+**/.pnpm-store
+**/coverage
+.output
+.nitro
+.tanstack
+.vinxi
+.wrangler
+dist
+dist-ssr
+
+# Local backups, database exports and runtime files (keep drizzle/*.sql)
+**/backup
+**/backups
+**/*.dump
+**/*.backup
+**/*.bak
+**/*backup*.sql
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/*.log
+**/*.tar
+**/*.tar.gz
+**/*.tgz
