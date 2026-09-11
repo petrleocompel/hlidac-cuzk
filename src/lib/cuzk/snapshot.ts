@@ -1,5 +1,8 @@
+import { CuzkHttpError, CuzkUnavailableError } from './policy'
 import { formatRizeniLabel, getParcelById, getRizeniById } from './client'
-import type { Parcela, RizeniDef } from './client'
+import type { CuzkItemResponse, Parcela, RizeniDef } from './client'
+
+export type RizeniCache = Map<string, Promise<CuzkItemResponse<RizeniDef>>>
 
 export type KodNazev = { kod?: number | string | null; nazev?: string | null }
 
@@ -121,6 +124,7 @@ export async function buildParcelSnapshot(
   isknId: string | number,
   now = new Date(),
   signal?: AbortSignal,
+  rizeniCache: RizeniCache = new Map(),
 ): Promise<ParcelSnapshot> {
   const response = await getParcelById(isknId, signal)
   const parcel = response.data
@@ -136,7 +140,13 @@ export async function buildParcelSnapshot(
       continue
     }
     try {
-      const detailRes = await getRizeniById(item.id, signal)
+      const cacheKey = String(item.id)
+      let detail = rizeniCache.get(cacheKey)
+      if (!detail) {
+        detail = getRizeniById(item.id, signal)
+        rizeniCache.set(cacheKey, detail)
+      }
+      const detailRes = await detail
       const d = detailRes.data
       if (!d) {
         rizeni.push(base)
@@ -170,7 +180,13 @@ export async function buildParcelSnapshot(
           : [],
         isVklad: typ === 'V' || typ === 'ZPV',
       })
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof CuzkUnavailableError ||
+        (error instanceof CuzkHttpError &&
+          [401, 403, 429].includes(error.status))
+      )
+        throw error
       signal?.throwIfAborted()
       rizeni.push(base)
     }

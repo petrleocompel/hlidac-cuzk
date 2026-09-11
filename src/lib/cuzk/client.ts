@@ -70,42 +70,14 @@ export type SearchParcelParams = {
   puvodParcelyZE?: string
 }
 
-function apiBase() {
-  return (
-    process.env.CUZK_API_BASE_URL?.replace(/\/$/, '') ??
-    'https://api-kn.cuzk.gov.cz'
-  )
-}
-
-function apiKey() {
-  const key = process.env.CUZK_API_KEY
-  if (!key) throw new Error('CUZK_API_KEY is required')
-  return key
-}
-
 async function cuzkFetch<T>(
   path: string,
   query?: Record<string, string>,
   signal?: AbortSignal,
 ): Promise<T> {
-  const url = new URL(path, apiBase())
-  if (query) {
-    for (const [k, v] of Object.entries(query)) {
-      url.searchParams.set(k, v)
-    }
-  }
-  const res = await fetch(url, {
-    signal,
-    headers: {
-      ApiKey: apiKey(),
-      Accept: 'application/json',
-    },
-  })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`CUZK ${res.status} ${path}: ${body.slice(0, 500)}`)
-  }
-  return (await res.json()) as T
+  // Keep DB/network code out of imports of the pure formatting helpers.
+  const { requestCuzk } = await import('./http')
+  return requestCuzk<T>(path, query, signal)
 }
 
 /**

@@ -140,6 +140,7 @@ beforeEach(async () => {
     .values({
       userId: 'lease-owner',
       label: 'Lease test',
+      pollIntervalMinutes: 60,
       kuCode: '777552',
       kuName: 'Test',
       parcelNumber: 1,

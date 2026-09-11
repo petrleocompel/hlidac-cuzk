@@ -14,7 +14,9 @@ import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminCuzkRouteImport } from './routes/admin/cuzk'
 import { Route as AdminSsoRouteImport } from './routes/admin/sso'
+import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard/account'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
@@ -49,9 +51,19 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCuzkRoute = AdminCuzkRouteImport.update({
+  id: '/admin/cuzk',
+  path: '/admin/cuzk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSsoRoute = AdminSsoRouteImport.update({
   id: '/admin/sso',
   path: '/admin/sso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMetricsRoute = ApiMetricsRouteImport.update({
+  id: '/api/metrics',
+  path: '/api/metrics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -100,7 +112,9 @@ export interface FileRoutesByFullPath {
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/sso': typeof AdminSsoRoute
+  '/api/metrics': typeof ApiMetricsRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -116,7 +130,9 @@ export interface FileRoutesByTo {
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/sso': typeof AdminSsoRoute
+  '/api/metrics': typeof ApiMetricsRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin': typeof AdminIndexRoute
@@ -133,7 +149,9 @@ export interface FileRoutesById {
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/sso': typeof AdminSsoRoute
+  '/api/metrics': typeof ApiMetricsRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -151,7 +169,9 @@ export interface FileRouteTypes {
     | '/healthz'
     | '/login'
     | '/signup'
+    | '/admin/cuzk'
     | '/admin/sso'
+    | '/api/metrics'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin/'
@@ -167,7 +187,9 @@ export interface FileRouteTypes {
     | '/healthz'
     | '/login'
     | '/signup'
+    | '/admin/cuzk'
     | '/admin/sso'
+    | '/api/metrics'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin'
@@ -183,7 +205,9 @@ export interface FileRouteTypes {
     | '/healthz'
     | '/login'
     | '/signup'
+    | '/admin/cuzk'
     | '/admin/sso'
+    | '/api/metrics'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin/'
@@ -200,7 +224,9 @@ export interface RootRouteChildren {
   HealthzRoute: typeof HealthzRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  AdminCuzkRoute: typeof AdminCuzkRoute
   AdminSsoRoute: typeof AdminSsoRoute
+  ApiMetricsRoute: typeof ApiMetricsRoute
   DashboardAccountRoute: typeof DashboardAccountRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -249,11 +275,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/cuzk': {
+      id: '/admin/cuzk'
+      path: '/admin/cuzk'
+      fullPath: '/admin/cuzk'
+      preLoaderRoute: typeof AdminCuzkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/sso': {
       id: '/admin/sso'
       path: '/admin/sso'
       fullPath: '/admin/sso'
       preLoaderRoute: typeof AdminSsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/metrics': {
+      id: '/api/metrics'
+      path: '/api/metrics'
+      fullPath: '/api/metrics'
+      preLoaderRoute: typeof ApiMetricsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -320,7 +360,9 @@ const rootRouteChildren: RootRouteChildren = {
   HealthzRoute: HealthzRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  AdminCuzkRoute: AdminCuzkRoute,
   AdminSsoRoute: AdminSsoRoute,
+  ApiMetricsRoute: ApiMetricsRoute,
   DashboardAccountRoute: DashboardAccountRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -334,3 +376,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

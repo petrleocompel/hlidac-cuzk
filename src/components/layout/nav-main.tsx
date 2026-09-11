@@ -1,5 +1,6 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import {
+  Activity,
   Bell,
   ChevronRight,
   KeyRound,
@@ -146,6 +147,17 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
                     <Link to="/admin/sso">
                       <KeyRound />
                       <span>SSO</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={pathname.startsWith('/admin/cuzk')}
+                  >
+                    <Link to="/admin/cuzk">
+                      <Activity />
+                      <span>ČÚZK API</span>
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>

@@ -21,6 +21,7 @@ export default defineConfig({
     env: {
       DATABASE_URL: databaseUrl,
       CUZK_API_KEY: 'integration-test-only',
+      CUZK_MIN_REQUEST_INTERVAL_MS: '0',
       SSO_BOOTSTRAP_ENABLED: 'false',
     },
   },

@@ -1,6 +1,11 @@
 import { and, eq } from 'drizzle-orm'
 import { db } from './index'
 import { parcelWatches } from './schema'
+import { DEFAULT_POLL_MINUTES } from '#/lib/cuzk/policy'
+import {
+  assertWatchCapacity,
+  insertWatchWithinLimit,
+} from '#/lib/cuzk/watch-limits'
 import { resolveIsknId } from '#/lib/cuzk/client'
 
 /** Demo watch used for smoke-testing against live ČÚZK. */
@@ -11,7 +16,7 @@ export const DEMO_WATCH = {
   parcelNumber: 1133,
   parcelSubdivision: 77,
   druhCislovani: 2 as const,
-  pollIntervalMinutes: 60,
+  pollIntervalMinutes: DEFAULT_POLL_MINUTES,
 }
 
 export async function seedDemoWatch(userId: string): Promise<{
@@ -35,6 +40,7 @@ export async function seedDemoWatch(userId: string): Promise<{
     }
   }
 
+  await assertWatchCapacity(userId)
   const { isknId } = await resolveIsknId({
     kodKatastralnihoUzemi: DEMO_WATCH.kuCode,
     typParcely: 'PKN',
@@ -43,20 +49,17 @@ export async function seedDemoWatch(userId: string): Promise<{
     poddeleniCislaParcely: DEMO_WATCH.parcelSubdivision,
   })
 
-  const [row] = await db
-    .insert(parcelWatches)
-    .values({
-      userId,
-      label: DEMO_WATCH.label,
-      kuCode: DEMO_WATCH.kuCode,
-      kuName: DEMO_WATCH.kuName,
-      parcelNumber: DEMO_WATCH.parcelNumber,
-      parcelSubdivision: DEMO_WATCH.parcelSubdivision,
-      druhCislovani: DEMO_WATCH.druhCislovani,
-      isknId,
-      pollIntervalMinutes: DEMO_WATCH.pollIntervalMinutes,
-    })
-    .returning()
+  const row = await insertWatchWithinLimit({
+    userId,
+    label: DEMO_WATCH.label,
+    kuCode: DEMO_WATCH.kuCode,
+    kuName: DEMO_WATCH.kuName,
+    parcelNumber: DEMO_WATCH.parcelNumber,
+    parcelSubdivision: DEMO_WATCH.parcelSubdivision,
+    druhCislovani: DEMO_WATCH.druhCislovani,
+    isknId,
+    pollIntervalMinutes: DEMO_WATCH.pollIntervalMinutes,
+  })
 
   return { status: 'created', watchId: row.id, isknId }
 }

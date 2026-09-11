@@ -24,7 +24,7 @@ Compose runs four logical pieces (same image for app / migrate / cron):
 | `db` | PostgreSQL 16 |
 | `migrate` | One-shot Drizzle migrations (+ optional SSO env bootstrap) |
 | `app` | TanStack Start HTTP server on port 3000 |
-| `cron` | Polls watched parcels every 5 minutes; delivers queued notifications every minute |
+| `cron` | Polls watched parcels every 5 minutes; delivers queued notifications every minute; checks the ČÚZK account every 6 hours |
 
 ```text
 Browser ──HTTPS──▶ reverse proxy (optional) ──▶ app:3000
@@ -141,6 +141,10 @@ Health check: `GET /healthz`
 | `APP_HOST` | yes* | Hostname used when `PUBLIC_URL` is omitted |
 | `CUZK_API_KEY` | yes | ČÚZK API key |
 | `CUZK_API_BASE_URL` | no | Default `https://api-kn.cuzk.gov.cz` |
+| `CUZK_REQUEST_TIMEOUT_MS` | no | Per-attempt deadline, default `15000`, range 10–30000 ms |
+| `CUZK_MIN_REQUEST_INTERVAL_MS` | no | Shared minimum spacing between request reservations, default `1000`, range 0–10000 ms |
+| `MAX_WATCHES_PER_USER` | no | Maximum watches per user, including paused watches; default `100`, range 1–1000 |
+| `METRICS_BEARER_TOKEN` | no | Random token of at least 32 characters for `/api/metrics`; empty/short token disables the endpoint |
 | `POSTGRES_USER` / `PASSWORD` / `DB` | yes (bundled DB) | Postgres bootstrap |
 | `ADMIN_EMAIL` | no | Used by `pnpm db:seed-admin` |
 | `ADMIN_PASSWORD` | no | Min 12 chars for seed |
@@ -286,6 +290,48 @@ The lease uses database time. The full parcel request, including its procedure d
 
 Apply migrations and replace **all** old app and cron processes before resuming checks: older versions do not honor the lease. No new environment variables or additional services are needed. A restored database can contain an unexpired lease; wait for expiry rather than manually clearing a running worker's lock.
 
+
+---
+
+## ČÚZK API budget and metrics
+
+**Admin → ČÚZK API** (`/admin/cuzk`) shows today's reserved attempts, remaining budget, success/error/retry counts, average response time, pending attempts, a 30-day history and today's endpoint breakdown. It also estimates the minimum daily scheduled parcel calls; procedure details, searches, retries and diagnostics add to this estimate. Opening or refreshing this dashboard reads PostgreSQL only.
+
+This installation enforces the owner's supplied limit of **500 attempts per calendar day in `Europe/Prague`**, resetting at local midnight (including daylight-saving changes). This is a local operational budget, not a claim that all ČÚZK customers have the same quota or reset period. Every HTTP attempt reserves one slot atomically in PostgreSQL before sending. Web requests, cron, CLI scripts, searches, procedure details, retries and account diagnostics share the same counter. All processes must use the same database, API key and configuration. A database failure prevents new requests.
+
+Failed and interrupted attempts remain counted. A worker crash between reservation and sending/completion can leave a `pending` record; its cost is deliberately not refunded. Restarting a process or rotating the API key does not reset today's budget. Counters start when this version is installed and cannot reconstruct prior calls or calls made by other installations. Restoring an older database backup also restores older counters; keep API callers stopped until the next local day if that could undercount today's usage. Records contain normalized endpoint names (numeric IDs replaced with `:id`), timestamps, durations, status and attempt number, not API keys, query strings or response bodies. Request history is currently retained without automatic deletion (at most 500 rows/day, about 183,000/year); the dashboard reads the last 30 days.
+
+Each request has at most three attempts, a configurable per-attempt timeout and an overall 60-second deadline. The existing 90-second parcel deadline includes all details. Transient network errors and HTTP 408/429/500/502/503/504 use bounded retries and exponential delay with jitter. `Retry-After` is respected; waits longer than five seconds are persisted as a shared pause for subsequent callers instead of keeping a worker asleep. HTTP 401/403 pauses calls for 15 minutes without immediate retries; other client errors are not retried. Global pauses/exhaustion stop the current polling batch; remaining watches can be considered on a later cycle. A quota error while loading details preserves the previous snapshot.
+
+New watches (including the demo seed) default to **once a day** to leave room in the budget. Existing intervals are preserved. This is a budget choice, not a promised ČÚZK data-refresh frequency. A manual parcel refresh is limited to once every five minutes per watch, including unsuccessful checks. Watch creation enforces the per-user cap under a database lock. A proceeding shared by several watches is fetched once per polling batch. If the dashboard's minimum scheduled demand is close to 500, lengthen intervals or pause watches to leave room for details and other operations.
+
+### Provider account diagnostics
+
+The worker calls `/api/v1/AplikacniSluzby/StavUctu` every six hours. Admins can explicitly request a refresh; a shared 15-minute cooldown applies to both successful and unsuccessful diagnostics. Diagnostics and any retries consume the same daily budget and obey pauses. If using custom one-shot scheduling, also run `pnpm cron --once refresh-cuzk-account` every six hours.
+
+The direct response contains `provedenoVolani`, `limitVolani`, `aktualniObdobi` and `expiraceApiKey` ([official OpenAPI](https://api-kn.cuzk.gov.cz/swagger/v1.0/swagger.json)). The UI shows this saved provider report separately from the local daily counter, with its check time and expiry warning seven days before expiry. The period string is displayed as provided; its reset semantics are not assumed. When a report was obtained today, the gate also checks the reported remaining quota minus subsequent local reservations. An expired known key blocks calls until rotation. Remote usage outside this installation is only visible as of the last diagnostic, so use a dedicated account/key if you need reliable accounting across all consumers.
+
+### Prometheus export
+
+Set `METRICS_BEARER_TOKEN` to a random value of at least 32 characters and restart the app. `GET /api/metrics` requires `Authorization: Bearer <token>`; an absent/invalid token returns 401, and an unconfigured/short configured token returns 404. Responses use `Cache-Control: no-store`. The endpoint reads saved data without calling ČÚZK.
+
+Example scrape configuration (put the same token in a protected file accessible to Prometheus):
+
+```yaml
+scrape_configs:
+  - job_name: hlidac-cuzk
+    scheme: https
+    metrics_path: /api/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/hlidac-token
+    static_configs:
+      - targets: ['hlidac.example.com']
+```
+
+Metrics include `hlidac_cuzk_daily_reserved`, `daily_remaining`, `daily_errors`, `daily_success`, `daily_pending`, `daily_retries`, `daily_average_duration_ms`, `minimum_daily_calls` and saved account usage/limit/expiry (all share the `hlidac_cuzk_` prefix). Daily metrics are **gauges**, not monotonic counters: they reset at Prague midnight. For an initial budget alert use `hlidac_cuzk_daily_remaining <= 100`; account freshness is available as `hlidac_cuzk_account_last_checked_timestamp_seconds` (zero means unknown). Provider metrics are omitted before the first successful diagnostic.
+
+Migration `0005_cuzk_api_budget.sql` adds the accounting tables and manual cooldown. Apply it and replace **all** old app, cron and CLI processes before resuming requests; older versions bypass the new gate. This feature adds no required infrastructure beyond PostgreSQL.
 
 ---
 

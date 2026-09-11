@@ -9,6 +9,11 @@ import { parcelWatches, watchEvents } from '#/db/schema'
 import type { NotificationDelivery, ParcelWatch, WatchEvent } from '#/db/schema'
 import { resolveIsknId } from '#/lib/cuzk/client'
 import { buildParcelSnapshot } from '#/lib/cuzk/snapshot'
+import {
+  assertWatchCapacity,
+  insertWatchWithinLimit,
+} from '#/lib/cuzk/watch-limits'
+import { DEFAULT_POLL_MINUTES } from '#/lib/cuzk/policy'
 import { retryNotificationDelivery } from '#/lib/notifications/outbox'
 
 const CreateWatchInput = z.object({
@@ -23,7 +28,7 @@ const CreateWatchInput = z.object({
     .int()
     .min(5)
     .max(24 * 60)
-    .default(60),
+    .default(DEFAULT_POLL_MINUTES),
 })
 
 const UpdateWatchInput = z.object({
@@ -163,6 +168,7 @@ export const createWatch = createServerFn({ method: 'POST' })
   .inputValidator((v) => CreateWatchInput.parse(v))
   .handler(async ({ data }): Promise<WatchDto> => {
     const session = await requireSession()
+    await assertWatchCapacity(session.user.id)
     const { isknId } = await resolveIsknId({
       kodKatastralnihoUzemi: data.kuCode,
       typParcely: 'PKN',
@@ -181,22 +187,19 @@ export const createWatch = createServerFn({ method: 'POST' })
       // Watch can still be created; first cron/refresh will fill snapshot.
     }
 
-    const [row] = await db
-      .insert(parcelWatches)
-      .values({
-        userId: session.user.id,
-        label: data.label,
-        kuCode: data.kuCode,
-        kuName: data.kuName,
-        parcelNumber: data.parcelNumber,
-        parcelSubdivision: data.parcelSubdivision ?? null,
-        druhCislovani: data.druhCislovani,
-        isknId,
-        pollIntervalMinutes: data.pollIntervalMinutes,
-        lastCheckedAt: snapshot ? now : null,
-        lastSnapshotJson: snapshot,
-      })
-      .returning()
+    const row = await insertWatchWithinLimit({
+      userId: session.user.id,
+      label: data.label,
+      kuCode: data.kuCode,
+      kuName: data.kuName,
+      parcelNumber: data.parcelNumber,
+      parcelSubdivision: data.parcelSubdivision ?? null,
+      druhCislovani: data.druhCislovani,
+      isknId,
+      pollIntervalMinutes: data.pollIntervalMinutes,
+      lastCheckedAt: snapshot ? now : null,
+      lastSnapshotJson: snapshot,
+    })
 
     return toWatchDto(row)
   })
@@ -249,7 +252,9 @@ export const refreshWatch = createServerFn({ method: 'POST' })
       })
       if (!existing) throw new Error('not_found')
 
-      const result = await pollWatchById(existing.id)
+      const result = await pollWatchById(existing.id, new Date(), {
+        manual: true,
+      })
       const watch = await db.query.parcelWatches.findFirst({
         where: eq(parcelWatches.id, existing.id),
       })

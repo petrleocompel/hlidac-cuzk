@@ -82,10 +82,7 @@ function NewWatchPage() {
   }
 
   return (
-    <DashboardShell
-      user={session.user}
-      isAdmin={session.user.role === 'admin'}
-    >
+    <DashboardShell user={session.user} isAdmin={session.user.role === 'admin'}>
       <Card className="mx-auto max-w-xl">
         <CardHeader>
           <CardTitle>Nová sledovaná parcela</CardTitle>
@@ -200,10 +197,14 @@ function NewWatchPage() {
                 id="pollIntervalMinutes"
                 name="pollIntervalMinutes"
                 type="number"
-                defaultValue={60}
+                defaultValue={1440}
                 min={5}
                 max={1440}
               />
+              <p className="text-xs text-muted-foreground">
+                Výchozí denní kontrola šetří společný rozpočet 500 volání ČÚZK
+                denně. Detaily řízení a ruční kontroly spotřebují další volání.
+              </p>
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button type="submit" disabled={pending}>

@@ -6,18 +6,21 @@ import {
   diffSnapshots,
   parseSnapshot,
 } from '#/lib/cuzk/snapshot'
-import type { SnapshotChange } from '#/lib/cuzk/snapshot'
+import type { RizeniCache, SnapshotChange } from '#/lib/cuzk/snapshot'
+import { CuzkUnavailableError, MANUAL_REFRESH_SECONDS } from '#/lib/cuzk/policy'
 import { enqueueNotifications } from '#/lib/notifications/outbox'
 
 export type PollResult = {
-  status: 'checked' | 'busy' | 'not_due' | 'superseded'
+  status: 'checked' | 'busy' | 'not_due' | 'superseded' | 'cooldown'
   queued: number
   changes: SnapshotChange[]
 }
 
 const POLL_TIMEOUT_MS = 90_000
 
-function skipped(status: 'busy' | 'not_due' | 'superseded'): PollResult {
+function skipped(
+  status: 'busy' | 'not_due' | 'superseded' | 'cooldown',
+): PollResult {
   return { status, queued: 0, changes: [] }
 }
 
@@ -25,7 +28,11 @@ function skipped(status: 'busy' | 'not_due' | 'superseded'): PollResult {
 export async function pollWatchById(
   watchId: string,
   now = new Date(),
-  options: { onlyIfDue?: boolean } = {},
+  options: {
+    onlyIfDue?: boolean
+    manual?: boolean
+    rizeniCache?: RizeniCache
+  } = {},
 ): Promise<PollResult> {
   const token = crypto.randomUUID()
   const due = and(
@@ -40,6 +47,11 @@ export async function pollWatchById(
   const claimed = await db
     .update(parcelWatches)
     .set({
+      ...(options.manual
+        ? {
+            manualRefreshAfter: sql`clock_timestamp() + ${MANUAL_REFRESH_SECONDS} * interval '1 second'`,
+          }
+        : {}),
       pollClaimToken: token,
       pollLockedUntil: sql`clock_timestamp() + interval '2 minutes'`,
     })
@@ -51,6 +63,12 @@ export async function pollWatchById(
           lte(parcelWatches.pollLockedUntil, sql`clock_timestamp()`),
         ),
         options.onlyIfDue ? due : undefined,
+        options.manual
+          ? or(
+              isNull(parcelWatches.manualRefreshAfter),
+              lte(parcelWatches.manualRefreshAfter, sql`clock_timestamp()`),
+            )
+          : undefined,
       ),
     )
     .returning()
@@ -61,6 +79,15 @@ export async function pollWatchById(
       columns: { id: true },
     })
     if (!existing) throw new Error('not_found')
+    if (options.manual) {
+      const states = await db
+        .select({
+          cooldown: sql<boolean>`${parcelWatches.manualRefreshAfter} > clock_timestamp()`,
+        })
+        .from(parcelWatches)
+        .where(eq(parcelWatches.id, watchId))
+      if (states.at(0)?.cooldown) return skipped('cooldown')
+    }
     return skipped(options.onlyIfDue ? 'not_due' : 'busy')
   }
 
@@ -71,7 +98,12 @@ export async function pollWatchById(
   )
   try {
     const signal = AbortSignal.timeout(POLL_TIMEOUT_MS)
-    const next = await buildParcelSnapshot(watch.isknId, now, signal)
+    const next = await buildParcelSnapshot(
+      watch.isknId,
+      now,
+      signal,
+      options.rizeniCache,
+    )
     signal.throwIfAborted()
     const changes = diffSnapshots(parseSnapshot(watch.lastSnapshotJson), next)
 
@@ -176,22 +208,35 @@ export async function pollDueWatches(now = new Date()): Promise<{
       ),
     ),
     columns: { id: true },
+    orderBy: [sql`${parcelWatches.lastCheckedAt} asc nulls first`],
   })
+  const rizeniCache: RizeniCache = new Map()
   const result = { checked: 0, queued: 0, errors: 0, skipped: 0 }
   for (const watch of watches) {
     try {
-      const poll = await pollWatchById(watch.id, now, { onlyIfDue: true })
+      const poll = await pollWatchById(watch.id, now, {
+        onlyIfDue: true,
+        rizeniCache,
+      })
       if (poll.status !== 'checked') {
         result.skipped += 1
         continue
       }
       result.checked += 1
       result.queued += poll.queued
-    } catch {
+    } catch (error) {
       // pollWatchById records errors while it owns the lease. Do not write here:
       // another worker may already have replaced that check by the time we catch.
       result.checked += 1
       result.errors += 1
+      if (
+        error instanceof Error &&
+        error.cause instanceof CuzkUnavailableError &&
+        error.cause.retryAt
+      ) {
+        result.skipped += watches.length - result.checked - result.skipped
+        break
+      }
     }
   }
   return result

@@ -52,13 +52,15 @@ function WatchDetailPage() {
               try {
                 const result = await refreshWatch({ data: { id: watch.id } })
                 setFlash(
-                  result.pollStatus === 'busy'
-                    ? 'Kontrola této parcely už probíhá. Za chvíli obnovte stav.'
-                    : result.pollStatus === 'superseded'
-                      ? 'Výsledek této kontroly už není aktuální. Obnovte stav parcely.'
-                      : result.changeCount > 0
-                        ? `Zachyceno změn: ${result.changeCount}. Upozornění ve frontě: ${result.queued}.`
-                        : 'Načteno — bez změn',
+                  result.pollStatus === 'cooldown'
+                    ? 'Ruční kontrolu lze spustit nejvýše jednou za 5 minut.'
+                    : result.pollStatus === 'busy'
+                      ? 'Kontrola této parcely už probíhá. Za chvíli obnovte stav.'
+                      : result.pollStatus === 'superseded'
+                        ? 'Výsledek této kontroly už není aktuální. Obnovte stav parcely.'
+                        : result.changeCount > 0
+                          ? `Zachyceno změn: ${result.changeCount}. Upozornění ve frontě: ${result.queued}.`
+                          : 'Načteno — bez změn',
                 )
                 await router.invalidate()
               } catch (err) {

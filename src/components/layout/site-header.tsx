@@ -30,14 +30,14 @@ function crumbsForPath(pathname: string): Crumb[] {
       { label: 'Detail' },
     ]
   }
+  if (pathname.startsWith('/admin/cuzk')) {
+    return [{ label: 'Admin', to: '/admin' }, { label: 'ČÚZK API' }]
+  }
   if (pathname.startsWith('/admin')) {
     return [{ label: 'Admin', to: '/admin' }, { label: 'Uživatelé' }]
   }
   if (pathname.startsWith('/dashboard/watches/new')) {
-    return [
-      { label: 'Sledování', to: '/dashboard' },
-      { label: 'Nová parcela' },
-    ]
+    return [{ label: 'Sledování', to: '/dashboard' }, { label: 'Nová parcela' }]
   }
   if (pathname.startsWith('/dashboard/watches/')) {
     return [
@@ -117,8 +117,7 @@ export function SiteHeader() {
               variant="outline"
               className="hidden border-warning-border bg-warning text-warning-foreground sm:inline-flex"
             >
-              {stats.plombaCount}{' '}
-              {stats.plombaCount === 1 ? 'plomba' : 'plomb'}
+              {stats.plombaCount} {stats.plombaCount === 1 ? 'plomba' : 'plomb'}
             </Badge>
           ) : null}
           <ThemeToggle compact />

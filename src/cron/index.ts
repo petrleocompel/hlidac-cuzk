@@ -1,5 +1,6 @@
 import cron from 'node-cron'
 import { pollDueWatches } from './jobs/poll-parcels'
+import { refreshCuzkAccount } from '#/lib/cuzk/http'
 import { deliverDueNotifications } from '#/lib/notifications/outbox'
 
 export type Job = {
@@ -9,6 +10,13 @@ export type Job = {
 }
 
 const JOBS: ReadonlyArray<Job> = [
+  {
+    schedule: '0 */6 * * *',
+    name: 'refresh-cuzk-account',
+    run: async () => {
+      console.log('[cron] refresh-cuzk-account', await refreshCuzkAccount())
+    },
+  },
   {
     schedule: '*/5 * * * *',
     name: 'poll-parcels',

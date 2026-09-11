@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm'
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -139,13 +140,18 @@ export const parcelWatches = pgTable(
     parcelSubdivision: integer('parcel_subdivision'),
     druhCislovani: integer('druh_cislovani').notNull().default(2),
     isknId: text('iskn_id').notNull(),
-    pollIntervalMinutes: integer('poll_interval_minutes').notNull().default(60),
+    pollIntervalMinutes: integer('poll_interval_minutes')
+      .notNull()
+      .default(1440),
     enabled: boolean('enabled').notNull().default(true),
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     lastSnapshotJson: jsonb('last_snapshot_json'),
     lastError: text('last_error'),
     pollClaimToken: uuid('poll_claim_token'),
     pollLockedUntil: timestamp('poll_locked_until', { withTimezone: true }),
+    manualRefreshAfter: timestamp('manual_refresh_after', {
+      withTimezone: true,
+    }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -223,6 +229,56 @@ export const notificationDeliveries = pgTable(
       table.lockedUntil,
     ),
   ],
+)
+
+// Shared by app, CLI and workers; never store the API key itself.
+export const cuzkApiControl = pgTable('cuzk_api_control', {
+  id: text('id').primaryKey(),
+  keyFingerprint: text('key_fingerprint').notNull(),
+  nextRequestAt: timestamp('next_request_at', { withTimezone: true }),
+  blockedUntil: timestamp('blocked_until', { withTimezone: true }),
+  blockedReason: text('blocked_reason'),
+  accountJson: jsonb('account_json'),
+  accountDay: date('account_day', { mode: 'string' }),
+  accountBaseline: integer('account_baseline'),
+  accountCheckedAt: timestamp('account_checked_at', { withTimezone: true }),
+  accountAttemptAt: timestamp('account_attempt_at', { withTimezone: true }),
+  accountError: text('account_error'),
+})
+
+export const cuzkApiDailyUsage = pgTable('cuzk_api_daily_usage', {
+  day: date('day', { mode: 'string' }).primaryKey(),
+  reserved: integer('reserved').notNull().default(0),
+})
+
+export const cuzkApiRequests = pgTable(
+  'cuzk_api_requests',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    day: date('day', { mode: 'string' }).notNull(),
+    endpoint: text('endpoint').notNull(),
+    attempt: integer('attempt').notNull(),
+    outcome: text('outcome', {
+      enum: [
+        'pending',
+        'success',
+        'http_error',
+        'timeout',
+        'network_error',
+        'invalid_response',
+        'cancelled',
+      ],
+    })
+      .notNull()
+      .default('pending'),
+    httpStatus: integer('http_status'),
+    durationMs: integer('duration_ms'),
+    startedAt: timestamp('started_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [index('cuzk_api_requests_day_idx').on(table.day)],
 )
 
 export const userRelations = relations(user, ({ many, one }) => ({
