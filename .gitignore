@@ -12,3 +12,7 @@ __unconfig*
 todos.json
 *.log
 coverage
+
+# Local secrets — use GitLab CI/CD vars for deploy (see .gitlab-ci.yml)
+.env
+deploy/.env
