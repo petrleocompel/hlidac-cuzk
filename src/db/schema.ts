@@ -144,7 +144,13 @@ export const parcelWatches = pgTable(
       .notNull()
       .default(1440),
     enabled: boolean('enabled').notNull().default(true),
+    // Legacy compatibility: last completed attempt, never use as freshness.
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+    lastSuccessfulCheckAt: timestamp('last_successful_check_at', {
+      withTimezone: true,
+    }),
+    nextCheckAt: timestamp('next_check_at', { withTimezone: true }),
     lastSnapshotJson: jsonb('last_snapshot_json'),
     lastError: text('last_error'),
     pollClaimToken: uuid('poll_claim_token'),
@@ -163,6 +169,7 @@ export const parcelWatches = pgTable(
   (table) => [
     index('parcel_watches_userId_idx').on(table.userId),
     index('parcel_watches_enabled_idx').on(table.enabled),
+    index('parcel_watches_next_check_idx').on(table.enabled, table.nextCheckAt),
   ],
 )
 
@@ -280,6 +287,24 @@ export const cuzkApiRequests = pgTable(
   },
   (table) => [index('cuzk_api_requests_day_idx').on(table.day)],
 )
+
+export const workerHealth = pgTable('worker_health', {
+  id: text('id').primaryKey(),
+  heartbeatAt: timestamp('heartbeat_at', { withTimezone: true }).notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  lastOutageAt: timestamp('last_outage_at', { withTimezone: true }),
+  recoveredAt: timestamp('recovered_at', { withTimezone: true }),
+})
+
+export const workerJobs = pgTable('worker_jobs', {
+  name: text('name').primaryKey(),
+  runToken: uuid('run_token').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  lastSuccessfulAt: timestamp('last_successful_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  summary: jsonb('summary').$type<Record<string, number | boolean>>(),
+})
 
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),

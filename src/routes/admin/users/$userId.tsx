@@ -80,7 +80,9 @@ function AdminUserDetailPage() {
         </h1>
         <p className="text-sm text-muted-foreground">{detail.user.email}</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <Badge variant={detail.user.role === 'admin' ? 'default' : 'secondary'}>
+          <Badge
+            variant={detail.user.role === 'admin' ? 'default' : 'secondary'}
+          >
             {detail.user.role ?? 'user'}
           </Badge>
           {detail.user.banned ? (
@@ -290,15 +292,21 @@ function AdminUserDetailPage() {
               <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                 <div>
                   <dt>ID</dt>
-                  <dd className="font-mono text-foreground">{detail.user.id}</dd>
+                  <dd className="font-mono text-foreground">
+                    {detail.user.id}
+                  </dd>
                 </div>
                 <div>
                   <dt>Vytvořen</dt>
-                  <dd>{new Date(detail.user.createdAt).toLocaleString('cs')}</dd>
+                  <dd>
+                    {new Date(detail.user.createdAt).toLocaleString('cs')}
+                  </dd>
                 </div>
                 <div>
                   <dt>Upraven</dt>
-                  <dd>{new Date(detail.user.updatedAt).toLocaleString('cs')}</dd>
+                  <dd>
+                    {new Date(detail.user.updatedAt).toLocaleString('cs')}
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -335,23 +343,16 @@ function AdminUserDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>
-                Sledované parcely ({detail.watches.length})
-              </CardTitle>
+              <CardTitle>Sledované parcely ({detail.watches.length})</CardTitle>
               <CardDescription>Objekty evidované uživatelem</CardDescription>
             </CardHeader>
             <CardContent>
               {detail.watches.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Žádné sledování
-                </p>
+                <p className="text-sm text-muted-foreground">Žádné sledování</p>
               ) : (
                 <ul className="space-y-3">
                   {detail.watches.map((w) => (
-                    <li
-                      key={w.id}
-                      className="rounded-lg border p-3 text-sm"
-                    >
+                    <li key={w.id} className="rounded-lg border p-3 text-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-medium">{w.label}</p>
@@ -369,8 +370,8 @@ function AdminUserDetailPage() {
                       </div>
                       <p className="mt-2 text-xs text-muted-foreground">
                         Interval {w.pollIntervalMinutes} min
-                        {w.lastCheckedAt
-                          ? ` · naposledy ${new Date(w.lastCheckedAt).toLocaleString('cs')}`
+                        {w.lastSuccessfulCheckAt
+                          ? ` · poslední úspěch ${new Date(w.lastSuccessfulCheckAt).toLocaleString('cs')}`
                           : ' · ještě nekontrolováno'}
                       </p>
                       {w.lastError ? (

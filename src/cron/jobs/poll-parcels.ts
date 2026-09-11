@@ -37,10 +37,7 @@ export async function pollWatchById(
   const token = crypto.randomUUID()
   const due = and(
     eq(parcelWatches.enabled, true),
-    or(
-      isNull(parcelWatches.lastCheckedAt),
-      sql`${parcelWatches.lastCheckedAt} <= ${now.toISOString()}::timestamptz - ${parcelWatches.pollIntervalMinutes} * interval '1 minute'`,
-    ),
+    sql`coalesce(${parcelWatches.nextCheckAt}, ${parcelWatches.lastCheckedAt} + ${parcelWatches.pollIntervalMinutes} * interval '1 minute', '-infinity'::timestamptz) <= ${now.toISOString()}::timestamptz`,
   )
   // Atomic claim also reads the latest committed snapshot. No DB transaction is
   // held open while calling ČÚZK, and a busy watch is skipped rather than waited on.
@@ -52,6 +49,7 @@ export async function pollWatchById(
             manualRefreshAfter: sql`clock_timestamp() + ${MANUAL_REFRESH_SECONDS} * interval '1 second'`,
           }
         : {}),
+      lastAttemptAt: now,
       pollClaimToken: token,
       pollLockedUntil: sql`clock_timestamp() + interval '2 minutes'`,
     })
@@ -114,6 +112,8 @@ export async function pollWatchById(
         .update(parcelWatches)
         .set({
           lastCheckedAt: now,
+          lastSuccessfulCheckAt: now,
+          nextCheckAt: sql`${now.toISOString()}::timestamptz + ${parcelWatches.pollIntervalMinutes} * interval '1 minute'`,
           lastSnapshotJson: next,
           lastError: null,
           updatedAt: now,
@@ -160,6 +160,12 @@ export async function pollWatchById(
         .update(parcelWatches)
         .set({
           lastCheckedAt: now,
+          nextCheckAt:
+            error instanceof CuzkUnavailableError && error.retryAt
+              ? new Date(
+                  Math.max(now.getTime() + 300_000, error.retryAt.getTime()),
+                )
+              : new Date(now.getTime() + 300_000),
           lastError: message,
           updatedAt: now,
           pollClaimToken: null,
@@ -202,13 +208,10 @@ export async function pollDueWatches(now = new Date()): Promise<{
   const watches = await db.query.parcelWatches.findMany({
     where: and(
       eq(parcelWatches.enabled, true),
-      or(
-        isNull(parcelWatches.lastCheckedAt),
-        sql`${parcelWatches.lastCheckedAt} <= ${now.toISOString()}::timestamptz - ${parcelWatches.pollIntervalMinutes} * interval '1 minute'`,
-      ),
+      sql`coalesce(${parcelWatches.nextCheckAt}, ${parcelWatches.lastCheckedAt} + ${parcelWatches.pollIntervalMinutes} * interval '1 minute', '-infinity'::timestamptz) <= ${now.toISOString()}::timestamptz`,
     ),
     columns: { id: true },
-    orderBy: [sql`${parcelWatches.lastCheckedAt} asc nulls first`],
+    orderBy: [sql`${parcelWatches.nextCheckAt} asc nulls first`],
   })
   const rizeniCache: RizeniCache = new Map()
   const result = { checked: 0, queued: 0, errors: 0, skipped: 0 }

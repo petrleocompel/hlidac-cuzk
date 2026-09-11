@@ -5,6 +5,7 @@ import { getServerSession } from '#/auth/session'
 import { DashboardShell } from '#/components/layout/dashboard-shell'
 import { Button } from '#/components/ui/button'
 import { WatchEventsPanel } from '#/components/watch/watch-events-panel'
+import { WatchCheckStatus } from '#/components/watch/watch-check-status'
 import { WatchSnapshotPanel } from '#/components/watch/watch-snapshot-panel'
 import { parseSnapshot } from '#/lib/cuzk/snapshot'
 import {
@@ -19,13 +20,13 @@ export const Route = createFileRoute('/dashboard/watches/$id')({
     const session = await getServerSession()
     if (!session) throw redirect({ to: '/login' })
     const data = await getWatch({ data: { id: params.id } })
-    return { session, watch: data.watch, events: data.events }
+    return { session, watch: data.watch, events: data.events, now: Date.now() }
   },
   component: WatchDetailPage,
 })
 
 function WatchDetailPage() {
-  const { session, watch, events } = Route.useLoaderData()
+  const { session, watch, events, now } = Route.useLoaderData()
   const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
@@ -65,6 +66,7 @@ function WatchDetailPage() {
                 await router.invalidate()
               } catch (err) {
                 setFlash(err instanceof Error ? err.message : 'Načtení selhalo')
+                await router.invalidate()
               } finally {
                 setRefreshing(false)
               }
@@ -106,9 +108,10 @@ function WatchDetailPage() {
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+        <WatchCheckStatus watch={watch} now={now} />
         <WatchSnapshotPanel
           snapshot={snapshot}
-          lastCheckedAt={watch.lastCheckedAt}
+          lastSuccessfulCheckAt={watch.lastSuccessfulCheckAt}
           lastError={watch.lastError}
           pollIntervalMinutes={watch.pollIntervalMinutes}
         />

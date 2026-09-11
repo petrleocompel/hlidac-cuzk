@@ -16,6 +16,11 @@ import {
   formatParcelNumber,
   parseSnapshot,
 } from '#/lib/cuzk/snapshot'
+import {
+  dataAge,
+  formatCheckTime,
+  isWatchStale,
+} from '#/lib/monitoring/freshness'
 import { listWatches } from '#/server/watches'
 
 export const Route = createFileRoute('/dashboard/')({
@@ -23,26 +28,23 @@ export const Route = createFileRoute('/dashboard/')({
     const session = await getServerSession()
     if (!session) throw redirect({ to: '/login' })
     const watches = await listWatches()
-    return { session, watches }
+    return { session, watches, now: Date.now() }
   },
   component: DashboardPage,
 })
 
 function DashboardPage() {
-  const { session, watches } = Route.useLoaderData()
+  const { session, watches, now } = Route.useLoaderData()
 
   return (
-    <DashboardShell
-      user={session.user}
-      isAdmin={session.user.role === 'admin'}
-    >
+    <DashboardShell user={session.user} isAdmin={session.user.role === 'admin'}>
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             Sledované parcely
           </h1>
           <p className="text-sm text-muted-foreground">
-            Aktuální data z ČÚZK, plomby a indikátory změny LV
+            Uložená data z ČÚZK, plomby a indikátory změny LV
           </p>
         </div>
         <Button asChild>
@@ -119,13 +121,13 @@ function DashboardPage() {
                     {snapshot && snapshot.parcel.id ? (
                       <span>· parcela {formatParcelNumber(snapshot)}</span>
                     ) : null}
-                    {w.lastCheckedAt ? (
-                      <span>
-                        · naposledy{' '}
-                        {new Date(w.lastCheckedAt).toLocaleString('cs')}
-                      </span>
-                    ) : (
-                      <span>· ještě nekontrolováno</span>
+                    <span>
+                      · poslední úspěch{' '}
+                      {formatCheckTime(w.lastSuccessfulCheckAt)}
+                    </span>
+                    <span>· {dataAge(w.lastSuccessfulCheckAt, now)}</span>
+                    {isWatchStale(w, now) && (
+                      <Badge variant="destructive">Kontroly se zpožďují</Badge>
                     )}
                     {plomby > 0 ? (
                       <Badge variant="destructive">{plomby} plomb</Badge>
@@ -133,7 +135,9 @@ function DashboardPage() {
                     {vklady > 0 ? <Badge>vklad {vklady}</Badge> : null}
                   </div>
                   {w.lastError ? (
-                    <p className="mt-1 text-xs text-destructive">{w.lastError}</p>
+                    <p className="mt-1 text-xs text-destructive">
+                      {w.lastError}
+                    </p>
                   ) : null}
                 </Link>
               </li>

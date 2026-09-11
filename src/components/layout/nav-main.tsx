@@ -161,6 +161,17 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={pathname.startsWith('/admin/monitoring')}
+                  >
+                    <Link to="/admin/monitoring">
+                      <Activity />
+                      <span>Stav workeru</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
               </SidebarMenuSub>
             </CollapsibleContent>
           </SidebarGroup>

@@ -10,13 +10,7 @@ import {
   CardTitle,
 } from '#/components/ui/card'
 
-function Fact({
-  label,
-  value,
-}: {
-  label: string
-  value: React.ReactNode
-}) {
+function Fact({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="space-y-1">
       <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -29,12 +23,12 @@ function Fact({
 
 export function WatchSnapshotPanel({
   snapshot,
-  lastCheckedAt,
+  lastSuccessfulCheckAt,
   lastError,
   pollIntervalMinutes,
 }: {
   snapshot: ParcelSnapshot | null
-  lastCheckedAt: string | null
+  lastSuccessfulCheckAt: string | null
   lastError: string | null
   pollIntervalMinutes: number
 }) {
@@ -63,8 +57,8 @@ export function WatchSnapshotPanel({
             <CardTitle>Přehled parcely</CardTitle>
             <CardDescription>
               Poslední načtení{' '}
-              {lastCheckedAt
-                ? new Date(lastCheckedAt).toLocaleString('cs')
+              {lastSuccessfulCheckAt
+                ? new Date(lastSuccessfulCheckAt).toLocaleString('cs')
                 : '—'}
               {snapshot.aktualnostDatK
                 ? ` · data ČÚZK k ${new Date(snapshot.aktualnostDatK).toLocaleString('cs')}`
@@ -82,9 +76,7 @@ export function WatchSnapshotPanel({
             ) : (
               <Badge variant="outline">bez plomby</Badge>
             )}
-            {vkladCount > 0 ? (
-              <Badge>vklad {vkladCount}</Badge>
-            ) : null}
+            {vkladCount > 0 ? <Badge>vklad {vkladCount}</Badge> : null}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -116,7 +108,9 @@ export function WatchSnapshotPanel({
             />
             <Fact
               label="Výměra"
-              value={p.vymera != null ? `${p.vymera.toLocaleString('cs')} m²` : null}
+              value={
+                p.vymera != null ? `${p.vymera.toLocaleString('cs')} m²` : null
+              }
             />
             <Fact label="Druh pozemku" value={p.druhPozemku} />
             <Fact label="Způsob využití" value={p.zpusobVyuziti} />
@@ -196,7 +190,9 @@ export function WatchSnapshotPanel({
                       {r.isVklad ? (
                         <Badge>Vklad</Badge>
                       ) : (
-                        <Badge variant="secondary">{r.typRizeni ?? 'říz.'}</Badge>
+                        <Badge variant="secondary">
+                          {r.typRizeni ?? 'říz.'}
+                        </Badge>
                       )}
                       {r.stavUhrady ? (
                         <Badge variant="outline">úhrada {r.stavUhrady}</Badge>
@@ -210,8 +206,7 @@ export function WatchSnapshotPanel({
                   ) : null}
                   {r.datumPrijeti ? (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Přijato{' '}
-                      {new Date(r.datumPrijeti).toLocaleString('cs')}
+                      Přijato {new Date(r.datumPrijeti).toLocaleString('cs')}
                     </p>
                   ) : null}
                   {r.provedeneOperace.length > 0 ? (
@@ -251,10 +246,7 @@ export function WatchSnapshotPanel({
         </CardHeader>
         <CardContent className="space-y-4">
           <dl className="grid gap-4 sm:grid-cols-2">
-            <Fact
-              label="Způsob určení výměry"
-              value={p.zpusobUrceniVymery}
-            />
+            <Fact label="Způsob určení výměry" value={p.zpusobUrceniVymery} />
             <Fact
               label="Definiční bod (S-JTSK)"
               value={

@@ -1,0 +1,43 @@
+import postgres from 'postgres'
+import { readMigrationFiles } from 'drizzle-orm/migrator'
+
+/** Read-only probe with its own bounded connection; never migrates or contacts ČÚZK. */
+export async function probeReadiness(
+  databaseUrl = process.env.DATABASE_URL,
+): Promise<boolean> {
+  if (!databaseUrl) return false
+  const client = postgres(databaseUrl, {
+    max: 1,
+    connect_timeout: 2,
+    idle_timeout: 1,
+    connection: { statement_timeout: 2000 },
+    onnotice: () => {},
+  })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const expected = readMigrationFiles({ migrationsFolder: './drizzle' }).at(
+      -1,
+    )
+    if (!expected) return false
+    const check = async () => {
+      const rows =
+        await client`select hash from drizzle.__drizzle_migrations where created_at = ${expected.folderMillis}`
+      if (rows.at(0)?.hash !== expected.hash) return false
+      await client`select last_attempt_at, last_successful_check_at, next_check_at from parcel_watches limit 0`
+      await client`select heartbeat_at from worker_health limit 0`
+      await client`select finished_at from worker_jobs limit 0`
+      return true
+    }
+    return await Promise.race([
+      check(),
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => resolve(false), 2500)
+      }),
+    ])
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+    await client.end({ timeout: 1 })
+  }
+}

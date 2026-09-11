@@ -23,7 +23,15 @@ async function main() {
     }
     return
   }
-  await startCronWorker()
+  const stop = await startCronWorker()
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(signal, () => {
+      void stop().finally(async () => {
+        await closeDb()
+        process.exit(0)
+      })
+    })
+  }
   console.log('[cron] worker running; press Ctrl+C to stop')
 }
 

@@ -55,7 +55,7 @@ export type AdminUserDetail = {
     isknId: string
     enabled: boolean
     pollIntervalMinutes: number
-    lastCheckedAt: string | null
+    lastSuccessfulCheckAt: string | null
     lastError: string | null
     createdAt: string
   }>
@@ -198,7 +198,7 @@ export const getUserAdmin = createServerFn({ method: 'GET' })
         isknId: w.isknId,
         enabled: w.enabled,
         pollIntervalMinutes: w.pollIntervalMinutes,
-        lastCheckedAt: w.lastCheckedAt?.toISOString() ?? null,
+        lastSuccessfulCheckAt: w.lastSuccessfulCheckAt?.toISOString() ?? null,
         lastError: w.lastError,
         createdAt: w.createdAt.toISOString(),
       })),

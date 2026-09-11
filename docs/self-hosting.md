@@ -125,7 +125,7 @@ Uses `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME` from the environment. Saf
 - Direct: `http://127.0.0.1:3000` (only if you used the selfhost overlay without TLS)
 - Behind your reverse proxy: `https://hlidac.example.com`
 
-Health check: `GET /healthz`
+Liveness: `GET /healthz`. Readiness (database and schema): `GET /readyz`. Compose uses readiness for its app health check.
 
 ---
 
@@ -335,6 +335,35 @@ Migration `0005_cuzk_api_budget.sql` adds the accounting tables and manual coold
 
 ---
 
+## Worker health and data freshness
+
+Migration `0006_worker_health.sql` separates `lastAttemptAt`, `lastSuccessfulCheckAt` and `nextCheckAt`. The legacy `lastCheckedAt` column remains for compatibility and means the last completed attempt, not successful data freshness. A failed check preserves the snapshot and its success time, records the error, and schedules another attempt in five minutes (or after a later API pause/quota reset). A successful check schedules the next configured interval. The API budget still limits every attempt. Changing an interval recalculates the schedule; resuming a paused watch makes it due immediately.
+
+Backfill uses a saved snapshot's `fetchedAt` rather than a newer failed attempt. If that time cannot be recovered, it uses the legacy time only for a snapshot without a recorded error; otherwise success remains unknown. The UI displays attempt, success, age and next schedule separately. ČÚZK's `aktualnostDatK` remains the independent source-data timestamp. An enabled watch becomes stale after its polling interval plus ten minutes without successful data; paused watches are excluded from monitoring alerts.
+
+**Admin → Stav workeru** (`/admin/monitoring`) shows the scheduler heartbeat, per-job start/completion/last successful run, aggregate result counts and errors, overdue checks and stale data. The long-running `pnpm cron` scheduler writes a heartbeat every 30 seconds; it is considered missing after two minutes. Poll and notification-delivery jobs must also have completed within ten minutes, so a live scheduler cannot hide stuck jobs. A completed job with item errors is not presented as a successful run. Recent quota errors can therefore degrade monitoring without affecting web readiness. If you previously used only external `--once` invocations, switch to the long-running scheduler for heartbeat monitoring; one-shot runs record job progress but do not claim a live scheduler.
+
+The next heartbeat after a gap records the last observed outage and recovery, including across restarts. This is a compact latest-state record, not a full incident history. Its recovery means the scheduler resumed; watch freshness and job results are evaluated separately. No notifications are sent by the application for worker outages: use the independent monitor below, which can observe a completely stopped worker or web server.
+
+| Endpoint | Purpose | Authentication / failure |
+|----------|---------|--------------------------|
+| `/healthz` | HTTP process liveness only | Public; does not claim checks are healthy |
+| `/readyz` | Database connection, expected migration hash, required tables/columns | Public; 503 if unavailable/incompatible, bounded probe; does not apply migrations or call ČÚZK |
+| `/api/monitoring` | Scheduler, completed jobs and watch freshness | Same `METRICS_BEARER_TOKEN` as metrics; 503 for degraded checks or unavailable DB |
+| `/api/metrics` | Saved API and worker metrics | Same bearer token; 503 for unavailable DB/schema; worker failure remains a metric value |
+
+The readiness probe has a 2.5-second deadline plus up to one second for connection cleanup. A ČÚZK outage or stopped worker does not make web readiness fail. Endpoints return `Cache-Control: no-store`; health responses do not include database connection details. The DB outage case must be monitored from outside this application.
+
+### External outage and recovery alerts
+
+Load [deploy/monitoring/alerts.yml](../deploy/monitoring/alerts.yml) with Prometheus `rule_files` and use the `hlidac-cuzk` scrape job from the metrics example. The supplied rules alert after five minutes of failed/missing scrapes or ten minutes of unhealthy checks. Run Prometheus and Alertmanager independently of this application, ideally on another host. Configure the notification receiver in your Alertmanager and explicitly enable recovery messages with `send_resolved: true`, for example on a `webhook_configs` receiver pointed at your own alert relay. No receiver credentials are stored in this repository and no live alert service is configured automatically.
+
+When checks recover, the alert expression clears and Alertmanager can send the resolved notification. See the official [alert-rule semantics](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) and [receiver configuration](https://prometheus.io/docs/alerting/latest/configuration/). To verify your deployment, stop cron, wait for the alert, start it again and confirm the resolved message; repeat with the app unreachable to verify the external scrape alert. Do this with your own test receiver.
+
+New metrics: `hlidac_monitoring_healthy`, `hlidac_worker_heartbeat_healthy`, `hlidac_worker_progress_healthy`, `hlidac_worker_heartbeat_timestamp_seconds`, `hlidac_worker_recovered_timestamp_seconds`, `hlidac_watches_overdue` and `hlidac_watches_stale`. The admin page and probes do not consume any ČÚZK calls.
+
+---
+
 ## Day-to-day operations
 
 ### Logs
@@ -441,7 +470,7 @@ Workflow files:
 
 | Symptom | Check |
 |---------|--------|
-| App unhealthy | `docker compose ... logs app`; `/healthz`; `DATABASE_URL`; migrations finished |
+| App unhealthy | `docker compose ... logs app`; `/readyz`; `DATABASE_URL`; expected migrations applied |
 | Auth / cookie issues | `PUBLIC_URL` / `BETTER_AUTH_URL` must match the browser origin exactly |
 | SSO discovery fails | Issuer URL reachable from container; correct `SSO_BOOTSTRAP_ISSUER` / Admin issuer |
 | SSO redirect error | IdP redirect URIs must include both callback paths above |

@@ -81,6 +81,10 @@ export async function reserveApiRequest(
       .where(eq(cuzkApiControl.id, 'instance'))
     const now = new Date(clock.now)
     if (control.blockedUntil && control.blockedUntil > now) {
+      const remaining = control.blockedUntil.getTime() - now.getTime()
+      // Timers may wake just before the DB deadline. Recheck short waits under
+      // the same clock/lock instead of failing the retry or sending too early.
+      if (remaining <= 5000) return { waitMs: remaining + 1 }
       throw new CuzkUnavailableError(
         control.blockedReason ?? 'ČÚZK API je dočasně pozastavené.',
         control.blockedUntil,
@@ -170,11 +174,10 @@ export async function blockApi(
   reason: string,
 ) {
   // Concurrent responses can only extend a shared pause, never shorten it.
-  const until = new Date(Date.now() + delayMs)
   await db
     .update(cuzkApiControl)
     .set({
-      blockedUntil: sql`greatest(${cuzkApiControl.blockedUntil}, ${until.toISOString()}::timestamptz)`,
+      blockedUntil: sql`greatest(${cuzkApiControl.blockedUntil}, clock_timestamp() + ${delayMs} * interval '1 millisecond')`,
       blockedReason: reason,
     })
     .where(

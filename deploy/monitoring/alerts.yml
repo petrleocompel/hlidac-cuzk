@@ -1,0 +1,20 @@
+# Load this file with Prometheus rule_files. The scrape job must be hlidac-cuzk.
+groups:
+  - name: hlidac-cuzk
+    rules:
+      - alert: HlidacMonitoringUnavailable
+        expr: up{job="hlidac-cuzk"} == 0 or absent(up{job="hlidac-cuzk"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Hlídač ČÚZK neodpovídá monitoringu
+          description: Ověřte web, databázi, migrace a monitorovací token. Výpadek zachycuje externí Prometheus.
+      - alert: HlidacChecksUnhealthy
+        expr: hlidac_monitoring_healthy{job="hlidac-cuzk"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Kontroly ČÚZK se zpožďují nebo selhávají
+          description: Ověřte heartbeat, dokončené běhy, chyby a stáří dat v Admin → Stav workeru. Příčinou může být i vyčerpaný API rozpočet.

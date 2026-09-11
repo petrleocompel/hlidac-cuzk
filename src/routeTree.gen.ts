@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ReadyzRouteImport } from './routes/readyz'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminCuzkRouteImport } from './routes/admin/cuzk'
+import { Route as AdminMonitoringRouteImport } from './routes/admin/monitoring'
 import { Route as AdminSsoRouteImport } from './routes/admin/sso'
 import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
+import { Route as ApiMonitoringRouteImport } from './routes/api/monitoring'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard/account'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
@@ -41,6 +44,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReadyzRoute = ReadyzRouteImport.update({
+  id: '/readyz',
+  path: '/readyz',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -56,6 +64,11 @@ const AdminCuzkRoute = AdminCuzkRouteImport.update({
   path: '/admin/cuzk',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMonitoringRoute = AdminMonitoringRouteImport.update({
+  id: '/admin/monitoring',
+  path: '/admin/monitoring',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSsoRoute = AdminSsoRouteImport.update({
   id: '/admin/sso',
   path: '/admin/sso',
@@ -64,6 +77,11 @@ const AdminSsoRoute = AdminSsoRouteImport.update({
 const ApiMetricsRoute = ApiMetricsRouteImport.update({
   id: '/api/metrics',
   path: '/api/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMonitoringRoute = ApiMonitoringRouteImport.update({
+  id: '/api/monitoring',
+  path: '/api/monitoring',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -111,10 +129,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
+  '/readyz': typeof ReadyzRoute
   '/signup': typeof SignupRoute
   '/admin/cuzk': typeof AdminCuzkRoute
+  '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/sso': typeof AdminSsoRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/monitoring': typeof ApiMonitoringRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -129,10 +150,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
+  '/readyz': typeof ReadyzRoute
   '/signup': typeof SignupRoute
   '/admin/cuzk': typeof AdminCuzkRoute
+  '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/sso': typeof AdminSsoRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/monitoring': typeof ApiMonitoringRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin': typeof AdminIndexRoute
@@ -148,10 +172,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/login': typeof LoginRoute
+  '/readyz': typeof ReadyzRoute
   '/signup': typeof SignupRoute
   '/admin/cuzk': typeof AdminCuzkRoute
+  '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/sso': typeof AdminSsoRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/monitoring': typeof ApiMonitoringRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -168,10 +195,13 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/login'
+    | '/readyz'
     | '/signup'
     | '/admin/cuzk'
+    | '/admin/monitoring'
     | '/admin/sso'
     | '/api/metrics'
+    | '/api/monitoring'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin/'
@@ -186,10 +216,13 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/login'
+    | '/readyz'
     | '/signup'
     | '/admin/cuzk'
+    | '/admin/monitoring'
     | '/admin/sso'
     | '/api/metrics'
+    | '/api/monitoring'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin'
@@ -204,10 +237,13 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/login'
+    | '/readyz'
     | '/signup'
     | '/admin/cuzk'
+    | '/admin/monitoring'
     | '/admin/sso'
     | '/api/metrics'
+    | '/api/monitoring'
     | '/dashboard/account'
     | '/dashboard/settings'
     | '/admin/'
@@ -223,10 +259,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthzRoute: typeof HealthzRoute
   LoginRoute: typeof LoginRoute
+  ReadyzRoute: typeof ReadyzRoute
   SignupRoute: typeof SignupRoute
   AdminCuzkRoute: typeof AdminCuzkRoute
+  AdminMonitoringRoute: typeof AdminMonitoringRoute
   AdminSsoRoute: typeof AdminSsoRoute
   ApiMetricsRoute: typeof ApiMetricsRoute
+  ApiMonitoringRoute: typeof ApiMonitoringRoute
   DashboardAccountRoute: typeof DashboardAccountRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -261,6 +300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/readyz': {
+      id: '/readyz'
+      path: '/readyz'
+      fullPath: '/readyz'
+      preLoaderRoute: typeof ReadyzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -282,6 +328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCuzkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/monitoring': {
+      id: '/admin/monitoring'
+      path: '/admin/monitoring'
+      fullPath: '/admin/monitoring'
+      preLoaderRoute: typeof AdminMonitoringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/sso': {
       id: '/admin/sso'
       path: '/admin/sso'
@@ -294,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: '/api/metrics'
       fullPath: '/api/metrics'
       preLoaderRoute: typeof ApiMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/monitoring': {
+      id: '/api/monitoring'
+      path: '/api/monitoring'
+      fullPath: '/api/monitoring'
+      preLoaderRoute: typeof ApiMonitoringRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -359,10 +419,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthzRoute: HealthzRoute,
   LoginRoute: LoginRoute,
+  ReadyzRoute: ReadyzRoute,
   SignupRoute: SignupRoute,
   AdminCuzkRoute: AdminCuzkRoute,
+  AdminMonitoringRoute: AdminMonitoringRoute,
   AdminSsoRoute: AdminSsoRoute,
   ApiMetricsRoute: ApiMetricsRoute,
+  ApiMonitoringRoute: ApiMonitoringRoute,
   DashboardAccountRoute: DashboardAccountRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,

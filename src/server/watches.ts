@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { requireSession } from '#/auth/session'
@@ -60,6 +60,9 @@ export type WatchDto = {
   pollIntervalMinutes: number
   enabled: boolean
   lastCheckedAt: string | null
+  lastAttemptAt: string | null
+  lastSuccessfulCheckAt: string | null
+  nextCheckAt: string | null
   lastSnapshotJson: Json
   lastError: string | null
   createdAt: string
@@ -103,6 +106,9 @@ function toWatchDto(row: ParcelWatch): WatchDto {
     pollIntervalMinutes: row.pollIntervalMinutes,
     enabled: row.enabled,
     lastCheckedAt: row.lastCheckedAt?.toISOString() ?? null,
+    lastAttemptAt: row.lastAttemptAt?.toISOString() ?? null,
+    lastSuccessfulCheckAt: row.lastSuccessfulCheckAt?.toISOString() ?? null,
+    nextCheckAt: row.nextCheckAt?.toISOString() ?? null,
     lastSnapshotJson: asJson(row.lastSnapshotJson),
     lastError: row.lastError,
     createdAt: row.createdAt.toISOString(),
@@ -181,10 +187,12 @@ export const createWatch = createServerFn({ method: 'POST' })
     let snapshot = null as Awaited<
       ReturnType<typeof buildParcelSnapshot>
     > | null
+    let lastError: string | null = null
     try {
       snapshot = await buildParcelSnapshot(isknId, now)
-    } catch {
-      // Watch can still be created; first cron/refresh will fill snapshot.
+    } catch (error) {
+      lastError =
+        error instanceof Error ? error.message : 'Načtení ČÚZK selhalo.'
     }
 
     const row = await insertWatchWithinLimit({
@@ -197,7 +205,14 @@ export const createWatch = createServerFn({ method: 'POST' })
       druhCislovani: data.druhCislovani,
       isknId,
       pollIntervalMinutes: data.pollIntervalMinutes,
-      lastCheckedAt: snapshot ? now : null,
+      lastCheckedAt: now,
+      lastAttemptAt: now,
+      lastSuccessfulCheckAt: snapshot ? now : null,
+      nextCheckAt: new Date(
+        now.getTime() +
+          (snapshot ? data.pollIntervalMinutes * 60_000 : 300_000),
+      ),
+      lastError,
       lastSnapshotJson: snapshot,
     })
 
@@ -224,6 +239,13 @@ export const updateWatch = createServerFn({ method: 'POST' })
           ? { pollIntervalMinutes: data.pollIntervalMinutes }
           : {}),
         ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
+        ...(data.enabled === true && !existing.enabled
+          ? { nextCheckAt: new Date() }
+          : data.pollIntervalMinutes !== undefined
+            ? {
+                nextCheckAt: sql`coalesce(${parcelWatches.lastAttemptAt}, clock_timestamp()) + ${data.pollIntervalMinutes} * interval '1 minute'`,
+              }
+            : {}),
         updatedAt: new Date(),
       })
       .where(eq(parcelWatches.id, data.id))

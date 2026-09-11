@@ -30,6 +30,9 @@ function crumbsForPath(pathname: string): Crumb[] {
       { label: 'Detail' },
     ]
   }
+  if (pathname.startsWith('/admin/monitoring')) {
+    return [{ label: 'Admin', to: '/admin' }, { label: 'Stav workeru' }]
+  }
   if (pathname.startsWith('/admin/cuzk')) {
     return [{ label: 'Admin', to: '/admin' }, { label: 'ČÚZK API' }]
   }
