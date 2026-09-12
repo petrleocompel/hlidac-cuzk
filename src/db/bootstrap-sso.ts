@@ -28,10 +28,9 @@ export async function bootstrapSsoFromEnv(): Promise<void> {
   const domainRaw = process.env.SSO_BOOTSTRAP_DOMAIN?.trim() ?? ''
 
   if (!providerId || !issuer || !clientId || !clientSecret) {
-    console.warn(
-      '[sso-bootstrap] SSO_BOOTSTRAP_ENABLED but missing providerId/issuer/clientId/clientSecret — skipped',
+    throw new Error(
+      'SSO bootstrap vyžaduje providerId, issuer, clientId a clientSecret.',
     )
-    return
   }
 
   const existing = await db
@@ -56,10 +55,7 @@ export async function bootstrapSsoFromEnv(): Promise<void> {
   ).at(0)
 
   if (!adminUser) {
-    console.warn(
-      '[sso-bootstrap] no admin user yet — skipped (run seed-admin first, then restart)',
-    )
-    return
+    throw new Error('SSO bootstrap vyžaduje existující účet správce.')
   }
 
   const appOrigin = issuerOrigin(

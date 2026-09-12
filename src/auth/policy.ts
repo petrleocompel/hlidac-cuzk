@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const policySchema = z.object({
+export const policySchema = z.object({
   REGISTRATION_MODE: z.enum(['private', 'invite', 'open']).default('private'),
   SSO_REGISTRATION_MODE: z
     .enum(['existing', 'invite', 'open'])

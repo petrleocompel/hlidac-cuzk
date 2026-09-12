@@ -13,7 +13,7 @@ async function main(): Promise<void> {
   const email = process.env.ADMIN_EMAIL?.trim()
   const password = process.env.ADMIN_PASSWORD
   const name = process.env.ADMIN_NAME?.trim() || undefined
-  const seedWatch = process.env.SEED_DEMO_WATCH !== '0'
+  const seedWatch = process.env.SEED_DEMO_WATCH === '1'
 
   if (!email) fail('ADMIN_EMAIL is required')
   if (!password) fail('ADMIN_PASSWORD is required')

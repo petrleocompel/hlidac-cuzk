@@ -14,7 +14,7 @@
     "generate-routes": "tsr generate",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node --import ./instrument.server.mjs .output/server/index.mjs",
+    "start": "node --import ./instrument.server.mjs --import tsx scripts/start.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -23,12 +23,15 @@
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed-admin": "tsx scripts/seed-admin.ts",
     "cron": "tsx scripts/cron.ts",
     "seed-admin": "tsx scripts/seed-admin.ts",
-    "notifications:encrypt": "tsx scripts/encrypt-notifications.ts"
+    "notifications:encrypt": "tsx scripts/encrypt-notifications.ts",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "doctor": "tsx scripts/doctor.ts",
+    "env:init": "tsx scripts/init-env.ts"
   },
   "dependencies": {
     "@better-auth/sso": "^1.6.31",

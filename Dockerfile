@@ -25,4 +25,4 @@ COPY --from=build /app/tsconfig.json ./
 COPY --from=build /app/instrument.server.mjs ./
 COPY package.json ./
 EXPOSE 3000
-CMD ["node", "--import", "./instrument.server.mjs", ".output/server/index.mjs"]
+CMD ["pnpm", "start"]

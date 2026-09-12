@@ -1,3 +1,4 @@
+import { getEnv } from '../src/env.ts'
 /**
  * Cron worker entrypoint.
  *
@@ -8,6 +9,8 @@ import { closeDb } from '../src/db/index.ts'
 import { runOnce, startCronWorker } from '../src/cron/index.ts'
 
 async function main() {
+  const config = getEnv()
+  process.env.BETTER_AUTH_URL = config.BETTER_AUTH_URL
   const args = process.argv.slice(2)
   const onceIdx = args.indexOf('--once')
   if (onceIdx !== -1) {

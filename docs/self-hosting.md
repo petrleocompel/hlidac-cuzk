@@ -22,7 +22,7 @@ Compose runs four logical pieces (same image for app / migrate / cron):
 | Service | Role |
 |---------|------|
 | `db` | PostgreSQL 16 |
-| `migrate` | One-shot Drizzle migrations (+ optional SSO env bootstrap) |
+| `migrate` | One-shot `pnpm bootstrap`: validate → migrate → admin → optional SSO |
 | `app` | TanStack Start HTTP server on port 3000 |
 | `cron` | Polls watched parcels every 5 minutes; delivers queued notifications every minute; checks the ČÚZK account every 6 hours |
 
@@ -43,7 +43,7 @@ Clone the repository (or copy the `deploy/` folder + `Dockerfile` if you build l
 ```bash
 git clone https://github.com/<OWNER>/<REPO>.git hlidac-cuzk
 cd hlidac-cuzk/deploy
-cp .env.example .env
+cp .env.example .env  # fill unique secrets; alternatively use env:init from the repo root
 ```
 
 ### 2. Configure `.env`
@@ -63,7 +63,7 @@ BETTER_AUTH_SECRET=replace-with-32-char-minimum-secret-value-xxxxxxxxxxxx
 APP_HOST=hlidac.example.com
 PUBLIC_URL=https://hlidac.example.com
 
-# First admin (optional but recommended on first boot)
+# First admin (required on a clean installation)
 ADMIN_EMAIL=you@example.com
 ADMIN_PASSWORD=at-least-12-characters
 ADMIN_NAME=Admin
@@ -109,16 +109,16 @@ docker compose \
   up -d
 ```
 
-Migrations run automatically via the `migrate` service before `app` / `cron` start.
+The `migrate` service runs the full bootstrap before app/cron start. A failed validation, migration, administrator seed or configured SSO discovery prevents startup.
 
-### 5. Create the admin user
+### 5. Verify installation
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk \
-  run --rm app pnpm db:seed-admin
+  run --rm --no-deps app pnpm run doctor
 ```
 
-Uses `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME` from the environment. Safe to re-run (promotes existing user to admin if needed).
+Bootstrap uses `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME` on the first installation. Repeating it preserves existing passwords and providers. An existing admin permits subsequent bootstrap without seed credentials.
 
 ### 6. Open the app
 
@@ -157,7 +157,7 @@ Liveness: `GET /healthz`. Readiness (database and schema): `GET /readyz`. Compos
 
 ### SSO bootstrap (optional, one-shot)
 
-Runs after migrations when the app / migrate process calls `ensureDbReady`. **Never overwrites** an existing `providerId`.
+Runs only as part of `pnpm bootstrap`, after migrations and administrator creation. `pnpm db:migrate` and runtime migration guards do not provision SSO. **Never overwrites** an existing `providerId`.
 
 | Variable | Description |
 |----------|-------------|
@@ -169,7 +169,7 @@ Runs after migrations when the app / migrate process calls `ensureDbReady`. **Ne
 | `SSO_BOOTSTRAP_DOMAIN` | Empty = **any** email domain; or comma-separated domains for **specific** |
 | `SSO_BOOTSTRAP_LABEL` | Button label (default = provider id) |
 
-Requires an admin user to already exist (run seed-admin first, then restart / re-run migrate so bootstrap can attach `userId`).
+Bootstrap creates the administrator first. Missing required SSO settings or failed discovery fails bootstrap; fix configuration and repeat the same command.
 
 You can also manage IdPs later in **Admin → SSO** without bootstrap env vars.
 
@@ -446,10 +446,9 @@ Point `DATABASE_URL` at your server and remove / don’t start the `db` service 
 ```bash
 corepack enable
 pnpm install
-cp .env.example .env   # fill secrets + CUZK_API_KEY
+cp .env.example .env  # fill unique secrets; alternatively use env:init from the repo root   # fill secrets + CUZK_API_KEY
 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml up -d db
-pnpm db:migrate
-pnpm db:seed-admin
+pnpm bootstrap
 pnpm dev
 ```
 
@@ -558,3 +557,15 @@ docker compose -f docker-compose.yml -f docker-compose.selfhost.yml up -d app cr
 The CLI reports only a count. Already encrypted values are authenticated and encrypted again, so repeating the command is safe. Any invalid key/ciphertext rolls back the entire transaction. Legacy URLs outside the destination policy may be encrypted but remain blocked at delivery; correct them in settings or update the administrator's whitelist.
 
 For rotation, stop app/cron replicas, preserve the old key as `NOTIFICATION_PREVIOUS_ENCRYPTION_KEY`, set a fresh `NOTIFICATION_ENCRYPTION_KEY`, and run `pnpm notifications:encrypt` with both keys. After success, remove the previous key from runtime configuration and restart all replicas. A wrong old key must be corrected before retrying. Keep old keys securely for as long as backups encrypted with them exist. Back up keys **separately from the database**, with restricted access; losing the appropriate key requires entering replacement notification credentials. Historical plaintext backups still contain plaintext credentials and need their own retention/access policy. Restoring the DB alone does not restore the ability to decrypt notifications.
+
+### Repeatable bootstrap and configuration diagnostics
+
+For a new instance, use `pnpm env:init deploy/.env` from the repository root. It refuses to overwrite an existing file, generates independent DB/auth/notification/metrics/admin secrets, sets mode `0600`, and never prints their values. Fill `PUBLIC_URL` (HTTP/HTTPS origin without a path), `APP_HOST`, `ADMIN_EMAIL` and `CUZK_API_KEY`; `DATABASE_URL` initially targets the bundled Compose `db` host. For local Node development change that host to your published PostgreSQL address and load the env into the process. Example files are templates, not usable production secrets. Compose requires `POSTGRES_PASSWORD`; it has no production default.
+
+The single installation command is `pnpm bootstrap`. It validates central config (`src/env.ts`), serializes bootstrap in PostgreSQL, applies migrations through the same advisory lock as runtime guards, creates/promotes the configured administrator, and finally provisions optional SSO. Repeating the command preserves passwords and existing SSO provider configuration. `pnpm db:migrate` intentionally only migrates; `pnpm db:seed-admin --reset-password` remains the separate local recovery procedure. Demo creation is **opt-in** with `SEED_DEMO_WATCH=1` for both seed and bootstrap.
+
+`pnpm run doctor` exits nonzero for invalid configuration, inaccessible DB, missing/mismatched schema, missing administrator or an expected SSO provider. Output includes only configuration names/status, never secret values or database URLs. A configured API key is reported as configured, not as remotely verified. Normal doctor does not contact ČÚZK or the IdP. Explicit `pnpm run doctor --check-api` refreshes the account through the normal shared API budget/cache and can spend up to three attempts; it never bypasses the 500/day accounting.
+
+`pnpm start` and the Docker entrypoint validate configuration and current DB schema before starting HTTP. The worker also validates config before scheduling. `PUBLIC_URL` is accepted as the public-origin fallback and copied to `BETTER_AUTH_URL` for auth consumers. Auth policies and ČÚZK limits share their schema definitions with central validation. Optional empty env values are treated as absent; enabling SSO bootstrap requires all provider credentials, and trusted forwarding headers require an explicit proxy list. Missing notification encryption is allowed for instances without notifications and is reported by doctor; a supplied invalid key fails validation.
+
+Deployment scripts must keep runtime configuration consistent between app, cron and bootstrap. The GitLab generated env now includes registration/proxy policy, API limits, monitor token and notification encryption configuration. After changing env, recreate the affected containers so they receive it. Build does not require runtime credentials; startup does. Running `.output/server/index.mjs` directly bypasses this startup validation and is not the supported selfhosting entrypoint.

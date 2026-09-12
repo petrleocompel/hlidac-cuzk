@@ -6,7 +6,7 @@ export const DEFAULT_POLL_MINUTES = 1440
 export const MANUAL_REFRESH_SECONDS = 300
 export const ACCOUNT_CACHE_MS = 15 * 60_000
 
-const config = z.object({
+export const cuzkPolicySchema = z.object({
   CUZK_REQUEST_TIMEOUT_MS: z.coerce
     .number()
     .int()
@@ -23,7 +23,7 @@ const config = z.object({
 })
 
 export function cuzkPolicy() {
-  return config.parse(process.env)
+  return cuzkPolicySchema.parse(process.env)
 }
 
 export class CuzkUnavailableError extends Error {
