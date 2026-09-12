@@ -527,3 +527,34 @@ Workflow files:
 ## License / support
 
 See the repository root for license and issue tracker. For ČÚZK API access and rate limits, follow ČÚZK’s own documentation for your API key.
+
+### Notification destinations and encrypted credentials
+
+**Upgrade requirement (HOST-03):** configure `NOTIFICATION_ENCRYPTION_KEY` for both app and cron, then run the credential migration before resuming delivery. Without the key or with legacy plaintext credentials, delivery fails closed; existing accounts, watches and their history remain available. Failed deliveries can be retried from their event after configuration is repaired. GitLab deployments accept the same named CI/CD variable (masked, environment scope `test`); the application does not generate or derive this key from the authentication secret.
+
+Generate a separate 32-byte key with `openssl rand -base64 32` and put the result in the instance's private env file or secret manager. Do not commit it. New Gotify tokens and complete Slack/Discord webhook URLs use AES-256-GCM with a random nonce and authenticated owner/field identity. User settings and admin user details return configured flags, never the saved token/webhook URL. In the form, choose **Ponechat / Nahradit / Odebrat**; replacement fields start empty and are cleared after saving. Tests send using the saved settings. Changing the Gotify server requires replacing or removing its token.
+
+**Admin → Pravidla notifikací** controls Gotify, Slack and Discord independently for the whole instance. Disabled channels are excluded from queue claims without spending retries, and resume after enabling. A request already started cannot be recalled; the transport checks the current policy again before starting each request. Removing a user's channel is different: its outstanding jobs report a missing configuration.
+
+The Gotify whitelist follows the explicitly selected instance policy:
+
+- Empty list: **all HTTP/HTTPS Gotify destinations are allowed, including LAN and loopback**. Authenticated users can therefore send Gotify requests into networks reachable by the server; use a whitelist when this is not desired.
+- Nonempty list: only exact normalized base URLs, including port and optional path prefix. For example, `http://gotify:80` and `https://notify.example.test/gotify` permit their `/message` endpoints. No wildcard or implicit subdomain matching.
+- `GOTIFY_ALLOWED_URLS` provides comma-separated initial values. Once an administrator saves the DB policy, the saved list takes precedence, including an explicitly empty list. App and worker read the same DB policy; no restart is required for admin changes.
+
+Slack accepts HTTPS incoming webhooks on `hooks.slack.com` and `hooks.slack-gov.com`, with `/services/T…/B…/…` paths. Discord accepts HTTPS webhooks on `discord.com` and legacy `discordapp.com`, with `/api[/vN]/webhooks/{id}/{token}` paths. Userinfo, query strings, fragments, encoded path separators and nonstandard ports are rejected for these public providers. Slack URLs are not implicitly converted to Discord. See the official [Slack webhook documentation](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/) and [Discord webhook resource](https://docs.discord.com/developers/resources/webhook).
+
+All channels reject redirects and limit DNS plus HTTP work to 15 seconds. DNS is resolved once and the socket uses that exact address with the original hostname for HTTPS certificate verification; public providers additionally reject private/reserved DNS answers. Gotify intentionally permits private addresses according to the policy above. Transport errors expose a status or generic explanation, never response bodies or secret URLs. No notification proxy environment variables are used.
+
+For initial conversion of existing credentials, first back up the database and current configuration, stop **all** app/cron replicas, deploy/migrate the new schema, and run using the new image and its configured key (example from the `deploy` directory):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml stop app cron
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml run --rm migrate
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml run --rm --no-deps app pnpm notifications:encrypt
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml up -d app cron
+```
+
+The CLI reports only a count. Already encrypted values are authenticated and encrypted again, so repeating the command is safe. Any invalid key/ciphertext rolls back the entire transaction. Legacy URLs outside the destination policy may be encrypted but remain blocked at delivery; correct them in settings or update the administrator's whitelist.
+
+For rotation, stop app/cron replicas, preserve the old key as `NOTIFICATION_PREVIOUS_ENCRYPTION_KEY`, set a fresh `NOTIFICATION_ENCRYPTION_KEY`, and run `pnpm notifications:encrypt` with both keys. After success, remove the previous key from runtime configuration and restart all replicas. A wrong old key must be corrected before retrying. Keep old keys securely for as long as backups encrypted with them exist. Back up keys **separately from the database**, with restricted access; losing the appropriate key requires entering replacement notification credentials. Historical plaintext backups still contain plaintext credentials and need their own retention/access policy. Restoring the DB alone does not restore the ability to decrypt notifications.

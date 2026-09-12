@@ -27,7 +27,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed-admin": "tsx scripts/seed-admin.ts",
     "cron": "tsx scripts/cron.ts",
-    "seed-admin": "tsx scripts/seed-admin.ts"
+    "seed-admin": "tsx scripts/seed-admin.ts",
+    "notifications:encrypt": "tsx scripts/encrypt-notifications.ts"
   },
   "dependencies": {
     "@better-auth/sso": "^1.6.31",

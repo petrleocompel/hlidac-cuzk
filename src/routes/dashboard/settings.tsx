@@ -12,262 +12,235 @@ import {
 } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
-import { Separator } from '#/components/ui/separator'
 import {
   getNotificationSettings,
   saveNotificationSettings,
-  testDiscordNotification,
-  testGotifyNotification,
-  testSlackNotification,
+  testNotificationSettings,
 } from '#/server/settings'
 
 export const Route = createFileRoute('/dashboard/settings')({
   loader: async () => {
     const session = await getServerSession()
     if (!session) throw redirect({ to: '/login' })
-    const settings = await getNotificationSettings()
-    return { session, settings }
+    return { session, settings: await getNotificationSettings() }
   },
   component: SettingsPage,
 })
 
+type SecretAction = 'keep' | 'replace' | 'remove'
+const channels = [
+  {
+    channel: 'gotify',
+    name: 'Gotify token',
+    field: 'gotifyToken',
+    flag: 'gotifyTokenConfigured',
+  },
+  {
+    channel: 'slack',
+    name: 'Slack webhook',
+    field: 'slackWebhookUrl',
+    flag: 'slackWebhookConfigured',
+  },
+  {
+    channel: 'discord',
+    name: 'Discord webhook',
+    field: 'discordWebhookUrl',
+    flag: 'discordWebhookConfigured',
+  },
+] as const
+
+function SecretInput({
+  field,
+  name,
+  configured,
+}: {
+  field: string
+  name: string
+  configured: boolean
+}) {
+  const [action, setAction] = useState<SecretAction>('keep')
+  return (
+    <div className="space-y-2">
+      <p className="text-sm">
+        {configured ? 'Uloženo ••••••••' : 'Není nastaveno'}
+      </p>
+      <Label htmlFor={`${field}Action`}>{name}: akce</Label>
+      <select
+        id={`${field}Action`}
+        name={`${field}Action`}
+        value={action}
+        onChange={(e) => setAction(e.target.value as SecretAction)}
+        className="w-full rounded-md border bg-background p-2"
+      >
+        <option value="keep">Ponechat</option>
+        <option value="replace">Nahradit</option>
+        <option value="remove">Odebrat</option>
+      </select>
+      {action === 'replace' ? (
+        <>
+          <Label htmlFor={field}>Nová hodnota: {name}</Label>
+          <Input
+            id={field}
+            name={field}
+            type="password"
+            autoComplete="new-password"
+            required
+            maxLength={4096}
+          />
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 function SettingsPage() {
-  const { session, settings } = Route.useLoaderData()
+  const loaded = Route.useLoaderData()
+  const [settings, setSettings] = useState(loaded.settings)
+  const [revision, setRevision] = useState(0)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [testingGotify, setTestingGotify] = useState(false)
-  const [testingSlack, setTestingSlack] = useState(false)
-  const [testingDiscord, setTestingDiscord] = useState(false)
-
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    const patch = (field: string) => {
+      const action = fd.get(`${field}Action`) as SecretAction
+      return action === 'replace'
+        ? { action, value: String(fd.get(field) ?? '') }
+        : { action }
+    }
     setPending(true)
     setError(null)
     setMessage(null)
     try {
-      await saveNotificationSettings({
-        data: {
-          gotifyUrl: String(fd.get('gotifyUrl') ?? ''),
-          gotifyToken: String(fd.get('gotifyToken') ?? ''),
-          gotifyPriority: Number(fd.get('gotifyPriority') ?? 5),
-          slackWebhookUrl: String(fd.get('slackWebhookUrl') ?? ''),
-          discordWebhookUrl: String(fd.get('discordWebhookUrl') ?? ''),
-        },
-      })
-      setMessage('Uloženo')
+      setSettings(
+        await saveNotificationSettings({
+          data: {
+            gotifyUrl: String(fd.get('gotifyUrl') ?? ''),
+            gotifyPriority: Number(fd.get('gotifyPriority') ?? 5),
+            gotifyToken: patch('gotifyToken'),
+            slackWebhookUrl: patch('slackWebhookUrl'),
+            discordWebhookUrl: patch('discordWebhookUrl'),
+          },
+        }),
+      )
+      setRevision((value) => value + 1)
+      setMessage('Nastavení uloženo.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(err instanceof Error ? err.message : 'Uložení selhalo.')
     } finally {
       setPending(false)
     }
   }
-
-  async function onTestGotify(form: HTMLFormElement) {
-    const fd = new FormData(form)
-    setTestingGotify(true)
+  async function test(channel: 'gotify' | 'slack' | 'discord') {
+    setPending(true)
     setError(null)
     setMessage(null)
     try {
-      await testGotifyNotification({
-        data: {
-          gotifyUrl: String(fd.get('gotifyUrl') ?? '').trim(),
-          gotifyToken: String(fd.get('gotifyToken') ?? '').trim(),
-          gotifyPriority: Number(fd.get('gotifyPriority') ?? 5),
-        },
-      })
-      setMessage('Gotify: test odeslán')
+      await testNotificationSettings({ data: channel })
+      setMessage('Testovací zpráva odeslána podle uloženého nastavení.')
     } catch (err) {
-      setError(
-        err instanceof Error ? `Gotify: ${err.message}` : `Gotify: ${String(err)}`,
-      )
+      setError(err instanceof Error ? err.message : 'Test selhal.')
     } finally {
-      setTestingGotify(false)
+      setPending(false)
     }
   }
-
-  async function onTestSlack(form: HTMLFormElement) {
-    const fd = new FormData(form)
-    setTestingSlack(true)
-    setError(null)
-    setMessage(null)
-    try {
-      await testSlackNotification({
-        data: {
-          slackWebhookUrl: String(fd.get('slackWebhookUrl') ?? '').trim(),
-        },
-      })
-      setMessage('Slack: test odeslán')
-    } catch (err) {
-      setError(
-        err instanceof Error ? `Slack: ${err.message}` : `Slack: ${String(err)}`,
-      )
-    } finally {
-      setTestingSlack(false)
-    }
-  }
-
-  async function onTestDiscord(form: HTMLFormElement) {
-    const fd = new FormData(form)
-    setTestingDiscord(true)
-    setError(null)
-    setMessage(null)
-    try {
-      await testDiscordNotification({
-        data: {
-          discordWebhookUrl: String(fd.get('discordWebhookUrl') ?? '').trim(),
-        },
-      })
-      setMessage('Discord: test odeslán')
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? `Discord: ${err.message}`
-          : `Discord: ${String(err)}`,
-      )
-    } finally {
-      setTestingDiscord(false)
-    }
-  }
-
   return (
     <DashboardShell
-      user={session.user}
-      isAdmin={session.user.role === 'admin'}
+      user={loaded.session.user}
+      isAdmin={loaded.session.user.role === 'admin'}
     >
       <Card className="mx-auto max-w-xl">
         <CardHeader>
-          <CardTitle>Notifikace</CardTitle>
+          <CardTitle>
+            <h1>Notifikace</h1>
+          </CardTitle>
           <CardDescription>
-            Gotify, Discord a Slack. Test používá hodnoty z formuláře — nemusíte
-            nejdřív ukládat.
+            Uložené tokeny se nezobrazují. Změny nejprve uložte; test používá
+            uložené nastavení.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-6" onSubmit={onSubmit}>
-            <section className="space-y-4">
-              <div>
-                <h2 className="text-sm font-medium">Gotify</h2>
-                <p className="text-xs text-muted-foreground">
-                  Server URL + application token
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gotifyUrl">Gotify URL</Label>
-                <Input
-                  id="gotifyUrl"
-                  name="gotifyUrl"
-                  defaultValue={settings.gotifyUrl ?? ''}
-                  placeholder="https://gotify.example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gotifyToken">Gotify token</Label>
-                <Input
-                  id="gotifyToken"
-                  name="gotifyToken"
-                  defaultValue={settings.gotifyToken ?? ''}
-                  autoComplete="off"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gotifyPriority">Gotify priorita</Label>
-                <Input
-                  id="gotifyPriority"
-                  name="gotifyPriority"
-                  type="number"
-                  min={0}
-                  max={10}
-                  defaultValue={settings.gotifyPriority ?? 5}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={testingGotify || pending}
-                onClick={(e) => {
-                  const form = e.currentTarget.form
-                  if (form) void onTestGotify(form)
-                }}
-              >
-                {testingGotify ? 'Testuji Gotify…' : 'Test Gotify'}
+          {!settings.encryptionConfigured ? (
+            <p role="alert" className="mb-4 text-sm text-destructive">
+              Správce musí nakonfigurovat šifrovací klíč notifikací. Nové tokeny
+              zatím nelze uložit.
+            </p>
+          ) : null}
+          <form key={revision} onSubmit={onSubmit} className="space-y-6">
+            <fieldset disabled={pending} className="space-y-6">
+              <legend className="sr-only">Notifikační kanály</legend>
+              {channels.map(({ channel, name, field, flag }) => (
+                <section
+                  key={channel}
+                  className="space-y-4"
+                  aria-labelledby={`${channel}Heading`}
+                >
+                  <h2 id={`${channel}Heading`} className="font-medium">
+                    {name}
+                  </h2>
+                  {channel === 'gotify' ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="gotifyUrl">
+                          Gotify URL povolená správcem
+                        </Label>
+                        <Input
+                          id="gotifyUrl"
+                          name="gotifyUrl"
+                          type="url"
+                          defaultValue={settings.gotifyUrl ?? ''}
+                          placeholder="https://gotify.example.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gotifyPriority">
+                          Priorita Gotify (0–10)
+                        </Label>
+                        <Input
+                          id="gotifyPriority"
+                          name="gotifyPriority"
+                          type="number"
+                          min={0}
+                          max={10}
+                          defaultValue={settings.gotifyPriority}
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                  <SecretInput
+                    field={field}
+                    name={name}
+                    configured={settings[flag]}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!settings[flag]}
+                    onClick={() => void test(channel)}
+                  >
+                    Test{' '}
+                    {channel === 'gotify'
+                      ? 'Gotify'
+                      : channel === 'slack'
+                        ? 'Slack'
+                        : 'Discord'}
+                  </Button>
+                </section>
+              ))}
+              <Button type="submit">
+                {pending ? 'Zpracovávám…' : 'Uložit nastavení'}
               </Button>
-            </section>
-
-            <Separator />
-
-            <section className="space-y-4">
-              <div>
-                <h2 className="text-sm font-medium">Discord webhook</h2>
-                <p className="text-xs text-muted-foreground">
-                  Native Discord webhook (`content` payload)
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="discordWebhookUrl">Webhook URL</Label>
-                <Input
-                  id="discordWebhookUrl"
-                  name="discordWebhookUrl"
-                  defaultValue={settings.discordWebhookUrl ?? ''}
-                  placeholder="https://discord.com/api/webhooks/…"
-                  autoComplete="off"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={testingDiscord || pending}
-                onClick={(e) => {
-                  const form = e.currentTarget.form
-                  if (form) void onTestDiscord(form)
-                }}
-              >
-                {testingDiscord ? 'Testuji Discord…' : 'Test Discord'}
-              </Button>
-            </section>
-
-            <Separator />
-
-            <section className="space-y-4">
-              <div>
-                <h2 className="text-sm font-medium">Slack webhook</h2>
-                <p className="text-xs text-muted-foreground">
-                  Slack Incoming Webhook (`text`). Discord URL sem nepatří —
-                  použijte sekci Discord.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="slackWebhookUrl">Webhook URL</Label>
-                <Input
-                  id="slackWebhookUrl"
-                  name="slackWebhookUrl"
-                  defaultValue={settings.slackWebhookUrl ?? ''}
-                  placeholder="https://hooks.slack.com/…"
-                  autoComplete="off"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={testingSlack || pending}
-                onClick={(e) => {
-                  const form = e.currentTarget.form
-                  if (form) void onTestSlack(form)
-                }}
-              >
-                {testingSlack ? 'Testuji Slack…' : 'Test Slack'}
-              </Button>
-            </section>
-
-            <Separator />
-
-            {message ? <p className="text-sm text-primary">{message}</p> : null}
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Ukládám…' : 'Uložit'}
-            </Button>
+            </fieldset>
           </form>
+          <p role="status" className="mt-4 text-sm">
+            {message}
+          </p>
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </DashboardShell>

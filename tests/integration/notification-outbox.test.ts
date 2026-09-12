@@ -1,3 +1,5 @@
+import type * as NotificationTransport from '../../src/lib/notifications/http'
+import { encryptNotificationSecret } from '../../src/lib/notifications/secrets'
 import { execFile } from 'node:child_process'
 import { createServer } from 'node:http'
 import { promisify } from 'node:util'
@@ -11,10 +13,12 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from 'vitest'
 import { db, closeDb } from '../../src/db'
 import {
   notificationDeliveries,
+  notificationPolicy,
   parcelWatches,
   user,
   userNotificationSettings,
@@ -29,6 +33,28 @@ import {
   enqueueNotifications,
   retryNotificationDelivery,
 } from '../../src/lib/notifications/outbox'
+
+vi.mock('../../src/lib/notifications/http', async (importOriginal) => {
+  const original = await importOriginal<typeof NotificationTransport>()
+  return {
+    ...original,
+    postNotification: async (
+      url: string | URL,
+      init: { headers: Record<string, string>; body: string },
+      channel: 'gotify' | 'slack' | 'discord',
+    ) => {
+      if (channel === 'gotify')
+        return original.postNotification(url, init, channel)
+      const response = await fetch(`${baseUrl}/${channel}`, {
+        method: 'POST',
+        ...init,
+      })
+      await response.body?.cancel()
+      if (!response.ok)
+        throw new original.NotificationHttpError(response.status)
+    },
+  }
+})
 
 const execFileAsync = promisify(execFile)
 const initialTime = new Date('2026-01-01T10:00:00Z')
@@ -80,6 +106,7 @@ beforeAll(async () => {
 })
 
 beforeEach(async () => {
+  await db.delete(notificationPolicy)
   await db.delete(user)
   area = 100
   gotifyStatus = 200
@@ -90,8 +117,16 @@ beforeEach(async () => {
   await db.insert(userNotificationSettings).values({
     userId: 'owner',
     gotifyUrl: baseUrl,
-    gotifyToken: 'old-test-token',
-    slackWebhookUrl: `${baseUrl}/slack`,
+    gotifyToken: encryptNotificationSecret(
+      'old-test-token',
+      'owner',
+      'gotifyToken',
+    ),
+    slackWebhookUrl: encryptNotificationSecret(
+      'https://hooks.slack.com/services/TTEST/BTEST/fixture',
+      'owner',
+      'slackWebhookUrl',
+    ),
   })
   const snapshot = await buildParcelSnapshot('1', initialTime)
   const [watch] = await db
@@ -137,10 +172,31 @@ async function deliveries() {
 }
 
 describe('durable notification outbox (PostgreSQL)', () => {
-  it('sends native payloads to all three configured channels', async () => {
+  it('pauses disabled channels without spending retry attempts and resumes after enabling', async () => {
+    await detectChange()
     await db
-      .update(userNotificationSettings)
-      .set({ discordWebhookUrl: `${baseUrl}/discord` })
+      .insert(notificationPolicy)
+      .values({ id: 1, gotifyEnabled: false, slackEnabled: false })
+    expect((await deliverDueNotifications({ now: () => clock })).sent).toBe(0)
+    expect(
+      (await deliveries()).every(
+        (row) => row.attemptCount === 0 && row.status === 'pending',
+      ),
+    ).toBe(true)
+    await db
+      .update(notificationPolicy)
+      .set({ gotifyEnabled: true, slackEnabled: true })
+    expect((await deliverDueNotifications({ now: () => clock })).sent).toBe(2)
+  })
+
+  it('sends native payloads to all three configured channels', async () => {
+    await db.update(userNotificationSettings).set({
+      discordWebhookUrl: encryptNotificationSecret(
+        'https://discord.com/api/webhooks/123/fixture',
+        'owner',
+        'discordWebhookUrl',
+      ),
+    })
     expect((await detectChange()).queued).toBe(3)
     expect((await deliverDueNotifications({ now: () => clock })).sent).toBe(3)
     const discord = requests.find((r) => r.path === '/discord')
@@ -169,15 +225,13 @@ describe('durable notification outbox (PostgreSQL)', () => {
   })
 
   it('commits snapshot, event and per-channel jobs without sending; a fresh CLI process drains them', async () => {
+    await db.update(userNotificationSettings).set({ slackWebhookUrl: null })
     const result = await detectChange()
-    expect(result.queued).toBe(2)
+    expect(result.queued).toBe(1)
     expect(result.changes).toHaveLength(1)
     expect(requests.map((r) => r.path)).toEqual(['/api/v1/Parcely/1'])
     expect(await db.query.watchEvents.findMany()).toHaveLength(1)
-    expect((await deliveries()).map((d) => d.status)).toEqual([
-      'pending',
-      'pending',
-    ])
+    expect((await deliveries()).map((d) => d.status)).toEqual(['pending'])
     const watch = await db.query.parcelWatches.findFirst({
       where: eq(parcelWatches.id, watchId),
     })
@@ -192,9 +246,9 @@ describe('durable notification outbox (PostgreSQL)', () => {
         timeout: 20_000,
       },
     )
-    expect((await deliveries()).map((d) => d.status)).toEqual(['sent', 'sent'])
+    expect((await deliveries()).map((d) => d.status)).toEqual(['sent'])
     expect(requests.filter((r) => r.path === '/message')).toHaveLength(1)
-    expect(requests.filter((r) => r.path === '/slack')).toHaveLength(1)
+    expect(requests.filter((r) => r.path === '/slack')).toHaveLength(0)
     expect((await deliverDueNotifications()).sent).toBe(0)
   })
 
@@ -240,7 +294,13 @@ describe('durable notification outbox (PostgreSQL)', () => {
     expect(watch?.lastError).toBeNull()
     await db
       .update(userNotificationSettings)
-      .set({ gotifyToken: 'repaired-test-token' })
+      .set({
+        gotifyToken: encryptNotificationSecret(
+          'repaired-test-token',
+          'owner',
+          'gotifyToken',
+        ),
+      })
       .where(eq(userNotificationSettings.userId, 'owner'))
     gotifyStatus = 200
     clock = gotify.nextAttemptAt

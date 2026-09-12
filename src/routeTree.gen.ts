@@ -18,6 +18,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccessRouteImport } from './routes/admin/access'
 import { Route as AdminCuzkRouteImport } from './routes/admin/cuzk'
 import { Route as AdminMonitoringRouteImport } from './routes/admin/monitoring'
+import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
 import { Route as AdminSsoRouteImport } from './routes/admin/sso'
 import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as ApiMonitoringRouteImport } from './routes/api/monitoring'
@@ -73,6 +74,11 @@ const AdminCuzkRoute = AdminCuzkRouteImport.update({
 const AdminMonitoringRoute = AdminMonitoringRouteImport.update({
   id: '/admin/monitoring',
   path: '/admin/monitoring',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/admin/notifications',
+  path: '/admin/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSsoRoute = AdminSsoRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/admin/access': typeof AdminAccessRoute
   '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/sso': typeof AdminSsoRoute
   '/api/metrics': typeof ApiMetricsRoute
   '/api/monitoring': typeof ApiMonitoringRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/admin/access': typeof AdminAccessRoute
   '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/sso': typeof AdminSsoRoute
   '/api/metrics': typeof ApiMetricsRoute
   '/api/monitoring': typeof ApiMonitoringRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/admin/access': typeof AdminAccessRoute
   '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/sso': typeof AdminSsoRoute
   '/api/metrics': typeof ApiMetricsRoute
   '/api/monitoring': typeof ApiMonitoringRoute
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/admin/access'
     | '/admin/cuzk'
     | '/admin/monitoring'
+    | '/admin/notifications'
     | '/admin/sso'
     | '/api/metrics'
     | '/api/monitoring'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/admin/access'
     | '/admin/cuzk'
     | '/admin/monitoring'
+    | '/admin/notifications'
     | '/admin/sso'
     | '/api/metrics'
     | '/api/monitoring'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/admin/access'
     | '/admin/cuzk'
     | '/admin/monitoring'
+    | '/admin/notifications'
     | '/admin/sso'
     | '/api/metrics'
     | '/api/monitoring'
@@ -276,6 +288,7 @@ export interface RootRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
   AdminCuzkRoute: typeof AdminCuzkRoute
   AdminMonitoringRoute: typeof AdminMonitoringRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminSsoRoute: typeof AdminSsoRoute
   ApiMetricsRoute: typeof ApiMetricsRoute
   ApiMonitoringRoute: typeof ApiMonitoringRoute
@@ -353,6 +366,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/monitoring'
       fullPath: '/admin/monitoring'
       preLoaderRoute: typeof AdminMonitoringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/admin/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/sso': {
@@ -444,6 +464,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
   AdminCuzkRoute: AdminCuzkRoute,
   AdminMonitoringRoute: AdminMonitoringRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminSsoRoute: AdminSsoRoute,
   ApiMetricsRoute: ApiMetricsRoute,
   ApiMonitoringRoute: ApiMonitoringRoute,

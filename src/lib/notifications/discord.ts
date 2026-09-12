@@ -26,13 +26,16 @@ export async function sendDiscordWebhook(
     throw new Error('Discord: empty message')
   }
 
-  await postNotification(webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      content,
-      username: payload.username ?? 'Hlídač ČÚZK',
-      ...(payload.embeds ? { embeds: payload.embeds } : {}),
-    }),
-  })
+  await postNotification(
+    webhookUrl,
+    {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content,
+        username: payload.username ?? 'Hlídač ČÚZK',
+        ...(payload.embeds ? { embeds: payload.embeds } : {}),
+      }),
+    },
+    'discord',
+  )
 }

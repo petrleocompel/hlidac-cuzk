@@ -330,11 +330,11 @@ function AdminUserDetailPage() {
                   </p>
                   <p>
                     <span className="text-muted-foreground">Discord: </span>
-                    {detail.notifications.discordWebhookUrl ? 'nastaven' : '—'}
+                    {detail.notifications.discordWebhookConfigured ? 'nastaven' : '—'}
                   </p>
                   <p>
                     <span className="text-muted-foreground">Slack: </span>
-                    {detail.notifications.slackWebhookUrl ? 'nastaven' : '—'}
+                    {detail.notifications.slackWebhookConfigured ? 'nastaven' : '—'}
                   </p>
                 </>
               )}

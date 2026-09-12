@@ -1,3 +1,5 @@
+import { readNotificationPolicy } from './policy'
+import { decryptNotificationSecret } from './secrets'
 import { and, asc, eq, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db'
 import {
@@ -59,19 +61,27 @@ export async function enqueueNotifications(
 export async function claimDelivery(
   now = new Date(),
 ): Promise<NotificationDelivery | null> {
+  const policy = await readNotificationPolicy()
+  const enabled = (['gotify', 'slack', 'discord'] as const).filter(
+    (channel) => policy[`${channel}Enabled`],
+  )
+  if (!enabled.length) return null
   return db.transaction(async (tx) => {
     const rows = await tx
       .select()
       .from(notificationDeliveries)
       .where(
-        or(
-          and(
-            eq(notificationDeliveries.status, 'pending'),
-            lte(notificationDeliveries.nextAttemptAt, now),
-          ),
-          and(
-            eq(notificationDeliveries.status, 'processing'),
-            lte(notificationDeliveries.lockedUntil, now),
+        and(
+          inArray(notificationDeliveries.channel, enabled),
+          or(
+            and(
+              eq(notificationDeliveries.status, 'pending'),
+              lte(notificationDeliveries.nextAttemptAt, now),
+            ),
+            and(
+              eq(notificationDeliveries.status, 'processing'),
+              lte(notificationDeliveries.lockedUntil, now),
+            ),
           ),
         ),
       )
@@ -119,24 +129,46 @@ async function sendDelivery(delivery: NotificationDelivery): Promise<void> {
     case 'gotify':
       if (!settings?.gotifyUrl || !settings.gotifyToken)
         throw new Error('channel_not_configured')
-      await sendGotify(settings.gotifyUrl, settings.gotifyToken, {
-        title,
-        message,
-        priority: settings.gotifyPriority ?? 5,
-      })
+      await sendGotify(
+        settings.gotifyUrl,
+        decryptNotificationSecret(
+          settings.gotifyToken,
+          owner.userId,
+          'gotifyToken',
+        ),
+        {
+          title,
+          message,
+          priority: settings.gotifyPriority ?? 5,
+        },
+      )
       return
     case 'slack':
       if (!settings?.slackWebhookUrl) throw new Error('channel_not_configured')
-      await sendSlackWebhook(settings.slackWebhookUrl, {
-        text: `*${title}*\n${message}`,
-      })
+      await sendSlackWebhook(
+        decryptNotificationSecret(
+          settings.slackWebhookUrl,
+          owner.userId,
+          'slackWebhookUrl',
+        ),
+        {
+          text: `*${title}*\n${message}`,
+        },
+      )
       return
     case 'discord':
       if (!settings?.discordWebhookUrl)
         throw new Error('channel_not_configured')
-      await sendDiscordWebhook(settings.discordWebhookUrl, {
-        content: `**${title}**\n${message}`,
-      })
+      await sendDiscordWebhook(
+        decryptNotificationSecret(
+          settings.discordWebhookUrl,
+          owner.userId,
+          'discordWebhookUrl',
+        ),
+        {
+          content: `**${title}**\n${message}`,
+        },
+      )
       return
   }
 }

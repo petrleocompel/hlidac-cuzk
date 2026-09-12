@@ -183,6 +183,17 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={pathname.startsWith('/admin/notifications')}
+                  >
+                    <Link to="/admin/notifications">
+                      <KeyRound />
+                      <span>Pravidla notifikací</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
               </SidebarMenuSub>
             </CollapsibleContent>
           </SidebarGroup>

@@ -1,3 +1,4 @@
+import { displayGotifyUrl } from '#/lib/notifications/destinations'
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
@@ -42,8 +43,8 @@ export type AdminUserDetail = {
   }
   notifications: {
     gotifyUrl: string | null
-    slackWebhookUrl: string | null
-    discordWebhookUrl: string | null
+    slackWebhookConfigured: boolean
+    discordWebhookConfigured: boolean
   } | null
   watches: Array<{
     id: string
@@ -183,9 +184,9 @@ export const getUserAdmin = createServerFn({ method: 'GET' })
       },
       notifications: notifications
         ? {
-            gotifyUrl: notifications.gotifyUrl,
-            slackWebhookUrl: notifications.slackWebhookUrl,
-            discordWebhookUrl: notifications.discordWebhookUrl,
+            gotifyUrl: displayGotifyUrl(notifications.gotifyUrl),
+            slackWebhookConfigured: Boolean(notifications.slackWebhookUrl),
+            discordWebhookConfigured: Boolean(notifications.discordWebhookUrl),
           }
         : null,
       watches: watches.map((w) => ({

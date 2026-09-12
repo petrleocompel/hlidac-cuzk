@@ -32,6 +32,8 @@ function crumbsForPath(pathname: string): Crumb[] {
   }
   if (pathname.startsWith('/admin/access'))
     return [{ label: 'Admin', to: '/admin' }, { label: 'Přístup a pozvánky' }]
+  if (pathname.startsWith('/admin/notifications'))
+    return [{ label: 'Admin', to: '/admin' }, { label: 'Pravidla notifikací' }]
   if (pathname.startsWith('/admin/monitoring')) {
     return [{ label: 'Admin', to: '/admin' }, { label: 'Stav workeru' }]
   }

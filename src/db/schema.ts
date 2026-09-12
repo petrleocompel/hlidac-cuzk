@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
   bigint,
@@ -391,3 +391,17 @@ export type WatchEvent = typeof watchEvents.$inferSelect
 export type NotificationDelivery = typeof notificationDeliveries.$inferSelect
 export type UserNotificationSettings =
   typeof userNotificationSettings.$inferSelect
+
+export const notificationPolicy = pgTable('notification_policy', {
+  id: integer('id').primaryKey().default(1),
+  gotifyEnabled: boolean('gotify_enabled').notNull().default(true),
+  slackEnabled: boolean('slack_enabled').notNull().default(true),
+  discordEnabled: boolean('discord_enabled').notNull().default(true),
+  gotifyAllowedUrls: text('gotify_allowed_urls')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})

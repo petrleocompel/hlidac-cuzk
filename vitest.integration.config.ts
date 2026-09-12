@@ -22,6 +22,7 @@ export default defineConfig({
       DATABASE_URL: databaseUrl,
       BETTER_AUTH_SECRET: 'fixture-auth-secret-not-for-production-12345',
       BETTER_AUTH_URL: 'http://127.0.0.1:3000',
+      NOTIFICATION_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
       CUZK_API_KEY: 'integration-test-only',
       CUZK_MIN_REQUEST_INTERVAL_MS: '0',
       SSO_BOOTSTRAP_ENABLED: 'false',

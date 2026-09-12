@@ -11,17 +11,19 @@ export async function sendGotify(
   token: string,
   msg: GotifyMessage,
 ): Promise<void> {
-  const url = new URL('/message', baseUrl.replace(/\/$/, ''))
-  await postNotification(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Gotify-Key': token,
+  await postNotification(
+    baseUrl,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Gotify-Key': token,
+      },
+      body: JSON.stringify({
+        title: msg.title,
+        message: msg.message,
+        priority: msg.priority ?? 5,
+      }),
     },
-    body: JSON.stringify({
-      title: msg.title,
-      message: msg.message,
-      priority: msg.priority ?? 5,
-    }),
-  })
+    'gotify',
+  )
 }
