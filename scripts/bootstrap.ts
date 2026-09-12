@@ -5,12 +5,15 @@ try {
   const { bootstrapInstance } = await import('../src/db/bootstrap.ts')
   await bootstrapInstance()
 } catch (error) {
-  // Bootstrap errors are deliberately bounded; provider response bodies are not printed.
+  // Prefer safe Error messages (config, discovery codes). Never dump provider bodies.
   const { ConfigurationError } = await import('../src/env.ts')
-  console.error(
-    error instanceof ConfigurationError
+  const detail =
+    error instanceof ConfigurationError || error instanceof Error
       ? error.message
-      : 'Bootstrap selhal. Ověřte DB, ADMIN_EMAIL/ADMIN_PASSWORD pro první instalaci a dostupnost nastaveného SSO. Použijte pnpm run doctor.',
+      : null
+  console.error(
+    detail ??
+      'Bootstrap selhal. Ověřte DB, ADMIN_EMAIL/ADMIN_PASSWORD pro první instalaci a dostupnost nastaveného SSO. Použijte pnpm run doctor.',
   )
   process.exitCode = 1
 } finally {

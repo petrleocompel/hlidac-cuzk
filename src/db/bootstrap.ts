@@ -23,7 +23,9 @@ export async function bootstrapInstance(): Promise<void> {
       .from(user)
       .where(eq(user.role, 'admin'))
       .limit(1)
-    if (!existing.length || (config.ADMIN_EMAIL && config.ADMIN_PASSWORD)) {
+    // Redeploy already has an admin; first install must create one before SSO.
+    const hadAdmin = existing.length > 0
+    if (!hadAdmin || (config.ADMIN_EMAIL && config.ADMIN_PASSWORD)) {
       if (!config.ADMIN_EMAIL || !config.ADMIN_PASSWORD)
         throw new Error(
           'První bootstrap vyžaduje ADMIN_EMAIL a ADMIN_PASSWORD (alespoň 12 znaků).',
@@ -34,7 +36,18 @@ export async function bootstrapInstance(): Promise<void> {
         name: config.ADMIN_NAME,
       })
     }
-    await bootstrapSsoFromEnv()
+    try {
+      await bootstrapSsoFromEnv()
+    } catch (error) {
+      // Optional SSO must not block schema/admin upgrades when the instance
+      // already exists (IdP discovery can be unreachable from migrate network).
+      if (!hadAdmin) throw error
+      const detail =
+        error instanceof Error ? error.message : 'neznámá chyba SSO bootstrapu'
+      console.warn(
+        `[sso-bootstrap] přeskočeno při opakovaném bootstrapu: ${detail}`,
+      )
+    }
     if (config.SEED_DEMO_WATCH === '1') {
       const { seedDemoWatch } = await import('./seed-demo-watch')
       const [admin] = await db

@@ -109,7 +109,7 @@ docker compose \
   up -d
 ```
 
-The `migrate` service runs the full bootstrap before app/cron start. A failed validation, migration, administrator seed or configured SSO discovery prevents startup.
+The `migrate` service runs the full bootstrap before app/cron start. A failed validation, migration or administrator seed prevents startup. Configured SSO discovery failure blocks only the first install; on an existing instance bootstrap logs a warning and continues so upgrades are not stuck behind IdP reachability.
 
 ### 5. Verify installation
 
@@ -169,7 +169,7 @@ Runs only as part of `pnpm bootstrap`, after migrations and administrator creati
 | `SSO_BOOTSTRAP_DOMAIN` | Empty = **any** email domain; or comma-separated domains for **specific** |
 | `SSO_BOOTSTRAP_LABEL` | Button label (default = provider id) |
 
-Bootstrap creates the administrator first. Missing required SSO settings or failed discovery fails bootstrap; fix configuration and repeat the same command.
+Bootstrap creates the administrator first. On a clean database, missing required SSO settings or failed discovery fails bootstrap; fix configuration and repeat the same command. When an administrator already exists, SSO discovery failures are skipped with a warning so redeploys can finish; register or repair the IdP from **Admin → SSO** if needed.
 
 You can also manage IdPs later in **Admin → SSO** without bootstrap env vars.
 

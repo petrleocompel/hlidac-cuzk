@@ -121,6 +121,32 @@ describe('repeatable selfhosting bootstrap', () => {
       }),
     ).rejects.toMatchObject({ stderr: expect.stringContaining('CUZK_API_KEY') })
   })
+  it('keeps an existing instance bootstrappable when SSO discovery is unreachable', async () => {
+    await exec('pnpm', ['bootstrap'], { env: config(), timeout: 20_000 })
+    const before = discoveryCalls
+    const unreachable = {
+      ...config(),
+      SSO_BOOTSTRAP_PROVIDER_ID: 'unreachable',
+      SSO_BOOTSTRAP_ISSUER: 'https://127.0.0.1:1/',
+    }
+    const output = await exec('pnpm', ['bootstrap'], {
+      env: unreachable,
+      timeout: 25_000,
+    })
+    expect(output.stdout + output.stderr).toMatch(
+      /přeskočeno při opakovaném bootstrapu|Bootstrap dokončen/,
+    )
+    expect(await client`select id from "user" where role = 'admin'`).toHaveLength(
+      1,
+    )
+    expect(
+      await client`select id from sso_provider where provider_id = 'fixture'`,
+    ).toHaveLength(1)
+    expect(
+      await client`select id from sso_provider where provider_id = 'unreachable'`,
+    ).toHaveLength(0)
+    expect(discoveryCalls).toBe(before)
+  })
   it('creates unique private env files, prints no secrets, and refuses overwriting', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'hlidac-env-test-'))
     try {
