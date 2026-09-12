@@ -38,8 +38,13 @@ try {
     onnotice: () => {},
   })
   try {
-    await client`select 1`
-    report(true, 'databáze', 'spojení dostupné')
+    const [version] =
+      await client`select current_setting('server_version') as version`
+    report(
+      true,
+      'databáze',
+      `spojení dostupné; PostgreSQL ${String(version.version)}`,
+    )
     const ready = await probeReadiness(config.DATABASE_URL)
     report(
       ready,

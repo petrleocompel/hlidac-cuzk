@@ -426,13 +426,13 @@ Migrations are additive (Drizzle). Always keep a Postgres backup before major up
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk \
-  exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backup-$(date +%F).sql
+  exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup-$(date +%F).sql
 ```
 
 ### Restore
 
 ```bash
-cat backup-YYYY-MM-DD.sql | docker compose ... exec -T db psql -U "$POSTGRES_USER" "$POSTGRES_DB"
+cat backup-YYYY-MM-DD.sql | docker compose ... exec -T db sh -c 'psql -v ON_ERROR_STOP=1 --single-transaction -U "$POSTGRES_USER" "$POSTGRES_DB"'
 ```
 
 ### External Postgres
@@ -514,12 +514,12 @@ Workflow files:
 
 ## Security checklist
 
-- [ ] Strong unique `BETTER_AUTH_SECRET` and DB password  
-- [ ] HTTPS in production  
-- [ ] Do not commit real `deploy/.env` to public remotes  
+- [ ] Strong unique `BETTER_AUTH_SECRET` and DB password
+- [ ] HTTPS in production
+- [ ] Do not commit real `deploy/.env` to public remotes
 - [ ] Choose local and SSO registration policies; defaults are private / existing identities only
-- [ ] Prefer SSO + explicit linking; keep password for break-glass admin  
-- [ ] Rotate IdP client secrets if leaked  
+- [ ] Prefer SSO + explicit linking; keep password for break-glass admin
+- [ ] Rotate IdP client secrets if leaked
 
 ---
 
@@ -569,3 +569,36 @@ The single installation command is `pnpm bootstrap`. It validates central config
 `pnpm start` and the Docker entrypoint validate configuration and current DB schema before starting HTTP. The worker also validates config before scheduling. `PUBLIC_URL` is accepted as the public-origin fallback and copied to `BETTER_AUTH_URL` for auth consumers. Auth policies and ČÚZK limits share their schema definitions with central validation. Optional empty env values are treated as absent; enabling SSO bootstrap requires all provider credentials, and trusted forwarding headers require an explicit proxy list. Missing notification encryption is allowed for instances without notifications and is reported by doctor; a supplied invalid key fails validation.
 
 Deployment scripts must keep runtime configuration consistent between app, cron and bootstrap. The GitLab generated env now includes registration/proxy policy, API limits, monitor token and notification encryption configuration. After changing env, recreate the affected containers so they receive it. Build does not require runtime credentials; startup does. Running `.output/server/index.mjs` directly bypasses this startup validation and is not the supported selfhosting entrypoint.
+
+### Scheduled encrypted backups and verified restore
+
+The optional backup image adds PostgreSQL 16 client tools and restic. Default planning targets are **RPO 24 hours** (daily at 02:00 UTC, avoiding daylight-saving skips) and **RTO 2 hours** for a small instance. These are operator goals, not a guarantee: measure a restore with your actual database size, network and off-host storage. Admin → Stav workeru shows separate database/configuration backup timestamps and flags successful backups older than 26 hours. A failure keeps the previous success time. Successful backup age uses the start of the captured backup, not the end of its upload. Missing backup records mean no recorded success, not proof that another backup system is absent.
+
+Restic supports S3-compatible, SFTP and REST repositories. Configure an **off-host** destination; a directory on the same host is useful for a test but does not protect against loss of the host. Database snapshots and configuration/encryption keys use **two separate repositories and different passwords**. Keep both restic passwords and storage access credentials in a separate secret manager or offline recovery record. They must remain accessible after losing the server and must not be archived only inside the repository they unlock.
+
+From `deploy`, copy `.backup.env.example` to `.backup.env` (`chmod 600 .backup.env`), fill both repository locations and independent passwords (`openssl rand -base64 32` twice), and set provider credentials as needed. The Compose overlay mounts the application `.env` and base Compose file read-only under `/instance-config`; mount additional proxy/SSO/custom overlay files there if required for your instance. **Do not mount `.backup.env` inside the configuration backup source.** SSH/SFTP additionally needs your read-only private key and verified `known_hosts` mounted into the backup container; S3 uses the example AWS variables. Native restic connection options remain available through this private env file.
+
+Build the application image first, then the optional backup image and explicitly initialize each new repository:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -f docker-compose.backup.yml --profile backup build backup
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -f docker-compose.backup.yml --profile backup run --rm --no-deps backup pnpm backup init database
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -f docker-compose.backup.yml --profile backup run --rm --no-deps backup pnpm backup init config
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -f docker-compose.backup.yml --profile backup run --rm --no-deps backup pnpm backup once
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -f docker-compose.backup.yml --profile backup up -d backup
+```
+
+For a local default image, build with `docker build -t hlidac-cuzk:local .` from the repository root first. When using a published application image, set `HLIDAC_CUZK_IMAGE` to that same image/version before building the backup image. Normal app deployment does not enable backup scheduling. Repository init is never inferred from a failed password/network check. If the database repository was already initialized, run only `init config` for the second repository.
+
+The scheduled command uses `pg_dump --format=custom --no-owner --no-acl` through restic's `--stdin-from-command`. No plaintext database dump is staged on disk during backup. Restic cancels snapshot creation if the dump exits unsuccessfully. A complete upload is followed by retention, scoped to `BACKUP_INSTANCE` and the database/config tag: seven daily, four weekly and six monthly snapshots by default. Configure the three `BACKUP_KEEP_*` values to change this policy. Concurrent runs share a PostgreSQL lock; skipped runs do not claim success. A failed upload or retention is reported as failed even if an upload snapshot was created. See the official [command-input backup behavior](https://restic.readthedocs.io/en/stable/040_backup.html#reading-data-from-a-command) and [retention rules](https://restic.readthedocs.io/en/stable/060_forget.html).
+
+Restore procedure:
+
+1. Provision an empty PostgreSQL 16 database and stop **all app, cron and backup replicas** that might access the target. Restore to a new instance/database first. Keep outgoing notification and ČÚZK traffic disabled until verification.
+2. Recover the restic repository credentials separately. Restore the configuration repository to a protected directory using native `restic restore <snapshot-id> --target <directory>` with that repository/password; inspect it and recover `BETTER_AUTH_SECRET`, notification key (and any previous rotation key), SSO configuration and deployment settings. Do not overwrite the live env automatically.
+3. In the private backup environment set `RESTORE_DATABASE_URL` to the new empty database, using its own credentials. Keep `DATABASE_URL` syntactically valid for the source configuration; the restore operation connects only to the explicit restore target. List database snapshots with native restic using the **database** repository/password and select an exact ID. Do not use an ambiguous `latest` selector across instances.
+4. Run `pnpm backup restore <snapshot-id>` inside the backup image with the recovery env. The command refuses any target containing user relations/routines. It downloads and authenticates the dump into a temporary directory (`0700`, dump `0600`), restores with `pg_restore --single-transaction --exit-on-error --no-owner --no-acl`, then removes the temporary dump. No `--clean`, database dropping or worker startup is performed. A failed restore rolls back its database changes. See [PostgreSQL restore options](https://www.postgresql.org/docs/16/app-pgrestore.html) and [restic restore](https://restic.readthedocs.io/en/stable/050_restore.html).
+5. Point a stopped application at the restored DB with the recovered keys and run `pnpm run doctor` using the matching application version. Inspect account login, SSO configuration, watches, history and pending deliveries. Restored backup status describes the source snapshot time and may show an unfinished backup; it is not a new backup success.
+6. Only after inspection, enable the web and worker and then the backup scheduler. Pending messages remain pending; already acknowledged messages stay acknowledged. As with any restore to an earlier point, messages sent after the backup may be delivered again. Record the actual recovery duration and the timestamp of recovered data, then create a fresh backup.
+
+Tested with a disposable PostgreSQL 16 database and real restic repositories by `pnpm test:backup` (requires `pg_dump`, `pg_restore` and `restic` in PATH plus `TEST_DATABASE_URL` pointing to a disposable `hlidac_test_*` database). The test restores accounts/password verification, SSO, watches, history, encrypted notification settings and pending delivery, verifies configuration recovery separately, rejects a second restore to the occupied target, checks repository integrity, and verifies that a failed dump creates no snapshot. These tests do not configure or contact a production backup destination. Run periodic real recovery drills; upload success alone does not establish recoverability.

@@ -1,0 +1,25 @@
+# Optional scheduler. Build after the application image. No repository is initialized implicitly.
+services:
+  backup:
+    profiles: [backup]
+    image: ${HLIDAC_BACKUP_IMAGE:-hlidac-cuzk-backup:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backup
+      args:
+        APP_IMAGE: ${HLIDAC_CUZK_IMAGE:-hlidac-cuzk:local}
+    env_file:
+      - .env
+      - .backup.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    volumes:
+      - ./.env:/instance-config/app.env:ro
+      - ./docker-compose.yml:/instance-config/docker-compose.yml:ro
+    restart: unless-stopped
+    stop_grace_period: 95m
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully

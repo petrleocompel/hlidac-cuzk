@@ -1,0 +1,5 @@
+ARG APP_IMAGE=hlidac-cuzk:local
+FROM ${APP_IMAGE}
+# PostgreSQL major matches the bundled server; restic encrypts before upload.
+RUN apk add --no-cache postgresql16-client restic
+CMD ["pnpm", "backup", "schedule"]

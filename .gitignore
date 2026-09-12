@@ -16,3 +16,7 @@ coverage
 # Local secrets — use GitLab CI/CD vars for deploy (see .gitlab-ci.yml)
 .env
 deploy/.env
+
+# Private backup repository credentials
+.backup.env
+**/.backup.env

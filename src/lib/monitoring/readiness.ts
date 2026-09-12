@@ -29,6 +29,7 @@ export async function probeReadiness(
       await client`select id from auth_rate_limit limit 0`
       await client`select id from registration_invitations limit 0`
       await client`select gotify_enabled, gotify_allowed_urls from notification_policy limit 0`
+      await client`select last_successful_at from backup_status limit 0`
       return true
     }
     return await Promise.race([

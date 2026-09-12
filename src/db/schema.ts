@@ -405,3 +405,12 @@ export const notificationPolicy = pgTable('notification_policy', {
     .notNull()
     .defaultNow(),
 })
+
+export const backupStatus = pgTable('backup_status', {
+  kind: text('kind').primaryKey().$type<'database' | 'config'>(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  lastSuccessfulAt: timestamp('last_successful_at', { withTimezone: true }),
+  snapshotId: text('snapshot_id'),
+  lastError: text('last_error'),
+})

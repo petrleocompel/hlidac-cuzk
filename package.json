@@ -31,7 +31,9 @@
     "notifications:encrypt": "tsx scripts/encrypt-notifications.ts",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "doctor": "tsx scripts/doctor.ts",
-    "env:init": "tsx scripts/init-env.ts"
+    "env:init": "tsx scripts/init-env.ts",
+    "backup": "tsx scripts/backup.ts",
+    "test:backup": "vitest run --config vitest.backup.config.ts"
   },
   "dependencies": {
     "@better-auth/sso": "^1.6.31",

@@ -96,6 +96,35 @@ function MonitoringPage() {
             ověřujte také v souhrnu úloh a u parcel.
           </p>
         </section>
+        <section className="space-y-3 rounded-xl border bg-card p-4">
+          <h2 className="text-lg font-semibold">Zálohy</h2>
+          {h.backups.map((backup) => (
+            <div key={backup.kind}>
+              <h3 className="font-medium">
+                {backup.kind === 'database'
+                  ? 'Databáze'
+                  : 'Konfigurace a klíče'}
+              </h3>
+              <p>
+                {backup.lastSuccessfulAt
+                  ? `Poslední úspěch: ${formatCheckTime(backup.lastSuccessfulAt)}`
+                  : 'Zatím bez úspěšné zálohy. Zálohování je volitelná služba.'}
+              </p>
+              {backup.lastSuccessfulAt && backup.stale ? (
+                <p className="text-destructive">
+                  Záloha je starší než 26 hodin.
+                </p>
+              ) : null}
+              {backup.lastError ? (
+                <p className="text-destructive">{backup.lastError}</p>
+              ) : null}
+            </div>
+          ))}
+          <p className="text-sm text-muted-foreground">
+            Úspěšný přenos nenahrazuje zkoušku obnovy. Zálohy i obnovu spouští
+            správce na serveru.
+          </p>
+        </section>
         <div className="overflow-x-auto rounded-xl border">
           <table className="w-full text-left text-sm">
             <caption className="p-3 text-left font-semibold">
