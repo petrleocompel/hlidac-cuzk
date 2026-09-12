@@ -20,7 +20,12 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
   image:
+    needs: [checks]
     name: Build image
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -65,3 +70,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          build-args: |
+            APP_VERSION=${{ github.ref_name }}
+            APP_REVISION=${{ github.sha }}

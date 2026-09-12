@@ -1,13 +1,21 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
+import { probeReadiness } from '#/lib/monitoring/readiness'
 
 const MIGRATION_LOCK_ID = 0x686c6964 // 'hlid'
 
 let ready: Promise<void> | null = null
 
 export function ensureDbReady(): Promise<void> {
-  ready ??= runMigrations().catch((error) => {
+  ready ??= (
+    process.env.NODE_ENV === 'production'
+      ? probeReadiness().then((ok) => {
+          if (!ok)
+            throw new Error('Schéma není připravené. Spusťte pnpm bootstrap.')
+        })
+      : runMigrations()
+  ).catch((error) => {
     ready = null
     throw error
   })

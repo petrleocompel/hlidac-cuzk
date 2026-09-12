@@ -409,18 +409,68 @@ docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cu
 
 ### Upgrade
 
+Use an image from a successful pipeline, pin its immutable registry digest, and keep
+its matching deployment files. Do not deploy `latest` automatically. GitLab publishes
+only after lint, typecheck, tests and build; GitHub image publishing calls the same CI
+workflow for the exact checkout before publishing. A green image build alone does not
+prove that your deployment or SSO provider is healthy. See [release notes](../CHANGELOG.md).
+
+Before the maintenance window, record the current image digest, copy the configuration
+and encryption keys to your separate encrypted recovery storage, and verify a recent
+restorable backup. Never print keys in a terminal transcript or attach them to a job.
+When off-site backup is configured, run the database and configuration backup commands
+from the backup section. The local safety copy below cannot survive loss of this server.
+
+For an **existing stack with the bundled PostgreSQL database**, from `deploy/`:
+
 ```bash
-export HLIDAC_CUZK_IMAGE=ghcr.io/<OWNER>/<REPO>:latest   # or a digest / semver tag
-docker pull "$HLIDAC_CUZK_IMAGE"
-docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk \
-  up -d --remove-orphans
-docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk \
-  run --rm migrate
-docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk \
-  restart app cron
+# Set the full registry reference with @sha256:<verified digest> from the successful build.
+export HLIDAC_CUZK_IMAGE='your-registry/hlidac-cuzk@sha256:your-verified-digest'
+sh upgrade.sh docker-compose.selfhost.yml hlidac_cuzk
 ```
 
-Migrations are additive (Drizzle). Always keep a Postgres backup before major upgrades.
+Use the **existing** Compose project name. Persist the selected image reference for
+subsequent Compose commands. `upgrade.sh` validates Compose and pulls the application
+before stopping services. It sends SIGTERM and allows five minutes for active worker
+jobs to finish, then stops web writes. Expired leases and pending outbox rows recover
+after a forced stop; a provider that accepted a message immediately before termination
+may still receive a duplicate on retry.
+
+The script creates a custom-format `pg_dump` in Docker volume
+`<project>_upgrade_backups`, with owner-only file permissions, and verifies its archive
+index before migration. This is an **unencrypted local emergency copy** on the Docker
+host, containing accounts and application data. Limit Docker/admin access, use disk
+encryption as appropriate, and remove old copies only after validating an independent
+backup and the upgrade. It is not exported as a CI artifact and has no automatic deletion.
+The archive-index check detects a failed dump; it does not replace a restore rehearsal.
+Configuration/keys must be backed up separately. Monitor this volume's disk usage.
+
+Bootstrap runs exactly once in a recreated migration service. Any dump or bootstrap
+failure stops the script and leaves web/worker stopped. After migration, the web starts
+and must pass `/readyz` within 120 seconds before the worker starts. Runtime HTTP/auth
+and cron paths validate the schema without applying migrations in production. Readiness
+also rejects a database newer than the image. GitLab uses the same script and serializes
+deployments with `resource_group`.
+
+After deployment, check login, **Admin → Stav kontrol a workeru → Verze instance**,
+worker progress, SSO if configured, and notification delivery. That page shows image
+version/commit and schema readiness. SSO bootstrap on an existing instance may warn and
+continue when the IdP is unreachable; `pnpm run doctor` and an actual SSO login remain
+necessary to verify it. No external API probe is required for the upgrade.
+
+This script does not upgrade the PostgreSQL major version, support first installation,
+or back up an external database. For those scenarios arrange the database-specific backup
+and migration procedure first. Never change the PostgreSQL image major version against
+an existing data volume as an application upgrade.
+
+**Rollback:** switching to an older image is safe only if that version explicitly
+supports the current schema. Migrations are not guaranteed to be additive or reversible.
+If the schema changed incompatibly, keep web and worker stopped, restore the pre-upgrade
+database into a new empty database using the backup/restore procedure, restore the matching
+configuration/keys, and start the old pinned image against that restored database. Do not
+run old code against the upgraded database or delete the only copy of either database.
+Restoring a snapshot loses later writes and may replay notifications already delivered.
+Rehearse on a disposable database before the production maintenance window.
 
 ### Backup Postgres
 

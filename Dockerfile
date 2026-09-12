@@ -14,6 +14,10 @@ COPY . .
 RUN pnpm build
 
 FROM base AS runner
+ARG APP_VERSION=development
+ARG APP_REVISION=unknown
+ENV APP_VERSION=$APP_VERSION APP_REVISION=$APP_REVISION
+LABEL org.opencontainers.image.version=$APP_VERSION org.opencontainers.image.revision=$APP_REVISION
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/.output ./.output

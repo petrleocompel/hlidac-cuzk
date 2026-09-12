@@ -48,6 +48,19 @@ function MonitoringPage() {
         </div>
         <p role="status">{message}</p>
         <section className="space-y-2 rounded-xl border bg-card p-4">
+          <h2 className="text-lg font-semibold">Verze instance</h2>
+          <p>Vydání: {h.release.version}</p>
+          <p className="break-all">
+            Commit: <code>{h.release.revision}</code>
+          </p>
+          <p>
+            Schéma {h.release.schema}:{' '}
+            {h.release.schemaReady
+              ? 'odpovídá této verzi'
+              : 'neodpovídá této verzi nebo není dostupné'}
+          </p>
+        </section>
+        <section className="space-y-2 rounded-xl border bg-card p-4">
           <h2 className="text-lg font-semibold">
             {h.healthy ? 'Kontroly fungují' : 'Kontroly vyžadují pozornost'}
           </h2>

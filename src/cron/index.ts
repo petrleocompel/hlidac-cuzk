@@ -1,9 +1,15 @@
 import cron from 'node-cron'
 import { recordHeartbeat, trackWorkerJob } from '#/lib/monitoring/worker'
-import { ensureDbReady } from '#/db/migrate'
+import { probeReadiness } from '#/lib/monitoring/readiness'
+
 import { pollDueWatches } from './jobs/poll-parcels'
 import { refreshCuzkAccount } from '#/lib/cuzk/http'
 import { deliverDueNotifications } from '#/lib/notifications/outbox'
+
+async function requireSchema() {
+  if (!(await probeReadiness()))
+    throw new Error('Schéma není připravené. Spusťte pnpm bootstrap.')
+}
 
 export type Job = {
   schedule: string
@@ -48,14 +54,16 @@ export async function runOnce(name: string): Promise<void> {
       `Unknown job "${name}". Known: ${JOBS.map((j) => j.name).join(', ')}`,
     )
   }
-  await ensureDbReady()
+  await requireSchema()
   await trackWorkerJob(job.name, job.run)
 }
 
 export async function startCronWorker() {
-  await ensureDbReady()
+  await requireSchema()
   await recordHeartbeat(true)
   let writing = false
+  const active = new Set<Promise<unknown>>()
+  let stopping = false
   const heartbeat = setInterval(() => {
     if (writing) return
     writing = true
@@ -74,10 +82,15 @@ export async function startCronWorker() {
       cron.schedule(
         job.schedule,
         async () => {
+          if (stopping) return
+          const running = trackWorkerJob(job.name, job.run)
+          active.add(running)
           try {
-            await trackWorkerJob(job.name, job.run)
+            await running
           } catch (err) {
             console.error(`[cron] job ${job.name} failed`, err)
+          } finally {
+            active.delete(running)
           }
         },
         { noOverlap: true },
@@ -86,8 +99,10 @@ export async function startCronWorker() {
     console.log(`[cron] scheduled ${job.name} (${job.schedule})`)
   }
   return async () => {
+    stopping = true
     clearInterval(heartbeat)
     await Promise.all(tasks.map((task) => task.destroy()))
+    await Promise.allSettled([...active])
   }
 }
 

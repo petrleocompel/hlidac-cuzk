@@ -71,6 +71,7 @@ services:
         condition: service_completed_successfully
 
   cron:
+    stop_grace_period: 5m
     image: ${HLIDAC_CUZK_IMAGE:-hlidac-cuzk:local}
     build:
       context: ..

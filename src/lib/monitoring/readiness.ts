@@ -21,8 +21,12 @@ export async function probeReadiness(
     if (!expected) return false
     const check = async () => {
       const rows =
-        await client`select hash from drizzle.__drizzle_migrations where created_at = ${expected.folderMillis}`
-      if (rows.at(0)?.hash !== expected.hash) return false
+        await client`select hash, created_at from drizzle.__drizzle_migrations order by created_at desc limit 1`
+      if (
+        rows.at(0)?.hash !== expected.hash ||
+        Number(rows.at(0)?.created_at) !== expected.folderMillis
+      )
+        return false
       await client`select last_attempt_at, last_successful_check_at, next_check_at from parcel_watches limit 0`
       await client`select heartbeat_at from worker_health limit 0`
       await client`select finished_at from worker_jobs limit 0`
