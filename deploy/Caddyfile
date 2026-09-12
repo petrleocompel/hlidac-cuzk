@@ -1,0 +1,8 @@
+{$APP_HOST} {
+    reverse_proxy app:3000 {
+        # This proxy is the direct edge. Replace client-supplied forwarding headers.
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Real-IP {remote_host}
+        header_up -Forwarded
+    }
+}

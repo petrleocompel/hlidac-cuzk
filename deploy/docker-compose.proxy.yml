@@ -1,0 +1,20 @@
+# Combine with either the base stack OR external.yml; omit selfhost.yml.
+services:
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_HOST: ${APP_HOST:?set APP_HOST to your TLS hostname}
+    ports:
+      - "${PROXY_BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:80"
+      - "${PROXY_BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  caddy_data:
+  caddy_config:

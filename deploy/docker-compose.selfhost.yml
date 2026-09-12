@@ -1,8 +1,5 @@
-# Self-host overlay: publish the app HTTP port.
-#
-#   export HLIDAC_CUZK_IMAGE=ghcr.io/<owner>/<repo>:latest
-#   docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cuzk up -d
+# Host proxy: bind to loopback by default. For direct LAN access set APP_BIND_ADDRESS.
 services:
   app:
     ports:
-      - "${APP_HOST_PORT:-3000}:3000"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_HOST_PORT:-3000}:3000"

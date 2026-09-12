@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run from deploy/. Requires an existing local PostgreSQL stack and pinned image.
 set -eu
-: "${HLIDAC_CUZK_IMAGE:?set a tested version or digest}"
+# Compose resolves HLIDAC_CUZK_IMAGE from the exported environment or deploy/.env.
 overlay=${1:?overlay filename required}
 project=${2:?existing Compose project required}
 case "$project" in *[!a-z0-9_-]*|'') echo 'Invalid project name' >&2; exit 2;; esac

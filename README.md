@@ -10,6 +10,8 @@ TanStack Start · pnpm · Tailwind 4 · shadcn/ui · Better Auth (+ SSO) · Post
 
 ## Documentation
 
+- **[Český návod pro vlastní server](docs/self-hosting.cs.md)** — loopback, LAN/TLS proxy, externí PostgreSQL, aktualizace a obnova
+
 - **[Self-hosting guide](docs/self-hosting.md)** — Docker Compose, env vars, SSO/Authentik, upgrades, GHCR image
 - Deploy overlays live under [`deploy/`](deploy/)
 
@@ -87,11 +89,11 @@ GitHub and GitLab CI run this suite using a dedicated PostgreSQL service.
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | `main`, PRs | Lint · typecheck · test · `pnpm build` |
 | [`.github/workflows/docker.yml`](.github/workflows/docker.yml) | `main`, `v*` tags, PRs | Docker image (push to GHCR except on PRs) |
 
-Published tags:
+GitLab publishes tested commit tags to its registry (access may require a GitLab account). Pin a verified digest for deployment. GitHub mirrors can also publish to their own GHCR path:
 
 ```text
-ghcr.io/<owner>/<repo>:latest
-ghcr.io/<owner>/<repo>:<sha>
+ghcr.io/petrleocompel/hlidac-cuzk:<8-character-commit>
+ghcr.io/petrleocompel/hlidac-cuzk@sha256:<digest>
 ```
 
 Pull and run with Compose as described in the [self-hosting guide](docs/self-hosting.md).

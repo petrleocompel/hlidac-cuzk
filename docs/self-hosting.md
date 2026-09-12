@@ -1,5 +1,7 @@
 # Self-hosting Hlídač ČÚZK
 
+[Český instalační návod: proxy, LAN a externí DB](self-hosting.cs.md).
+
 Hlídač ČÚZK watches Czech land-registry (ČÚZK) parcels and notifies you of changes via Gotify, Slack, and/or Discord.
 
 This guide covers production-style Docker Compose deployment, configuration, SSO, upgrades, and using the published container image from GitHub Container Registry (GHCR).
@@ -10,7 +12,7 @@ This guide covers production-style Docker Compose deployment, configuration, SSO
 |-------------|--------|
 | Docker Engine + Compose v2 | Recommended |
 | PostgreSQL 16 | Bundled in Compose, or use your own |
-| Public HTTPS URL | Required for auth cookies / SSO callbacks in production |
+| HTTPS URL (public or trusted LAN certificate) | Required for reliable production auth cookies / SSO callbacks |
 | ČÚZK API key | [api-kn.cuzk.gov.cz](https://api-kn.cuzk.gov.cz) access |
 
 Hardware: a small VPS (1 vCPU, 1–2 GB RAM) is enough for personal / small-team use.
@@ -41,7 +43,7 @@ cron ──▶ ČÚZK API ──▶ Postgres ──▶ Gotify / Slack / Discord 
 Clone the repository (or copy the `deploy/` folder + `Dockerfile` if you build locally):
 
 ```bash
-git clone https://github.com/<OWNER>/<REPO>.git hlidac-cuzk
+git clone https://github.com/petrleocompel/hlidac-cuzk.git hlidac-cuzk
 cd hlidac-cuzk/deploy
 cp .env.example .env  # fill unique secrets; alternatively use env:init from the repo root
 ```
@@ -81,10 +83,12 @@ openssl rand -base64 48   # BETTER_AUTH_SECRET / POSTGRES_PASSWORD
 
 ### 3. Pull or build the image
 
-**From GHCR (recommended):**
+**From the project registry (authenticated access may be required):**
 
 ```bash
-export HLIDAC_CUZK_IMAGE=ghcr.io/<OWNER>/<REPO>:latest
+docker login ghcr.io
+# Select a successful pipeline commit tag, then pin its digest for deployment.
+export HLIDAC_CUZK_IMAGE=ghcr.io/petrleocompel/hlidac-cuzk:5d541204
 docker pull "$HLIDAC_CUZK_IMAGE"
 ```
 
@@ -101,7 +105,8 @@ export HLIDAC_CUZK_IMAGE=hlidac-cuzk:local
 From `deploy/`:
 
 ```bash
-# Simple publish of app on host port 3000 (see docker-compose.selfhost.yml)
+# Loopback only: proxy on this host forwards to 127.0.0.1:3000.
+# For containerized TLS, use docker-compose.proxy.yml instead of selfhost.
 docker compose \
   -f docker-compose.yml \
   -f docker-compose.selfhost.yml \
@@ -510,22 +515,18 @@ App: http://127.0.0.1:3000
 
 The repository `.dockerignore` excludes local `.env` variants (including nested deploy files), private key files, dependency trees, generated output, logs and backup exports before they are sent to Docker. Public `.env.example` templates and Drizzle SQL migrations remain available to the build. Keep private material under the excluded paths; do not place secrets in arbitrary source files or Docker build arguments. Builds use package manifests and produce fresh application output inside the builder stage.
 
-## Container image (GHCR)
+## Container registry
 
-GitHub Actions builds and publishes on pushes to `main` and on version tags:
+The active GitLab registry is `ghcr.io/petrleocompel/hlidac-cuzk`.
+[Select a successful pipeline](https://github.com/petrleocompel/hlidac-cuzk/actions)
+and its eight-character commit tag, then pin the resolved digest. Authenticate with
+`docker login ghcr.io`; access depends on project permissions.
+The [registry page](https://github.com/petrleocompel/hlidac-cuzk/pkgs/container/hlidac-cuzk)
+lists published tags. The mutable `latest` tag is not an upgrade policy.
 
-| Tag | When |
-|-----|------|
-| `ghcr.io/<owner>/<repo>:latest` | Push to `main` |
-| `ghcr.io/<owner>/<repo>:<sha>` | Every publish build |
-| `ghcr.io/<owner>/<repo>:<semver>` | Git tag `v*` |
-
-Pull (public package) or authenticate for private packages:
-
-```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
-docker pull ghcr.io/<OWNER>/<REPO>:latest
-```
+GitHub mirrors can publish into their own `ghcr.io/owner/repository` namespace on `main`
+and `v*` tags, after the reusable CI checks pass. This does not imply a public GHCR
+package exists for this private GitLab repository.
 
 Workflow files:
 
