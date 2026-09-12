@@ -139,5 +139,5 @@ odpovídající image i tajné klíče. Návrat starého image nevrátí nekompa
 | Cíl resticu | Pokud zapnete vzdálené zálohy |
 
 Přesný seznam prohlížečových zdrojů je v [provozní dokumentaci](self-hosting.md).
-Externí fonty řeší následující úkol HOST-09. Žádná z instalačních diagnostik sama nemusí
+IBM Plex Sans je přibalený v aplikaci včetně českých znaků a OFL licence; prohlížeč nepotřebuje Google Fonts ani externí CDN. Bez `SENTRY_DSN` se Sentry nenačítá ani neinicializuje. Žádná z instalačních diagnostik sama nemusí
 volat ČÚZK ani posílat zprávy.

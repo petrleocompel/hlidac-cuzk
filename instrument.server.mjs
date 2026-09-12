@@ -1,8 +1,7 @@
-import * as Sentry from '@sentry/tanstackstart-react'
-
 const dsn = process.env.SENTRY_DSN
 
-if (dsn) {
+if (dsn?.trim()) {
+  const Sentry = await import('@sentry/tanstackstart-react')
   Sentry.init({
     dsn,
     environment: process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,

@@ -10,10 +10,6 @@ export const Route = createRootRoute({
   head: () => ({
     links: [
       { rel: 'stylesheet', href: appCss },
-      {
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap',
-      },
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
       {
         rel: 'icon',

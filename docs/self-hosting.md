@@ -653,3 +653,25 @@ Restore procedure:
 6. Only after inspection, enable the web and worker and then the backup scheduler. Pending messages remain pending; already acknowledged messages stay acknowledged. As with any restore to an earlier point, messages sent after the backup may be delivered again. Record the actual recovery duration and the timestamp of recovered data, then create a fresh backup.
 
 Tested with a disposable PostgreSQL 16 database and real restic repositories by `pnpm test:backup` (requires `pg_dump`, `pg_restore` and `restic` in PATH plus `TEST_DATABASE_URL` pointing to a disposable `hlidac_test_*` database). The test restores accounts/password verification, SSO, watches, history, encrypted notification settings and pending delivery, verifies configuration recovery separately, rejects a second restore to the occupied target, checks repository integrity, and verifies that a failed dump creates no snapshot. These tests do not configure or contact a production backup destination. Run periodic real recovery drills; upload success alone does not establish recoverability.
+
+## Local assets and optional telemetry
+
+The UI serves IBM Plex Sans Variable from the application's own built assets, including
+Latin Extended for Czech text. No Google Fonts stylesheet or external font/CDN request is
+needed. Fontsource package version is pinned by the lockfile; the redistributed SIL OFL
+license is available at `/licenses/ibm-plex-sans-OFL.txt`. Fallback system fonts remain
+available while `font-display: swap` loads the local font.
+
+With `SENTRY_DSN` absent or blank, the instrumentation entry does not import or initialize
+Sentry and sends no Sentry telemetry. There is no browser analytics SDK initialization.
+Setting a DSN explicitly enables server error reporting and production tracing (10%);
+`sendDefaultPii` is false and the existing filter removes request bodies/cookies/auth headers.
+Review what you send before enabling a third-party destination. Disabling Sentry does not
+disable local application or proxy logs.
+
+Normal browser UI assets require only this application's origin. Following a cadastral
+link navigates to the external ČÚZK site; SSO redirects to the configured identity provider.
+The server still needs PostgreSQL and the selected ČÚZK, notification, identity and backup
+services. Future map layers must document their own external requests. Dependency/package
+downloads during builds and TLS certificate renewal are separate from runtime UI assets.
+See the [network dependency table](self-hosting.cs.md#síťové-závislosti).
