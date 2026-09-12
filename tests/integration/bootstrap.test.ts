@@ -12,7 +12,7 @@ let client: ReturnType<typeof postgres>
 let databaseUrl: string
 let issuer: string
 let discoveryCalls = 0
-const server = createServer((req, res) => {
+const server = createServer((_req, res) => {
   discoveryCalls++
   res.setHeader('Content-Type', 'application/json')
   res.end(
