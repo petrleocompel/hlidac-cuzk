@@ -1,7 +1,12 @@
 # Release notes
 
-## Unreleased — safe selfhosting upgrades
+## Unreleased — selfhosting and safe upgrades
 
+- AMD64 and ARM64 images must pass a real Compose installation smoke test before publishing.
+- Web, worker and migrations run as UID 1000 with read-only storage; runtime dependencies
+  are installed separately and pnpm is preloaded for startup without a registry connection.
+- Loopback/LAN, Caddy TLS and standalone external PostgreSQL configurations are documented
+  in Czech. Fonts are served locally; no DSN means no Sentry initialization.
 - Image publishing now requires successful lint, typecheck, tests and production build.
 - `deploy/upgrade.sh` stops writers, creates a protected local PostgreSQL dump, runs one
   bootstrap and waits for web readiness before starting the worker. GitLab deploys are serialized.

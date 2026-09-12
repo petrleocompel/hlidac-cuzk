@@ -3,6 +3,11 @@ services:
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       APP_HOST: ${APP_HOST:?set APP_HOST to your TLS hostname}
     ports:

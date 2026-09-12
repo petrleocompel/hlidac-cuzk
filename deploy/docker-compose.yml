@@ -5,8 +5,22 @@
 #
 #   Peelco test:
 #     docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.test.yml up -d
+x-runtime-security: &runtime-security
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
+    logging: *logging
     image: postgres:16-alpine
     restart: unless-stopped
     env_file:
@@ -23,6 +37,8 @@ services:
       retries: 5
 
   migrate:
+    <<: *runtime-security
+    logging: *logging
     image: ${HLIDAC_CUZK_IMAGE:-hlidac-cuzk:local}
     build:
       context: ..
@@ -39,6 +55,8 @@ services:
         condition: service_healthy
 
   app:
+    <<: *runtime-security
+    logging: *logging
     image: ${HLIDAC_CUZK_IMAGE:-hlidac-cuzk:local}
     build:
       context: ..
@@ -71,6 +89,8 @@ services:
         condition: service_completed_successfully
 
   cron:
+    <<: *runtime-security
+    logging: *logging
     stop_grace_period: 5m
     image: ${HLIDAC_CUZK_IMAGE:-hlidac-cuzk:local}
     build:

@@ -1,6 +1,16 @@
 # Optional scheduler. Build after the application image. No repository is initialized implicitly.
 services:
   backup:
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     profiles: [backup]
     image: ${HLIDAC_BACKUP_IMAGE:-hlidac-cuzk-backup:local}
     build:

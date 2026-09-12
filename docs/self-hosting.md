@@ -675,3 +675,49 @@ The server still needs PostgreSQL and the selected ČÚZK, notification, identit
 services. Future map layers must document their own external requests. Dependency/package
 downloads during builds and TLS certificate renewal are separate from runtime UI assets.
 See the [network dependency table](self-hosting.cs.md#síťové-závislosti).
+
+## ARM64, runtime permissions and container storage
+
+Release workflows build and smoke-test the application for `linux/amd64` and
+`linux/arm64` before publishing the multiarch manifest. Docker selects the platform for
+your host; inspect a published reference with `docker buildx imagetools inspect IMAGE`.
+Building uses the native builder for architecture-independent JS/assets and installs
+runtime dependencies for the target platform. QEMU is used for cross-architecture CI
+smoke tests; native hardware testing remains useful for performance. See
+[Docker multi-platform builds](https://docs.docker.com/build/building/multi-platform/).
+
+App, migration and worker containers run as `node` (UID/GID 1000), with an init process,
+read-only root filesystem, all Linux capabilities dropped and `no-new-privileges`.
+Only `/tmp` is writable (64 MiB tmpfs, noexec/nosuid/nodev). The pinned pnpm is preloaded
+in the image and starts without contacting a package registry. Do not mount a writable
+source tree or Docker socket into these services. Development/test dependencies are
+excluded from the runtime install; `tsx` remains a production dependency for CLI entrypoints.
+Some framework dependencies retain transitive build-related packages; this is not a
+distroless image.
+
+The optional backup image is an administrative exception: it runs as root to read private
+configuration bind mounts (which may be mode 0600 and owned by different host users). It
+uses read-only mounts/rootfs, no-new-privileges and a separate 512 MiB `/tmp` tmpfs for
+restic cache and restore staging. Increase this tmpfs limit in your override when restoring
+a larger dump, or provide a private scratch volume and securely remove residual plaintext
+after an interrupted restore. Keep backup credentials separate from the web service.
+PostgreSQL and Caddy retain their upstream image identities and required writable volumes.
+
+Compose rotates each service's Docker JSON logs at 10 MiB with three retained files.
+Application worker shutdown stops scheduling and waits for active jobs; Compose allows
+five minutes before SIGKILL. A forced stop recovers through the existing database leases
+and notification outbox. Delivery can still be duplicated if the provider accepted it
+before the worker recorded success.
+
+To run the opt-in disposable Compose checks locally:
+
+```bash
+python3 tests/compose/smoke.py YOUR_LOCAL_IMAGE
+# Or just the app/worker/migration runtime check:
+python3 tests/compose/smoke.py YOUR_LOCAL_IMAGE loopback
+```
+
+Tests create and remove only their randomly named `hlidac_test_compose_*` stacks, verify
+UID/read-only storage, bootstrap, readiness, login page, no ČÚZK calls and a graceful
+worker stop/restart. In Docker-in-Docker CI, `COMPOSE_SMOKE_IN_CONTAINER=1` probes HTTP
+inside the app because published ports belong to the daemon service, not the job container.

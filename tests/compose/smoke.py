@@ -3,6 +3,7 @@ Run: python3 tests/compose/smoke.py <locally-built-app-image>
 Requires Docker, Compose and cached postgres:16-alpine/caddy:2-alpine images.
 """
 import json
+import os
 import pathlib
 import shutil
 import ssl
@@ -20,7 +21,7 @@ def command(args, cwd=None):
     return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
 
 
-for scenario in ['loopback', 'lan', 'proxy', 'external']:
+for scenario in (sys.argv[2:] or ['loopback', 'lan', 'proxy', 'external']):
     project = 'hlidac_test_compose_' + uuid.uuid4().hex[:10]
     network = project + '_external'
     external = project + '_postgres'
@@ -83,15 +84,31 @@ for scenario in ['loopback', 'lan', 'proxy', 'external']:
             # Internal fixture CA only: do not use this TLS bypass outside this test.
             context = ssl._create_unverified_context() if scenario == 'proxy' else None
             url = ('https' if scenario == 'proxy' else 'http') + '://localhost:' + port
-            for path in ['/readyz', '/login']:
-                with urllib.request.urlopen(url + path, context=context, timeout=10) as response:
-                    assert response.status == 200
+            if os.environ.get('COMPOSE_SMOKE_IN_CONTAINER') == '1':
+                # Docker-in-Docker publishes on its own host, not the CI job container.
+                compose('exec', '-T', 'app', 'node', '--input-type=module', '-e', "for(const p of ['/readyz','/login']) { const r=await fetch('http://127.0.0.1:3000'+p); if(r.status!==200)process.exit(1); }")
+            else:
+                for path in ['/readyz', '/login']:
+                    with urllib.request.urlopen(url + path, context=context, timeout=10) as response:
+                        assert response.status == 200
+            # Runtime identity/filesystem checks apply to the released app image.
+            assert compose('exec', '-T', 'app', 'id', '-u') == '1000'
+            assert config['services']['app']['read_only'] is True
+            compose('exec', '-T', 'app', 'sh', '-ec', 'test ! -w /app; test -w /tmp')
+            compose('exec', '-T', 'app', 'sh', '-ec', 'test ! -e node_modules/vitest; test ! -e node_modules/eslint; test ! -e node_modules/typescript')
             result = compose('exec', '-T', 'app', 'pnpm', 'run', 'doctor')
             assert 'OK schéma' in result
             assert 'OK správce' in result
             # Ensure the bootstrap did not seed watches or make API requests.
             check = "import postgres from 'postgres'; const c=postgres(process.env.DATABASE_URL); for(const t of ['parcel_watches','cuzk_api_requests']) { const r=await c.unsafe('select count(*)::int n from '+t); if(r[0].n!==0)process.exitCode=1; } await c.end();"
             compose('exec', '-T', 'app', 'node', '--input-type=module', '-e', check)
+            # Exercise SIGTERM and restart with the same durable DB state.
+            compose('stop', '-t', '15', 'cron')
+            # Compose versions serialize either one JSON array or newline objects;
+            # inspect directly to keep the exit-code check stable.
+            cron_id = compose('ps', '--all', '-q', 'cron')
+            assert command(['docker', 'inspect', '--format', '{{.State.ExitCode}}', cron_id]) == '0'
+            compose('up', '-d', '--no-deps', 'cron')
             print('PASS clean installation, readiness, login page, admin and no CUZK calls:', scenario, flush=True)
         except subprocess.CalledProcessError as error:
             # No rendered env or database URL in diagnostics.

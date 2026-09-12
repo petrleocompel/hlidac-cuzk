@@ -1,6 +1,17 @@
 # Standalone stack for external PostgreSQL. Do NOT combine with docker-compose.yml.
 # Combine with selfhost.yml or proxy.yml to expose the web service.
 x-runtime: &runtime
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
   image: ${HLIDAC_CUZK_IMAGE:?set a tested image tag or digest}
   env_file: [.env]
   environment: &environment

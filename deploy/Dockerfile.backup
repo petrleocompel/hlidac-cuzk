@@ -1,5 +1,9 @@
 ARG APP_IMAGE=hlidac-cuzk:local
 FROM ${APP_IMAGE}
 # PostgreSQL major matches the bundled server; restic encrypts before upload.
+USER root
 RUN apk add --no-cache postgresql16-client restic
+ENV RESTIC_CACHE_DIR=/tmp/restic
+# Config bind mounts may be root-owned 0600; this administrative image needs read access.
+# Web, worker and migration images run as node.
 CMD ["pnpm", "backup", "schedule"]

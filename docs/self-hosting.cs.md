@@ -1,6 +1,6 @@
 # Vlastní instance Hlídače ČÚZK
 
-Aplikace, worker a PostgreSQL běží na vašem serveru. Výchozí registrace je soukromá:
+Aplikace, worker a PostgreSQL běží na vašem serveru. Release workflow ověřuje AMD64 i ARM64; Docker z multiarch image vybere architekturu hostitele. Web, migrace a worker běží pod UID 1000, s read-only filesystémem a zapisovatelným `/tmp`. Výchozí registrace je soukromá:
 nové účty zakládá správce. Pro běžný přístup použijte HTTPS, i v domácí síti.
 
 ## Stažení a konfigurace
