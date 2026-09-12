@@ -26,6 +26,8 @@ export async function probeReadiness(
       await client`select last_attempt_at, last_successful_check_at, next_check_at from parcel_watches limit 0`
       await client`select heartbeat_at from worker_health limit 0`
       await client`select finished_at from worker_jobs limit 0`
+      await client`select id from auth_rate_limit limit 0`
+      await client`select id from registration_invitations limit 0`
       return true
     }
     return await Promise.race([

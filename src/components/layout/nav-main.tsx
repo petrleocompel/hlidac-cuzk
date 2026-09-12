@@ -172,6 +172,17 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={pathname.startsWith('/admin/access')}
+                  >
+                    <Link to="/admin/access">
+                      <KeyRound />
+                      <span>Přístup a pozvánky</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
               </SidebarMenuSub>
             </CollapsibleContent>
           </SidebarGroup>

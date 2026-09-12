@@ -1,3 +1,5 @@
+import { authorizeRegistration } from './registration'
+import { authPolicy, MIN_PASSWORD_LENGTH } from './policy'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { admin } from 'better-auth/plugins'
@@ -36,44 +38,92 @@ async function ssoTrustedOrigins(): Promise<string[]> {
   return [...origins]
 }
 
-export const auth = betterAuth({
-  appName: 'Hlídač ČÚZK',
-  baseURL: process.env.BETTER_AUTH_URL ?? 'http://127.0.0.1:3000',
-  secret: process.env.BETTER_AUTH_SECRET!,
-  trustedOrigins: ssoTrustedOrigins,
-  database: drizzleAdapter(db, {
-    provider: 'pg',
-    schema: {
-      user: schema.user,
-      session: schema.session,
-      account: schema.account,
-      verification: schema.verification,
-      ssoProvider: schema.ssoProvider,
+export function createAuth() {
+  return betterAuth({
+    appName: 'Hlídač ČÚZK',
+    baseURL: process.env.BETTER_AUTH_URL ?? 'http://127.0.0.1:3000',
+    secret: process.env.BETTER_AUTH_SECRET!,
+    trustedOrigins: ssoTrustedOrigins,
+    database: drizzleAdapter(db, {
+      provider: 'pg',
+      schema: {
+        user: schema.user,
+        session: schema.session,
+        account: schema.account,
+        verification: schema.verification,
+        ssoProvider: schema.ssoProvider,
+        rateLimit: schema.rateLimit,
+      },
+    }),
+    emailAndPassword: {
+      enabled: authPolicy().AUTH_MODE !== 'sso',
+      disableSignUp: authPolicy().REGISTRATION_MODE === 'private',
+      minPasswordLength: MIN_PASSWORD_LENGTH,
+      requireEmailVerification: false,
     },
-  }),
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false,
-  },
-  account: {
-    accountLinking: {
+    advanced: {
+      ipAddress: {
+        ipAddressHeaders:
+          authPolicy().AUTH_TRUST_PROXY_HEADERS === 'true'
+            ? ['x-forwarded-for']
+            : [],
+        trustedProxies: authPolicy()
+          .AUTH_TRUSTED_PROXIES.split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      },
+    },
+    rateLimit: {
       enabled: true,
-      disableImplicitLinking: true,
-      allowUnlinkingAll: false,
-      requireLocalEmailVerified: false,
+      storage: 'database',
+      window: 60,
+      max: 100,
+      customRules: {
+        '/sign-in/email': { window: 60, max: 10 },
+        '/sign-up/email': { window: 60, max: 5 },
+        '/sign-in/sso': { window: 60, max: 20 },
+      },
     },
-  },
-  plugins: [
-    admin({
-      defaultRole: 'user',
-      adminRoles: ['admin'],
-    }),
-    sso({
-      // Admin UI uses direct DB writes; keep BA register endpoint admin-only.
-      providersLimit: (user) =>
-        (user as { role?: string | null }).role === 'admin' ? 50 : 0,
-    }),
-  ],
-})
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user, context) => {
+            await authorizeRegistration({
+              email: user.email,
+              emailVerified: user.emailVerified,
+              path: context?.path ?? '',
+              invitationToken: context?.headers?.get('x-hlidac-invitation'),
+              admin: context?.context.session?.user.role === 'admin',
+            })
+          },
+        },
+      },
+    },
+    account: {
+      accountLinking: {
+        enabled: true,
+        disableImplicitLinking: true,
+        allowUnlinkingAll: false,
+        requireLocalEmailVerified: false,
+      },
+    },
+    plugins: [
+      admin({
+        defaultRole: 'user',
+        adminRoles: ['admin'],
+      }),
+      sso({
+        trustEmailVerified: true,
+        disableImplicitSignUp:
+          authPolicy().SSO_REGISTRATION_MODE === 'existing',
+        // Admin UI uses direct DB writes; keep BA register endpoint admin-only.
+        providersLimit: (user) =>
+          (user as { role?: string | null }).role === 'admin' ? 50 : 0,
+      }),
+    ],
+  })
+}
+
+export const auth = createAuth()
 
 export type Auth = typeof auth

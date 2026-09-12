@@ -2,11 +2,12 @@
  * Bootstrap an admin user (+ optional demo parcel watch):
  *   ADMIN_EMAIL=… ADMIN_PASSWORD=… ADMIN_NAME=… pnpm db:seed-admin
  */
+import { MIN_PASSWORD_LENGTH } from '../src/auth/policy.ts'
 import { ensureDbReady } from '../src/db/migrate.ts'
 import { seedAdmin } from '../src/db/seed-admin.ts'
 import { seedDemoWatch } from '../src/db/seed-demo-watch.ts'
 
-const MIN_PASSWORD = 12
+const MIN_PASSWORD = MIN_PASSWORD_LENGTH
 
 async function main(): Promise<void> {
   const email = process.env.ADMIN_EMAIL?.trim()
@@ -21,9 +22,19 @@ async function main(): Promise<void> {
   }
 
   await ensureDbReady()
-  const result = await seedAdmin({ email, password, name })
+  const result = await seedAdmin({
+    email,
+    password,
+    name,
+    resetPassword: process.argv.includes('--reset-password'),
+  })
 
   switch (result.status) {
+    case 'password-reset':
+      console.log(
+        '[seed-admin] admin password reset; existing sessions revoked',
+      )
+      break
     case 'created':
       console.log(`[seed-admin] created admin user ${email} (${result.userId})`)
       break

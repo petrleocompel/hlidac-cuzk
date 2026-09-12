@@ -207,7 +207,35 @@ The Peelco test overlay (`docker-compose.test.yml`) shows Traefik labels; adapt 
 
 ### Email + password
 
-Always available. Sign up at `/signup`, sign in at `/login`. Seeded admin uses email/password unless you only use SSO later.
+The default is a **private instance** (`REGISTRATION_MODE=private`): public password signup is disabled at the auth endpoint and the user-creation hook. Existing users can still sign in at `/login`. **Admin → Přístup a pozvánky** lets an administrator create ordinary users or issue/revoke seven-day invitations.
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `REGISTRATION_MODE` | `private` | `private`: admin-created accounts; `invite`: email plus invitation code; `open`: public password registration |
+| `SSO_REGISTRATION_MODE` | `existing` | `existing`: existing linked identities only; `invite`: matching active invitation and verified provider email; `open`: allow new SSO users |
+| `AUTH_MODE` | `hybrid` | Password plus SSO; `sso` disables password sign-in/signup endpoints |
+| `AUTH_TRUST_PROXY_HEADERS` | `false` | Opt into `x-forwarded-for` only behind a controlled proxy |
+| `AUTH_TRUSTED_PROXIES` | empty | Comma-separated exact proxy IPs/CIDRs for walking forwarded chains |
+
+Apply migration `0007_registration_policy.sql` before the new app. All modes are checked on the server, including explicit SSO `requestSignUp` callbacks. Changing local registration does not implicitly change SSO provisioning; set both variables to express your policy. Existing sessions are preserved by a policy change. Passwords must contain at least 12 characters on the server as well as in the UI and seed command.
+
+Invitation codes are random, email-bound and shown only once to the administrator. Only their SHA-256 hashes are saved. The recipient enters the code on `/signup`; it is sent in a header, not a URL. Revoked, expired or used invitations are rejected. SSO invite mode uses the identity provider's verified email as proof; it does not accept an unverified email claim. Providers are administrator-managed and their verified-email claims are trusted; implicit account linking remains disabled. A consumed invitation is not restored if account creation subsequently fails: the administrator can issue a replacement. No invitation email is sent automatically.
+
+### SSO-only and local recovery
+
+Before setting `AUTH_MODE=sso`, link and test an administrator's SSO identity. A private installation can always be bootstrapped from the local CLI; it creates a hashed credential directly and does not expose a public signup exception. To recover a password locally, supply `ADMIN_EMAIL` and a new `ADMIN_PASSWORD` through protected environment configuration, then run:
+
+```bash
+SEED_DEMO_WATCH=0 pnpm db:seed-admin --reset-password
+```
+
+For Compose use `docker compose ... run --rm -e SEED_DEMO_WATCH=0 app pnpm db:seed-admin --reset-password`. This explicit reset replaces/creates the credential and revokes that user's sessions. Set `AUTH_MODE=hybrid` and recreate the app to enable password login, repair SSO, then restore `AUTH_MODE=sso`. The normal seed command preserves an existing password. Neither command emails credentials.
+
+### Auth rate limits behind a proxy
+
+Auth rate limits use PostgreSQL (`auth_rate_limit`) across app processes: 100 requests/minute by default, 10 password sign-ins, 5 signups and 20 SSO starts per minute and client bucket. Existing Better Auth endpoint-specific limits also apply. Missing trusted IP information falls back to one shared bucket per path; it does not disable protection. Forwarded headers are ignored by default to prevent direct clients choosing their own bucket.
+
+Enable `AUTH_TRUST_PROXY_HEADERS=true` only when the app origin is reachable exclusively through your trusted proxy, and make that proxy **replace** incoming `X-Forwarded-For` (for a single Nginx hop use `proxy_set_header X-Forwarded-For $remote_addr;`). For multiple hops set `AUTH_TRUSTED_PROXIES` to their actual addresses, not a whole client network. Header parsing alone cannot authenticate the network peer. The rate limiter follows the installed Better Auth implementation and the official [rate-limit guidance](https://better-auth.com/docs/concepts/rate-limit); the user-creation gate uses [database hooks](https://better-auth.com/docs/concepts/database#database-hooks).
 
 ### SSO / OIDC (Authentik, Keycloak, …)
 
@@ -490,7 +518,7 @@ Workflow files:
 - [ ] Strong unique `BETTER_AUTH_SECRET` and DB password  
 - [ ] HTTPS in production  
 - [ ] Do not commit real `deploy/.env` to public remotes  
-- [ ] Restrict who can register if the instance is public (or disable open signup operationally)  
+- [ ] Choose local and SSO registration policies; defaults are private / existing identities only
 - [ ] Prefer SSO + explicit linking; keep password for break-glass admin  
 - [ ] Rotate IdP client secrets if leaked  
 

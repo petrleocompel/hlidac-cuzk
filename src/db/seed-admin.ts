@@ -1,71 +1,79 @@
-import { eq } from 'drizzle-orm'
-import { auth } from '#/auth/server'
+import { eq, sql } from 'drizzle-orm'
+import { hashPassword } from 'better-auth/crypto'
+import { z } from 'zod'
+import { MIN_PASSWORD_LENGTH } from '#/auth/policy'
 import { db } from './index'
-import { user } from './schema'
+import { account, session, user } from './schema'
 
 export interface SeedAdminInput {
   email: string
   password: string
   name?: string
+  resetPassword?: boolean
+}
+export type SeedAdminResult = {
+  status: 'created' | 'promoted' | 'already-admin' | 'password-reset'
+  userId: string
 }
 
-export type SeedAdminResult =
-  | { status: 'created'; userId: string }
-  | { status: 'promoted'; userId: string }
-  | { status: 'already-admin'; userId: string }
-
+/** Local CLI bootstrap: never exposes a registration-policy bypass over HTTP. */
 export async function seedAdmin(
   input: SeedAdminInput,
 ): Promise<SeedAdminResult> {
-  const email = input.email.trim().toLowerCase()
-  const name = (input.name ?? email.split('@')[0]).trim()
-
-  try {
-    const result = await auth.api.signUpEmail({
-      body: { email, password: input.password, name },
-      asResponse: false,
-    })
-    const userId = result.user.id
-    await db.update(user).set({ role: 'admin' }).where(eq(user.id, userId))
-    return { status: 'created', userId }
-  } catch (err: unknown) {
-    if (!isUserAlreadyExists(err)) throw err
-  }
-
-  const existing = await db.query.user.findFirst({
-    where: eq(user.email, email),
-    columns: { id: true, role: true },
+  const email = z.email().parse(input.email.trim().toLowerCase())
+  const password = z
+    .string()
+    .min(MIN_PASSWORD_LENGTH)
+    .max(200)
+    .parse(input.password)
+  const passwordHash = await hashPassword(password)
+  return db.transaction(async (tx) => {
+    // Serialize bootstrap/recovery for the same email across local CLI processes.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${email}))`)
+    const existing = (
+      await tx.select().from(user).where(eq(user.email, email)).for('update')
+    ).at(0)
+    const userId = existing?.id ?? crypto.randomUUID()
+    if (!existing)
+      await tx.insert(user).values({
+        id: userId,
+        email,
+        name: input.name?.trim() || email.split('@')[0],
+        role: 'admin',
+      })
+    else await tx.update(user).set({ role: 'admin' }).where(eq(user.id, userId))
+    if (!existing || input.resetPassword) {
+      const credentials = await tx
+        .select()
+        .from(account)
+        .where(eq(account.userId, userId))
+      const credential = credentials.find(
+        (row) => row.providerId === 'credential',
+      )
+      if (credential)
+        await tx
+          .update(account)
+          .set({ password: passwordHash })
+          .where(eq(account.id, credential.id))
+      else
+        await tx.insert(account).values({
+          id: crypto.randomUUID(),
+          userId,
+          accountId: userId,
+          providerId: 'credential',
+          password: passwordHash,
+        })
+      if (existing) await tx.delete(session).where(eq(session.userId, userId))
+    }
+    return {
+      userId,
+      status: !existing
+        ? 'created'
+        : input.resetPassword
+          ? 'password-reset'
+          : existing.role === 'admin'
+            ? 'already-admin'
+            : 'promoted',
+    }
   })
-  if (!existing) {
-    throw new Error(
-      `seedAdmin: signUp reported "user exists" but no row found for ${email}`,
-    )
-  }
-  if (existing.role === 'admin') {
-    return { status: 'already-admin', userId: existing.id }
-  }
-  await db
-    .update(user)
-    .set({ role: 'admin' })
-    .where(eq(user.id, existing.id))
-  return { status: 'promoted', userId: existing.id }
-}
-
-function isUserAlreadyExists(err: unknown): boolean {
-  if (typeof err !== 'object' || err === null) return false
-  const e = err as {
-    status?: number | string
-    body?: { code?: string; message?: string }
-    message?: string
-  }
-  if (e.status === 'UNPROCESSABLE_ENTITY' || e.status === 422) return true
-  const code = e.body?.code
-  if (
-    code === 'USER_ALREADY_EXISTS' ||
-    code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL'
-  ) {
-    return true
-  }
-  const msg = e.body?.message ?? e.message ?? ''
-  return msg.toLowerCase().includes('already exists')
 }

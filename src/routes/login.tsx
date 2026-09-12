@@ -1,5 +1,6 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { getPublicAuthPolicy } from '#/server/auth-policy'
 import { authClient } from '#/auth/client'
 import { ThemeToggle } from '#/components/theme-toggle'
 import { Button } from '#/components/ui/button'
@@ -15,10 +16,12 @@ import { Label } from '#/components/ui/label'
 import { SsoSignInButtons } from '#/components/auth/sso-sign-in-buttons'
 
 export const Route = createFileRoute('/login')({
+  loader: () => getPublicAuthPolicy(),
   component: LoginPage,
 })
 
 function LoginPage() {
+  const policy = Route.useLoaderData()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -49,48 +52,61 @@ function LoginPage() {
       <Card>
         <CardHeader>
           <CardTitle>Přihlášení</CardTitle>
-          <CardDescription>Hlídač ČÚZK — e-mail a heslo</CardDescription>
+          <CardDescription>
+            {policy.passwordEnabled
+              ? 'Hlídač ČÚZK — e-mail a heslo'
+              : 'Hlídač ČÚZK — přihlášení přes SSO'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Heslo</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
-            <Button className="w-full" type="submit" disabled={pending}>
-              {pending ? 'Přihlašuji…' : 'Přihlásit'}
-            </Button>
-          </form>
+          {policy.passwordEnabled && (
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Heslo</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              {error ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              ) : null}
+              <Button className="w-full" type="submit" disabled={pending}>
+                {pending ? 'Přihlašuji…' : 'Přihlásit'}
+              </Button>
+            </form>
+          )}
           <div className="mt-4">
             <SsoSignInButtons />
           </div>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Nemáte účet?{' '}
-            <Link to="/signup" className="text-primary underline-offset-4 hover:underline">
-              Registrace
-            </Link>
-          </p>
+          {policy.passwordEnabled && policy.registrationMode !== 'private' && (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Nemáte účet?{' '}
+              <Link
+                to="/signup"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                Registrace
+              </Link>
+            </p>
+          )}
         </CardContent>
       </Card>
     </main>

@@ -133,8 +133,8 @@ function AdminSsoPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">SSO / OIDC</h1>
           <p className="text-sm text-muted-foreground">
-            Identity providery (Authentik, Keycloak, …). Heslo zůstává vždy
-            dostupné. Doména výchozí:{' '}
+            Identity providery (Authentik, Keycloak, …). Způsob přihlášení
+            určuje konfigurace instance. Doména výchozí:{' '}
             <span className="font-medium text-foreground">any</span>.
           </p>
         </div>
@@ -163,7 +163,9 @@ function AdminSsoPage() {
                           ({p.providerId})
                         </span>
                       </p>
-                      <p className="truncate text-muted-foreground">{p.issuer}</p>
+                      <p className="truncate text-muted-foreground">
+                        {p.issuer}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         Doména:{' '}
                         {p.domainMode === 'any' ? 'any' : p.domain || '—'}
@@ -205,8 +207,8 @@ function AdminSsoPage() {
           <CardHeader>
             <CardTitle>{form.id ? 'Upravit IdP' : 'Přidat IdP'}</CardTitle>
             <CardDescription>
-              OIDC discovery z issuer URL. Client secret se při úpravě nevyplňuje,
-              pokud se nemění.
+              OIDC discovery z issuer URL. Client secret se při úpravě
+              nevyplňuje, pokud se nemění.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -233,8 +233,10 @@ describe('worker health, readiness and successful data age', () => {
         lastSnapshotJson: { version: 1, fetchedAt: '2026-01-01T12:00:00Z' },
       })
       .where(eq(parcelWatches.id, row.id))
-    const migration = readMigrationFiles({ migrationsFolder: './drizzle' }).at(
-      -1,
+    const migration = readMigrationFiles({
+      migrationsFolder: './drizzle',
+    }).find((entry) =>
+      entry.sql.some((query) => query.includes('pg_temp.hlidac_snapshot_time')),
     )!
     await db.transaction(async (tx) => {
       for (const query of migration.sql.slice(-2))
