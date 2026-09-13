@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { getServerSession } from '#/auth/session'
 import { DashboardShell } from '#/components/layout/dashboard-shell'
 import { Button } from '#/components/ui/button'
+import { WatchNeighborsPanel } from '#/components/watch/watch-neighbors-panel'
 import { WatchNotificationRules } from '#/components/watch/watch-notification-rules'
 import {
   WatchEventsPanel,
@@ -152,6 +153,7 @@ function WatchDetailPage() {
           )
         ) : null}
         <WatchNotificationRules watch={watch} />
+        <WatchNeighborsPanel watchId={watch.id} />
         <WatchCheckStatus watch={watch} now={now} />
         <WatchSnapshotPanel
           snapshot={snapshot}

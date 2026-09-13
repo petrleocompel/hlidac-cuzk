@@ -2,6 +2,8 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Neighbor discovery previews up to 100 basic parcel definitions and atomically adds up to
+  20 selected daily watches with quota estimates, ownership checks and duplicate protection.
 - Per-watch notification filters, quiet hours with timezone, daily/weekly digests and
   urgent-event bypass. Durable digest batches retain failed events and recover after crashes.
 - SMTP e-mail and self-hosted ntfy, independently controlled by administrators. Explicit

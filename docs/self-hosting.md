@@ -829,3 +829,23 @@ A complete personal configuration wins; incomplete personal credentials never co
 with instance credentials. Shared-instance messages may be visible to the administrator
 and other subscribers. Use the saved-settings test button only when you want to send a
 real test message; automated tests use isolated local HTTP/SMTP servers.
+
+
+### Watching neighboring parcels
+
+Open a parcel detail and select **Vybrat sousední parcely**. Discovery uses one accounted
+ČÚZK request; confirmation uses another to validate the current neighbors. Automatic retries
+also consume the shared 500-attempt daily quota. The API returns basic definitions, not
+geometry or full snapshots. A missing result can reflect missing digital-map coverage;
+the UI does not interpret it as proof that no neighbors exist.
+
+The preview shows at most 100 usable neighbors. Select at most 20 per batch; existing
+subscriptions are marked and skipped. The UI shows remaining account capacity and at least
+one additional parcel request per new daily watch, excluding procedure details and retries.
+Confirmation copies identification from the fresh API answer and applies the whole batch
+in one transaction; stale selections or capacity failures leave no partial batch. First
+snapshots are loaded by the worker. No recursive neighbor discovery runs in the background.
+PZE and incomplete definitions cannot be added through this flow. No migration is required.
+
+Contract checked against the [official OpenAPI](https://api-kn.cuzk.gov.cz/swagger/v1.0/swagger.json)
+on 13 September 2026; integration tests use a local fixture and never query live parcels.

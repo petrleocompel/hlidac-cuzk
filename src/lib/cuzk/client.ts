@@ -215,3 +215,12 @@ export function formatRizeniLabel(r: RizeniDef): string {
       : (r.typRizeni?.kod ?? r.typRizeni?.nazev ?? '')
   return typ ? `${typ} ${cislo}/${rok}` : `${cislo}/${rok}`
 }
+
+/** Basic definitions only; neighbors do not include parcel geometry or full detail. */
+export async function getNeighborParcels(
+  id: string,
+): Promise<CuzkListResponse<Parcela>> {
+  if (!/^[1-9]\d{0,27}$/.test(id))
+    throw new Error('Neplatný identifikátor parcely.')
+  return cuzkFetch(`/api/v1/Parcely/SousedniParcely/${id}`)
+}
