@@ -1,10 +1,9 @@
 import { and, count, eq, inArray } from 'drizzle-orm'
-import { z } from 'zod'
 import { db } from '#/db'
 import { parcelWatches, user } from '#/db/schema'
 import { getNeighborParcels } from './client'
 import { verifiedFromParcela } from './watch-create'
-import type { VerifiedParcel } from './neighbor-types'
+import type { NeighborSelectionInput, VerifiedParcel } from './neighbor-types'
 import {
   MAX_NEIGHBOR_SELECTION,
   NeighborSelection,
@@ -90,7 +89,7 @@ export async function previewNeighbors(userId: string, watchId: string) {
  */
 export async function addSelectedNeighbors(
   userId: string,
-  input: z.infer<typeof NeighborSelection>,
+  input: NeighborSelectionInput,
 ) {
   const data = NeighborSelection.parse(input)
   const watch = await ownedWatch(userId, data.watchId)
