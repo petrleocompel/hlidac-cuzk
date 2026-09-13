@@ -6,7 +6,11 @@ import {
   diffSnapshots,
   parseSnapshot,
 } from '#/lib/cuzk/snapshot'
-import type { RizeniCache, SnapshotChange } from '#/lib/cuzk/snapshot'
+import type {
+  ParcelCache,
+  RizeniCache,
+  SnapshotChange,
+} from '#/lib/cuzk/snapshot'
 import {
   mergeTrackedSources,
   planRizeniFollowUp,
@@ -42,6 +46,7 @@ export async function pollWatchById(
   options: {
     onlyIfDue?: boolean
     manual?: boolean
+    parcelCache?: ParcelCache
     rizeniCache?: RizeniCache
   } = {},
 ): Promise<PollResult> {
@@ -118,6 +123,7 @@ export async function pollWatchById(
       now,
       signal,
       options.rizeniCache,
+      options.parcelCache,
     )
     signal.throwIfAborted()
     const plan = planRizeniFollowUp(
@@ -256,12 +262,14 @@ export async function pollDueWatches(now = new Date()): Promise<{
     orderBy: [sql`${parcelWatches.nextCheckAt} asc nulls first`],
   })
   const rizeniCache: RizeniCache = new Map()
+  const parcelCache: ParcelCache = new Map()
   const result = { checked: 0, queued: 0, errors: 0, skipped: 0 }
   for (const watch of watches) {
     try {
       const poll = await pollWatchById(watch.id, now, {
         onlyIfDue: true,
         rizeniCache,
+        parcelCache,
       })
       if (poll.status !== 'checked') {
         result.skipped += 1

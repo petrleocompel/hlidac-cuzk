@@ -24,6 +24,7 @@ import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as ApiMonitoringRouteImport } from './routes/api/monitoring'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard/account'
+import { Route as DashboardPortfolioRouteImport } from './routes/dashboard/portfolio'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users/$userId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -106,6 +107,11 @@ const DashboardAccountRoute = DashboardAccountRouteImport.update({
   path: '/dashboard/account',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardPortfolioRoute = DashboardPortfolioRouteImport.update({
+  id: '/dashboard/portfolio',
+  path: '/dashboard/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/dashboard/settings',
   path: '/dashboard/settings',
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/api/metrics': typeof ApiMetricsRoute
   '/api/monitoring': typeof ApiMonitoringRoute
   '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/portfolio': typeof DashboardPortfolioRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/api/metrics': typeof ApiMetricsRoute
   '/api/monitoring': typeof ApiMonitoringRoute
   '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/portfolio': typeof DashboardPortfolioRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/api/metrics': typeof ApiMetricsRoute
   '/api/monitoring': typeof ApiMonitoringRoute
   '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/portfolio': typeof DashboardPortfolioRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/api/metrics'
     | '/api/monitoring'
     | '/dashboard/account'
+    | '/dashboard/portfolio'
     | '/dashboard/settings'
     | '/admin/'
     | '/dashboard/'
@@ -246,6 +256,7 @@ export interface FileRouteTypes {
     | '/api/metrics'
     | '/api/monitoring'
     | '/dashboard/account'
+    | '/dashboard/portfolio'
     | '/dashboard/settings'
     | '/admin'
     | '/dashboard'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/api/metrics'
     | '/api/monitoring'
     | '/dashboard/account'
+    | '/dashboard/portfolio'
     | '/dashboard/settings'
     | '/admin/'
     | '/dashboard/'
@@ -293,6 +305,7 @@ export interface RootRouteChildren {
   ApiMetricsRoute: typeof ApiMetricsRoute
   ApiMonitoringRoute: typeof ApiMonitoringRoute
   DashboardAccountRoute: typeof DashboardAccountRoute
+  DashboardPortfolioRoute: typeof DashboardPortfolioRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
@@ -410,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/portfolio': {
+      id: '/dashboard/portfolio'
+      path: '/dashboard/portfolio'
+      fullPath: '/dashboard/portfolio'
+      preLoaderRoute: typeof DashboardPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/settings': {
       id: '/dashboard/settings'
       path: '/dashboard/settings'
@@ -469,6 +489,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMetricsRoute: ApiMetricsRoute,
   ApiMonitoringRoute: ApiMonitoringRoute,
   DashboardAccountRoute: DashboardAccountRoute,
+  DashboardPortfolioRoute: DashboardPortfolioRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,

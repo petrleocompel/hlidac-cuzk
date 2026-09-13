@@ -2,6 +2,12 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- New **Přehled podle LV** groups the objects a user already watches by katastrální území and
+  LV number with the latest ten events per group. It queries no ČÚZK data, says plainly that
+  it is not the complete contents of an LV, discovers no property on its own and does not
+  call an LV change a confirmed change of owner.
+- A polling cycle fetches each parcel once and shares the answer between all subscriptions of
+  the same object; histories, labels, intervals and channel rules stay per user.
 - Neighbor discovery previews up to 100 basic parcel definitions and atomically adds up to
   20 selected daily watches with quota estimates, ownership checks and duplicate protection.
 - Per-watch notification filters, quiet hours with timezone, daily/weekly digests and

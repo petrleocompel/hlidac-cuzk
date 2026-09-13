@@ -2,6 +2,8 @@ import { CuzkHttpError, CuzkUnavailableError } from './policy'
 import { formatRizeniLabel, getParcelById, getRizeniById } from './client'
 import type { CuzkItemResponse, Parcela, RizeniDef } from './client'
 
+export type ParcelCache = Map<string, Promise<CuzkItemResponse<Parcela>>>
+
 export type RizeniCache = Map<string, Promise<CuzkItemResponse<RizeniDef>>>
 
 export type KodNazev = { kod?: number | string | null; nazev?: string | null }
@@ -431,8 +433,19 @@ export async function buildParcelSnapshot(
   now = new Date(),
   signal?: AbortSignal,
   rizeniCache: RizeniCache = new Map(),
+  parcelCache: ParcelCache = new Map(),
 ): Promise<ParcelSnapshot> {
-  const response = await getParcelById(isknId, signal)
+  const key = String(isknId)
+  let request = parcelCache.get(key)
+  if (!request) {
+    request = getParcelById(isknId, signal)
+    parcelCache.set(key, request)
+    void request.catch(() => {
+      if (parcelCache.get(key) === request) parcelCache.delete(key)
+    })
+  }
+  const response = await request
+  signal?.throwIfAborted()
   const parcel = response.data
   if (!parcel) throw new Error('Prázdná odpověď ČÚZK')
 

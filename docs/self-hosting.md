@@ -831,6 +831,25 @@ and other subscribers. Use the saved-settings test button only when you want to 
 real test message; automated tests use isolated local HTTP/SMTP servers.
 
 
+### Portfolio overview by LV
+
+**Přehled podle LV** groups the objects a user already watches by katastrální území and by
+the LV number from the last stored snapshot, and shows the latest ten events of each group
+(at most ten per group, so a busy LV cannot hide another one). It never queries ČÚZK: the
+page is built from stored snapshots and events only.
+
+The page states plainly that it lists watched objects, not the complete contents of an LV,
+that it discovers no new property on its own, and that an LV change alone does not confirm a
+change of owner. Objects whose LV is unknown are grouped separately instead of being folded
+into a real LV. When a watch moves to another LV, the next successful check moves it in the
+overview while its history stays reachable at the object.
+
+A polling cycle now fetches each parcel once and shares the answer between all subscriptions
+of the same object, so two users watching one parcel cost one request instead of two. Event
+histories, labels, intervals and channel rules stay per user; a later cycle fetches fresh
+data and manual checks use their own cache. Full LV contents remain out of scope until the
+WSDP research (NEXT-06): the current REST specification has no LV endpoint and no LV search.
+
 ### Watching neighboring parcels
 
 Open a parcel detail and select **Vybrat sousední parcely**. Discovery uses one accounted

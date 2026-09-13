@@ -4,6 +4,7 @@ import {
   Bell,
   ChevronRight,
   KeyRound,
+  Layers,
   LayoutDashboard,
   MapPinned,
   Users,
@@ -42,6 +43,11 @@ const mainNav: NavItem[] = [
     to: '/dashboard',
     icon: LayoutDashboard,
     exact: true,
+  },
+  {
+    title: 'Přehled podle LV',
+    to: '/dashboard/portfolio',
+    icon: Layers,
   },
   {
     title: 'Nová parcela',

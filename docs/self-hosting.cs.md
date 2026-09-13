@@ -173,6 +173,25 @@ a umožňuje export CSV/JSON s časem načtení dat a uvedenou aktuálností Č�
 nejnovějších 5 000 odpovídajících událostí a uvádí čas založení sledování; historie z doby
 před založením k dispozici není. Retence snapshotů a událostí zůstává otevřená (NEXT-03).
 
+## Přehled podle LV
+
+**Přehled podle LV** seskupuje objekty, které už sledujete, podle katastrálního území a čísla
+LV z posledního uloženého snapshotu a u každé skupiny ukazuje nejnovějších deset událostí
+(nejvýše deset na skupinu, aby rušné LV nepřehlušilo ostatní). Stránka nevolá ČÚZK — staví
+se jen z uložených snapshotů a událostí.
+
+Přehled výslovně říká, že obsahuje sledované objekty, nikoli úplný obsah LV, že sám nové
+nemovitosti neobjeví a že změna LV sama nepotvrzuje změnu vlastníka. Objekty bez známého LV
+jsou ve vlastní skupině, nepřiřazují se k existujícímu LV. Po přesunu objektu na jiné LV se
+přehled srovná při další úspěšné kontrole a historie zůstane u objektu.
+
+Jeden pollingový cyklus nově stahuje parcelu jen jednou a odpověď sdílí mezi všemi odběry
+téhož objektu: dva uživatelé nad jednou parcelou stojí jedno volání místo dvou. Historie,
+názvy, intervaly a pravidla kanálů zůstávají soukromé pro každého uživatele; další cyklus
+načítá aktuální data a ruční kontrola má vlastní cache. Úplný obsah LV zůstává mimo rozsah
+až do průzkumu WSDP (NEXT-06) — současná REST specifikace nemá LV endpoint ani vyhledání
+podle LV.
+
 ## Síťové závislosti
 
 | Cíl | Kdy je potřeba |
