@@ -1,4 +1,14 @@
-import { Link, createFileRoute, redirect } from '@tanstack/react-router'
+import { useState } from 'react'
+import { Input } from '#/components/ui/input'
+import { bulkUpdateWatches } from '#/server/organization'
+import { EMPTY_WATCH_FILTERS, matchesWatch } from '#/lib/watch-organization'
+import type { WatchFilters } from '#/lib/watch-organization'
+import {
+  Link,
+  createFileRoute,
+  redirect,
+  useRouter,
+} from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { getServerSession } from '#/auth/session'
 import { DashboardShell } from '#/components/layout/dashboard-shell'
@@ -36,13 +46,56 @@ export const Route = createFileRoute('/dashboard/')({
 
 function DashboardPage() {
   const { session, watches, now } = Route.useLoaderData()
+  const router = useRouter()
+  const [filters, setFilters] = useState<WatchFilters>(EMPTY_WATCH_FILTERS)
+  const [selected, setSelected] = useState<string[]>([])
+  const [interval, setInterval] = useState('1440')
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const filtered = watches.filter((w) => matchesWatch(w, filters))
+  const selectedVisible = selected.filter((id) =>
+    filtered.some((w) => w.id === id),
+  )
+  const kuChoices = [
+    ...new Map(
+      watches
+        .filter((w) => w.kuCode)
+        .map((w) => [w.kuCode!, w.kuName || w.kuCode!]),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1], 'cs'))
+  const tagChoices = [...new Set(watches.flatMap((w) => w.tags))].sort((a, b) =>
+    a.localeCompare(b, 'cs'),
+  )
+  const changeFilter = (next: Partial<WatchFilters>) => {
+    setFilters({ ...filters, ...next })
+    setSelected([])
+  }
+  const applyBatch = async (change: {
+    enabled?: boolean
+    pollIntervalMinutes?: number
+  }) => {
+    setBusy(true)
+    setFeedback('')
+    try {
+      const result = await bulkUpdateWatches({
+        data: { ids: selectedVisible, ...change },
+      })
+      setFeedback(`Upraveno sledování: ${result.updated}.`)
+      setSelected([])
+      await router.invalidate()
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Změna selhala.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <DashboardShell user={session.user} isAdmin={session.user.role === 'admin'}>
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Sledované parcely
+            Sledované objekty
           </h1>
           <p className="text-sm text-muted-foreground">
             Uložená data z ČÚZK, plomby a indikátory změny LV
@@ -56,6 +109,155 @@ function DashboardPage() {
         </Button>
       </div>
 
+      {watches.length > 0 && (
+        <section
+          className="mb-4 space-y-3 rounded-xl border bg-card p-4"
+          aria-label="Hledání a hromadné změny"
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="text-sm">
+              Hledat v názvu, poznámce nebo identifikaci
+              <Input
+                value={filters.query}
+                maxLength={200}
+                onChange={(e) => changeFilter({ query: e.target.value })}
+              />
+            </label>
+            <label className="text-sm">
+              Katastrální území
+              <select
+                className="mt-1 block w-full rounded-md border bg-background p-2"
+                value={filters.ku}
+                onChange={(e) => changeFilter({ ku: e.target.value })}
+              >
+                <option value="">Všechna KÚ</option>
+                {kuChoices.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name} ({code})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Číslo LV
+              <Input
+                inputMode="numeric"
+                value={filters.lv}
+                onChange={(e) => changeFilter({ lv: e.target.value })}
+              />
+            </label>
+            <label className="text-sm">
+              Stav
+              <select
+                className="mt-1 block w-full rounded-md border bg-background p-2"
+                value={filters.status}
+                onChange={(e) =>
+                  changeFilter({
+                    status: e.target.value as WatchFilters['status'],
+                  })
+                }
+              >
+                <option value="all">Všechny stavy</option>
+                <option value="active">Aktivní</option>
+                <option value="paused">Pozastavené</option>
+                <option value="error">Poslední kontrola selhala</option>
+                <option value="plomba">Se známou plombou</option>
+              </select>
+            </label>
+            <label className="text-sm">
+              Štítek
+              <select
+                className="mt-1 block w-full rounded-md border bg-background p-2"
+                value={filters.tag}
+                onChange={(e) => changeFilter({ tag: e.target.value })}
+              >
+                <option value="">Všechny štítky</option>
+                {tagChoices.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p role="status" className="text-sm">
+            Zobrazeno {filtered.length} z {watches.length}. Číslo LV je převzaté
+            z posledního snapshotu; mezi KÚ není jedinečné.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={
+                  filtered.length > 0 &&
+                  selectedVisible.length === Math.min(filtered.length, 100)
+                }
+                disabled={busy || !filtered.length}
+                onChange={(e) =>
+                  setSelected(
+                    e.target.checked
+                      ? filtered.slice(0, 100).map((w) => w.id)
+                      : [],
+                  )
+                }
+              />
+              Vybrat zobrazené (nejvýše 100)
+            </label>
+            <span className="text-sm">Vybráno: {selectedVisible.length}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || !selectedVisible.length}
+              onClick={() => void applyBatch({ enabled: false })}
+            >
+              Pozastavit vybrané
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || !selectedVisible.length}
+              onClick={() => void applyBatch({ enabled: true })}
+            >
+              Obnovit vybrané
+            </Button>
+            <label className="flex items-center gap-2 text-sm">
+              Interval (min)
+              <Input
+                type="number"
+                min={5}
+                max={1440}
+                value={interval}
+                onChange={(e) => setInterval(e.target.value)}
+                className="w-24"
+              />
+            </label>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                busy ||
+                !selectedVisible.length ||
+                !Number.isInteger(Number(interval)) ||
+                Number(interval) < 5 ||
+                Number(interval) > 1440
+              }
+              onClick={() =>
+                void applyBatch({ pollIntervalMinutes: Number(interval) })
+              }
+            >
+              Změnit interval vybraných
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Kratší interval zvyšuje spotřebu společného limitu 500 volání denně.
+            Změna filtrů zruší výběr. Pozastavení zastaví budoucí kontroly; již
+            zachycená upozornění zůstávají ve frontě.
+          </p>
+          <p role="status" className="text-sm">
+            {feedback}
+          </p>
+        </section>
+      )}
       {watches.length === 0 ? (
         <Card>
           <CardHeader>
@@ -72,14 +274,36 @@ function DashboardPage() {
         </Card>
       ) : (
         <ul className="space-y-3">
-          {watches.map((w) => {
+          {filtered.length === 0 && (
+            <li>Žádné sledování neodpovídá filtrům.</li>
+          )}
+          {filtered.map((w) => {
             const stored = parseWatchSnapshot(w.lastSnapshotJson)
             const snapshot = stored && !isObjectSnapshot(stored) ? stored : null
             const object = stored && isObjectSnapshot(stored) ? stored : null
             const plomby = stored?.rizeni.length ?? 0
             const vklady = stored?.rizeni.filter((r) => r.isVklad).length ?? 0
             return (
-              <li key={w.id}>
+              <li key={w.id} className="space-y-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedVisible.includes(w.id)}
+                    disabled={
+                      busy ||
+                      (!selectedVisible.includes(w.id) &&
+                        selectedVisible.length >= 100)
+                    }
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked
+                          ? [...selectedVisible, w.id]
+                          : selectedVisible.filter((id) => id !== w.id),
+                      )
+                    }
+                  />
+                  Vybrat {w.label}
+                </label>
                 <Link
                   to="/dashboard/watches/$id"
                   params={{ id: w.id }}
@@ -88,6 +312,11 @@ function DashboardPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium">{w.label}</p>
+                      {w.tags.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Štítky: {w.tags.join(', ')}
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         {describeWatchObject(w)}
                       </p>

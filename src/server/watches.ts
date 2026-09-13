@@ -74,6 +74,8 @@ const IdInput = z.object({ id: z.string().uuid() })
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
 
 export type WatchDto = {
+  notes: string
+  tags: string[]
   notifyKinds: string[] | null
   notifyChannels: string[] | null
   id: string
@@ -112,6 +114,8 @@ function asJson(value: unknown): Json {
 
 function toWatchDto(row: ParcelWatch): WatchDto {
   return {
+    notes: row.notes,
+    tags: row.tags,
     id: row.id,
     notifyKinds: row.notifyKinds,
     notifyChannels: row.notifyChannels,

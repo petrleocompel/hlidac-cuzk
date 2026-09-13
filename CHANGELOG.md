@@ -2,6 +2,10 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Private watch tags and notes, accent-insensitive portfolio search and KU/LV/status/tag filters.
+  Atomic bulk pause, resume and interval updates validate ownership of every selected item;
+  captured history and queued notifications survive pausing. Migration `0015` is required.
+
 - Bounded map-area preview (1 × 1 km, up to 20 parcel geometries) with individual confirmations.
 
 - Optional cadastral map on watch details and the overview, with orthophoto, stored definition

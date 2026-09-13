@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
+  check,
   bigint,
   date,
   index,
@@ -182,6 +183,11 @@ export const parcelWatches = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     label: text('label').notNull(),
+    notes: text('notes').notNull().default(''),
+    tags: text('tags')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     /** Which KN register the subscription follows; parcels are the default. */
     objectType: text('object_type', {
       enum: ['parcel', 'stavba', 'jednotka', 'pravo_stavby'],
@@ -227,6 +233,11 @@ export const parcelWatches = pgTable(
       .notNull(),
   },
   (table) => [
+    check('watch_notes_length', sql`char_length(${table.notes}) <= 5000`),
+    check(
+      'watch_tags_count',
+      sql`cardinality(${table.tags}) <= 20 and coalesce(array_ndims(${table.tags}), 1) = 1 and array_position(${table.tags}, null) is null`,
+    ),
     index('parcel_watches_userId_idx').on(table.userId),
     index('parcel_watches_enabled_idx').on(table.enabled),
     index('parcel_watches_next_check_idx').on(table.enabled, table.nextCheckAt),

@@ -965,3 +965,24 @@ separate confirmation and KN verification before it becomes a daily watch. This 
 use the REST polygon endpoint, which searches definition points. Rights-of-superficies
 expiry reminders remain pending verification of a real source response; dates shown in
 the detail currently cause no scheduled reminder.
+
+## Portfolio organization
+
+Watch details now store a private label, up to twenty tags (40 characters each) and a
+5,000-character note. Tags are trimmed and deduplicated ignoring Czech accents/case.
+Notes and tags are not sent to ČÚZK or notification providers; the label remains part of
+notification titles. Metadata belongs to the subscription's owner, even when another
+user watches the same object. Migration `0015_watch_organization.sql` starts existing
+watches with an empty note and tag list; run the normal stopped-worker upgrade.
+
+The overview combines text, cadastral unit, current known LV number, status and tag
+filters. Search uses the last saved data and spends no API requests. A number alone
+does not identify an LV across cadastral units. Changing a filter clears the selection.
+
+Select up to 100 visible watches to pause, resume or change their interval (5–1,440 min).
+Every id must belong to the signed-in user; a missing/foreign id rolls back the batch.
+Overlapping requests lock rows in a stable order. Resuming a paused watch schedules it
+now, while changing its interval schedules from the last attempt (or now for a new watch).
+A shorter interval can exhaust the shared 500/day budget sooner. Pausing affects future
+checks; an already running check may finish and captured messages remain queued.
+This adds no cross-user or team permissions.
