@@ -1,3 +1,6 @@
+import type { ObjectCache } from '#/lib/cuzk/object-snapshot'
+import { countRemainingDue, readDueWatchPage } from '#/lib/cuzk/due-watches'
+import type { DueCursor } from '#/lib/cuzk/due-watches'
 import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db'
 import { parcelWatches, watchEvents } from '#/db/schema'
@@ -47,6 +50,7 @@ export async function pollWatchById(
     onlyIfDue?: boolean
     manual?: boolean
     parcelCache?: ParcelCache
+    objectCache?: ObjectCache
     rizeniCache?: RizeniCache
   } = {},
 ): Promise<PollResult> {
@@ -122,6 +126,7 @@ export async function pollWatchById(
       signal,
       rizeniCache: options.rizeniCache,
       parcelCache: options.parcelCache,
+      objectCache: options.objectCache,
     })
     signal.throwIfAborted()
     const plan = planRizeniFollowUp(
@@ -251,42 +256,43 @@ export async function pollDueWatches(now = new Date()): Promise<{
   errors: number
   skipped: number
 }> {
-  const watches = await db.query.parcelWatches.findMany({
-    where: and(
-      eq(parcelWatches.enabled, true),
-      sql`coalesce(${parcelWatches.nextCheckAt}, ${parcelWatches.lastCheckedAt} + ${parcelWatches.pollIntervalMinutes} * interval '1 minute', '-infinity'::timestamptz) <= ${now.toISOString()}::timestamptz`,
-    ),
-    columns: { id: true },
-    orderBy: [sql`${parcelWatches.nextCheckAt} asc nulls first`],
-  })
   const rizeniCache: RizeniCache = new Map()
   const parcelCache: ParcelCache = new Map()
+  const objectCache: ObjectCache = new Map()
   const result = { checked: 0, queued: 0, errors: 0, skipped: 0 }
-  for (const watch of watches) {
-    try {
-      const poll = await pollWatchById(watch.id, now, {
-        onlyIfDue: true,
-        rizeniCache,
-        parcelCache,
-      })
-      if (poll.status !== 'checked') {
-        result.skipped += 1
-        continue
-      }
-      result.checked += 1
-      result.queued += poll.queued
-    } catch (error) {
-      // pollWatchById records errors while it owns the lease. Do not write here:
-      // another worker may already have replaced that check by the time we catch.
-      result.checked += 1
-      result.errors += 1
-      if (
-        error instanceof Error &&
-        error.cause instanceof CuzkUnavailableError &&
-        error.cause.retryAt
-      ) {
-        result.skipped += watches.length - result.checked - result.skipped
-        break
+  let cursor: DueCursor | undefined
+  for (;;) {
+    const watches = await readDueWatchPage(now, cursor)
+    if (!watches.length) break
+    cursor = watches.at(-1)!
+    for (const [index, watch] of watches.entries()) {
+      try {
+        const poll = await pollWatchById(watch.id, now, {
+          onlyIfDue: true,
+          rizeniCache,
+          parcelCache,
+          objectCache,
+        })
+        if (poll.status !== 'checked') {
+          result.skipped += 1
+          continue
+        }
+        result.checked += 1
+        result.queued += poll.queued
+      } catch (error) {
+        // pollWatchById records errors while it owns the lease. Do not write here:
+        // another worker may already have replaced that check by the time we catch.
+        result.checked += 1
+        result.errors += 1
+        if (
+          error instanceof Error &&
+          error.cause instanceof CuzkUnavailableError &&
+          error.cause.retryAt
+        ) {
+          result.skipped +=
+            watches.length - index - 1 + (await countRemainingDue(now, cursor))
+          return result
+        }
       }
     }
   }

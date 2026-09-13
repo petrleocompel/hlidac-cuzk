@@ -986,3 +986,45 @@ now, while changing its interval schedules from the last attempt (or now for a n
 A shorter interval can exhaust the shared 500/day budget sooner. Pausing affects future
 checks; an already running check may finish and captured messages remain queued.
 This adds no cross-user or team permissions.
+
+## Retention and paged polling
+
+Retention is disabled by default. Set these variables on the worker (and on the manual CLI
+when using it); app/bootstrap validate the same configuration. Zero keeps a category forever.
+
+| Variable | Scope | Example after explicit operator choice |
+| --- | --- | --- |
+| `RETENTION_EVENT_DAYS` | Non-error historical events and their delivered outbox rows | `365` |
+| `RETENTION_SNAPSHOT_DAYS` | Snapshot copies attached to historical events, keeping event payloads | `90` |
+| `RETENTION_ERROR_DAYS` | Operational error events, independently of normal history | `14` |
+| `RETENTION_API_REQUEST_DAYS` | Per-attempt API detail, minimum 30 complete Europe/Prague days | `30` |
+
+These are examples, not active defaults. The latest watch snapshot and latest operational
+status stay in place. Daily `cuzk_api_daily_usage` reservations are never deleted: the 500/day
+limit and historical daily totals survive cleanup. Detailed endpoint/outcome/latency analysis
+can only cover the retained request window; the existing 30-day dashboard remains covered.
+
+Any delivery state other than `sent` protects its event and snapshot, including failed jobs
+awaiting manual retry. Such history can therefore outlive the configured age indefinitely.
+Deleting an eligible event also removes its already-sent delivery rows by the existing FK.
+The cleanup never targets credentials, accounts, watches, current snapshots or tracked řízení.
+
+Run `pnpm retention` (or `pnpm retention --dry-run`) to inspect up to 1,000 candidates per
+category without changing data. `pnpm retention --apply` performs the configured cleanup.
+Snapshot/event counts may refer to the same event because the categories operate separately.
+After enabling retention, the scheduler runs it every hour at minute 17. A shared transaction
+lock prevents overlapping cleaners; locked rows are skipped and commands have a 10-second
+statement timeout / 2-second lock timeout. Each run handles at most 1,000 rows per category;
+repeat runs consume a backlog. **Admin → Stav workeru** shows the `retention` job summary
+and failure. An external alert for an optional maintenance failure can use that status.
+
+Deleted history is recoverable only from a prior backup. Choose durations deliberately and
+check a dry run before enabling them. The normal upgrade applies `0016_retention_indexes.sql`
+with services stopped; index creation time depends on existing history size.
+
+The polling cycle now reads only IDs and due timestamps, 100 at a time, ordered by timestamp
+(NULL first for legacy rows) and UUID. A keyset cursor avoids offset skips when earlier rows
+are updated. A shared API pause ends the cycle before fetching further objects; remaining
+due rows are counted for the summary. Raw register answers are reused within that cycle
+across owners and pages, keyed by register plus ISKN id; independent cycles/manual checks
+start fresh. Per-owner tracked procedures, history, notes and notification rules remain separate.

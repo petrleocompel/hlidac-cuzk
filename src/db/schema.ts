@@ -240,7 +240,11 @@ export const parcelWatches = pgTable(
     ),
     index('parcel_watches_userId_idx').on(table.userId),
     index('parcel_watches_enabled_idx').on(table.enabled),
-    index('parcel_watches_next_check_idx').on(table.enabled, table.nextCheckAt),
+    index('parcel_watches_next_check_idx').on(
+      table.enabled,
+      table.nextCheckAt.asc().nullsFirst(),
+      table.id,
+    ),
     // One subscription per user and object. ISKN ids are unique inside a register,
     // so the type is part of the key.
     uniqueIndex('parcel_watches_user_object_idx').on(
@@ -268,6 +272,7 @@ export const watchEvents = pgTable(
   },
   (table) => [
     index('watch_events_watchId_idx').on(table.watchId),
+    index('watch_events_created_idx').on(table.createdAt, table.id),
     index('watch_events_watch_created_idx').on(
       table.watchId,
       table.createdAt.desc(),

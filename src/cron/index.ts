@@ -1,3 +1,4 @@
+import { runRetention } from '#/lib/maintenance/retention'
 import cron from 'node-cron'
 import { recordHeartbeat, trackWorkerJob } from '#/lib/monitoring/worker'
 import { probeReadiness } from '#/lib/monitoring/readiness'
@@ -21,6 +22,11 @@ export type Job = {
 }
 
 const JOBS: ReadonlyArray<Job> = [
+  {
+    schedule: '17 * * * *',
+    name: 'retention',
+    run: () => runRetention({ apply: true }),
+  },
   {
     schedule: '0 */6 * * *',
     name: 'refresh-cuzk-account',

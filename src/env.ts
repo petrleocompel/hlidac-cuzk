@@ -1,3 +1,4 @@
+import { retentionSchema } from './lib/maintenance/policy'
 import { normalizeGotifyUrl } from './lib/notifications/destinations'
 import { z } from 'zod'
 import { policySchema } from './auth/policy'
@@ -128,6 +129,7 @@ const baseSchema = z
   })
   .extend(policySchema.shape)
   .extend(cuzkPolicySchema.shape)
+  .extend(retentionSchema.shape)
   .superRefine((values, ctx) => {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: 'custom', path: [path], message })

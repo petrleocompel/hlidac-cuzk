@@ -2,6 +2,12 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Opt-in bounded retention for events, historical snapshots, errors and API attempt detail;
+  undelivered messages protect their source history, and daily quota totals are retained.
+  Hourly maintenance reports counts; the manual CLI defaults to a dry run.
+- Polling pages due watches in batches of 100 with stable cursors and shares fetched data
+  across owners/pages for every supported register. Migration `0016` adds matching indexes.
+
 - Private watch tags and notes, accent-insensitive portfolio search and KU/LV/status/tag filters.
   Atomic bulk pause, resume and interval updates validate ownership of every selected item;
   captured history and queued notifications survive pausing. Migration `0015` is required.

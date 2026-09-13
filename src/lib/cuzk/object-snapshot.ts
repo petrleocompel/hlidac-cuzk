@@ -340,6 +340,8 @@ export async function objectSnapshotFrom(
   }
 }
 
+export type ObjectCache = Map<string, Promise<ObjectFetch>>
+
 /** Builds a snapshot of a building, unit or right of superficies by ISKN id. */
 export async function buildObjectSnapshot(
   objectType: Exclude<ObjectType, 'parcel'>,
@@ -347,6 +349,7 @@ export async function buildObjectSnapshot(
   now = new Date(),
   signal?: AbortSignal,
   rizeniCache: RizeniCache = new Map(),
+  objectCache: ObjectCache = new Map(),
 ): Promise<ObjectSnapshot> {
   const { getJednotkaById, getPravoStavbyById, getStavbaById } =
     await import('./client')
@@ -355,7 +358,16 @@ export async function buildObjectSnapshot(
     jednotka: getJednotkaById,
     pravo_stavby: getPravoStavbyById,
   } as const
-  const response = await fetchers[objectType](isknId, signal)
+  const key = `${objectType}:${isknId}`
+  let pending = objectCache.get(key)
+  if (!pending) {
+    pending = fetchers[objectType](isknId, signal)
+    objectCache.set(key, pending)
+    void pending.catch(() => {
+      if (objectCache.get(key) === pending) objectCache.delete(key)
+    })
+  }
+  const response = await pending
   signal?.throwIfAborted()
   return objectSnapshotFrom(objectType, response, now, signal, rizeniCache)
 }
@@ -369,6 +381,7 @@ export async function buildWatchSnapshot(
     signal?: AbortSignal
     rizeniCache?: RizeniCache
     parcelCache?: ParcelCache
+    objectCache?: ObjectCache
   } = {},
 ): Promise<WatchSnapshot> {
   if (objectType === 'parcel')
@@ -385,6 +398,7 @@ export async function buildWatchSnapshot(
     now,
     options.signal,
     options.rizeniCache,
+    options.objectCache,
   )
 }
 
