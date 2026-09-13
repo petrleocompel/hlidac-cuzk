@@ -1,6 +1,6 @@
 # Vlastní instance Hlídače ČÚZK
 
-Aplikace, worker a PostgreSQL běží na vašem serveru. Release workflow publikuje multiarch image pro AMD64 i ARM64 (GitHub Actions smoke-testuje obě architektury; GitLab CI smoke-testuje nativní architekturu runneru a obě sestaví při pushi). Docker z multiarch image vybere architekturu hostitele. Web, migrace a worker běží pod UID 1000, s read-only filesystémem a zapisovatelným `/tmp`. Výchozí registrace je soukromá:
+Aplikace, worker a PostgreSQL běží na vašem serveru. GitHub Actions publikuje multiarch image (AMD64 i ARM64) do GHCR; GitLab CI publikuje jen AMD64 do Peelco registry. Docker z multiarch tagu vybere architekturu hostitele. Web, migrace a worker běží pod UID 1000, s read-only filesystémem a zapisovatelným `/tmp`. Výchozí registrace je soukromá:
 nové účty zakládá správce. Pro běžný přístup použijte HTTPS, i v domácí síti.
 
 ## Stažení a konfigurace
