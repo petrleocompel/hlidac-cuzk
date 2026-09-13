@@ -163,16 +163,13 @@ export async function listKatastralniUzemi(): Promise<KatastralniUzemi[]> {
   return kuCache
 }
 
-/** Case-insensitive substring match on KU name; max 20 hits. */
+/** Matches the name without diacritics or the code; max 20 hits. */
 export async function searchKatastralniUzemi(
   query: string,
 ): Promise<KatastralniUzemi[]> {
-  const q = query.trim().toLocaleLowerCase('cs')
-  if (q.length < 2) return []
-  const all = await listKatastralniUzemi()
-  return all
-    .filter((ku) => ku.nazev.toLocaleLowerCase('cs').includes(q))
-    .slice(0, 20)
+  const { filterKatastralniUzemi } = await import('./parcel-input')
+  if (query.trim().length < 2) return []
+  return filterKatastralniUzemi(await listKatastralniUzemi(), query)
 }
 
 /** Resolve a unique ISKN id from search params; throws if 0 or >1 matches. */

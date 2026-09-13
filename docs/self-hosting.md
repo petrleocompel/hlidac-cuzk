@@ -345,6 +345,26 @@ payment and new operations. Removing a plomba is never reported as an approved v
   removed. Verify the default against your own řízení and adjust the variable; shortening
   it only reduces the extra calls, it never deletes history.
 
+### Adding watches and bulk import
+
+The form searches katastrální území by name without diacritics or by code, accepts the
+parcel as one field (`1133/77`, `1133`, `st. 25`) and requires a ČÚZK confirmation before
+saving. The stored KÚ code, name and parcel numbers always come from that verified answer,
+so editing the form cannot decouple them. Demo values are prefilled only when
+`SEED_DEMO_WATCH=1`.
+
+Bulk import accepts CSV with the header `nazev,ku_kod,parcela,interval` (comma or semicolon,
+optional quoting) or the same keys in JSON (`[...]` or `{"watches": [...]}`). The preview
+validates every row locally and spends no ČÚZK call; the import then verifies one parcel per
+row with a single search and leaves the first snapshot to the next scheduled check. Invalid
+rows are reported with their line number and never discard the valid ones; rows already
+watched or repeated inside the file are skipped. At most 200 rows per file.
+
+One user can watch one object only once: `0012_watch_uniqueness` adds a unique index on
+`(user_id, iskn_id)`. Pre-existing duplicates are reduced first — the row with the most
+recorded events (then the oldest) is kept and the others are deleted, so back up before the
+upgrade if you intentionally kept duplicates.
+
 ### Change history
 
 Every change event stores the values before and after it and the snapshot it was derived

@@ -197,6 +197,8 @@ export const parcelWatches = pgTable(
     index('parcel_watches_userId_idx').on(table.userId),
     index('parcel_watches_enabled_idx').on(table.enabled),
     index('parcel_watches_next_check_idx').on(table.enabled, table.nextCheckAt),
+    // One subscription per user and object; imports rely on this, not only on code.
+    uniqueIndex('parcel_watches_user_object_idx').on(table.userId, table.isknId),
   ],
 )
 

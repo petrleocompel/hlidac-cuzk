@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getServerSession } from '#/auth/session'
 import { DashboardShell } from '#/components/layout/dashboard-shell'
 import { Button } from '#/components/ui/button'
@@ -12,14 +12,18 @@ import {
 } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
-import { searchKu } from '#/server/cuzk'
+import { WatchImportCard } from '#/components/watch/watch-import-card'
+import { lookupParcel, searchKu } from '#/server/cuzk'
+import type { ParcelLookup } from '#/lib/cuzk/watch-create'
 import { createWatch } from '#/server/watches'
+import { DEFAULT_POLL_MINUTES } from '#/lib/cuzk/policy'
+import { getNewWatchDefaults } from '#/server/watch-defaults'
 
 export const Route = createFileRoute('/dashboard/watches/new')({
   loader: async () => {
     const session = await getServerSession()
     if (!session) throw redirect({ to: '/login' })
-    return { session }
+    return { session, defaults: await getNewWatchDefaults() }
   },
   component: NewWatchPage,
 })
@@ -27,54 +31,77 @@ export const Route = createFileRoute('/dashboard/watches/new')({
 type KuHit = { kod: string; nazev: string }
 
 function NewWatchPage() {
-  const { session } = Route.useLoaderData()
+  const { session, defaults } = Route.useLoaderData()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [kuName, setKuName] = useState('Vejprnice')
-  const [kuCode, setKuCode] = useState('777552')
+  const [kuQuery, setKuQuery] = useState(defaults.demoKuName)
+  const [ku, setKu] = useState<KuHit | null>(
+    defaults.demoKuCode && defaults.demoKuName
+      ? { kod: defaults.demoKuCode, nazev: defaults.demoKuName }
+      : null,
+  )
   const [kuHits, setKuHits] = useState<KuHit[]>([])
   const [kuSearching, setKuSearching] = useState(false)
+  const [parcel, setParcel] = useState(defaults.demoParcel)
+  const [label, setLabel] = useState('')
+  const [interval, setIntervalMinutes] = useState(String(DEFAULT_POLL_MINUTES))
+  const [verified, setVerified] = useState<ParcelLookup | null>(null)
 
-  async function onLookupKu() {
-    setKuSearching(true)
-    setError(null)
-    try {
-      const hits = await searchKu({ data: { query: kuName } })
-      setKuHits(hits)
-      if (hits.length === 1) {
-        setKuCode(hits[0].kod)
-        setKuName(hits[0].nazev)
+  // Suggestions come from a server-cached code list, not from a ČÚZK call per key.
+  useEffect(() => {
+    const query = kuQuery.trim()
+    if (query.length < 2 || query === ku?.nazev || query === ku?.kod) {
+      setKuHits([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setKuSearching(true)
+      try {
+        setKuHits(await searchKu({ data: { query } }))
+      } catch {
+        setKuHits([])
+      } finally {
+        setKuSearching(false)
       }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [kuQuery, ku])
+
+  async function onVerify(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!ku) {
+      setError('Nejprve vyberte katastrální území ze seznamu.')
+      return
+    }
+    setPending(true)
+    setError(null)
+    setVerified(null)
+    try {
+      const hit = await lookupParcel({
+        data: { kuCode: ku.kod, parcel },
+      })
+      setVerified(hit)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setKuSearching(false)
+      setPending(false)
     }
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const fd = new FormData(e.currentTarget)
+  async function onSave() {
+    if (!verified) return
     setPending(true)
     setError(null)
     try {
-      const subdivRaw = String(fd.get('parcelSubdivision') ?? '').trim()
       const watch = await createWatch({
         data: {
-          label: String(fd.get('label') ?? ''),
-          kuCode,
-          kuName,
-          parcelNumber: Number(fd.get('parcelNumber')),
-          parcelSubdivision: subdivRaw === '' ? null : Number(subdivRaw),
-          druhCislovani: Number(fd.get('druhCislovani') ?? 2),
-          pollIntervalMinutes: Number(fd.get('pollIntervalMinutes') ?? 60),
+          isknId: verified.isknId,
+          label: label.trim() || undefined,
+          pollIntervalMinutes: Number(interval),
         },
       })
-      void navigate({
-        to: '/dashboard/watches/$id',
-        params: { id: watch.id },
-      })
+      void navigate({ to: '/dashboard/watches/$id', params: { id: watch.id } })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setPending(false)
@@ -83,54 +110,53 @@ function NewWatchPage() {
 
   return (
     <DashboardShell user={session.user} isAdmin={session.user.role === 'admin'}>
-      <Card className="mx-auto max-w-xl">
-        <CardHeader>
-          <CardTitle>Nová sledovaná parcela</CardTitle>
-          <CardDescription>
-            Při uložení se přes ČÚZK API ověří ISKN identifikátor.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="label">Název</Label>
-              <Input
-                id="label"
-                name="label"
-                required
-                defaultValue="Vejprnice 1133/77"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+      <div className="mx-auto max-w-xl space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nová sledovaná parcela</CardTitle>
+            <CardDescription>
+              Katastrální území stačí napsat i bez diakritiky, nebo zadat jeho
+              kód. Parcelní číslo zadejte jako 1133/77, 1133 nebo st. 25. Před
+              uložením výsledek potvrdíte podle odpovědi ČÚZK.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={onVerify}>
               <div className="space-y-2">
-                <Label htmlFor="kuName">Katastrální území</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="kuName"
-                    name="kuName"
-                    required
-                    value={kuName}
-                    onChange={(e) => setKuName(e.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void onLookupKu()}
-                    disabled={kuSearching || kuName.trim().length < 2}
+                <Label htmlFor="kuQuery">Katastrální území</Label>
+                <Input
+                  id="kuQuery"
+                  name="kuQuery"
+                  autoComplete="off"
+                  required
+                  value={kuQuery}
+                  placeholder="Vejprnice nebo 777552"
+                  onChange={(event) => {
+                    setKuQuery(event.target.value)
+                    setKu(null)
+                    setVerified(null)
+                  }}
+                />
+                <p className="text-xs text-muted-foreground" role="status">
+                  {ku
+                    ? `Vybráno: ${ku.nazev} (${ku.kod})`
+                    : kuSearching
+                      ? 'Hledám…'
+                      : 'Vyberte území z nabídky; kód i název se přeberou z ČÚZK.'}
+                </p>
+                {kuHits.length ? (
+                  <ul
+                    className="max-h-48 space-y-1 overflow-auto rounded-md border p-2 text-sm"
+                    aria-label="Nalezená katastrální území"
                   >
-                    {kuSearching ? '…' : 'Hledat'}
-                  </Button>
-                </div>
-                {kuHits.length > 1 ? (
-                  <ul className="max-h-40 space-y-1 overflow-auto rounded-md border p-2 text-sm">
                     {kuHits.map((hit) => (
                       <li key={hit.kod}>
                         <button
                           type="button"
                           className="w-full rounded px-2 py-1 text-left hover:bg-accent"
                           onClick={() => {
-                            setKuCode(hit.kod)
-                            setKuName(hit.nazev)
+                            setKu(hit)
+                            setKuQuery(hit.nazev)
                             setKuHits([])
                           }}
                         >
@@ -144,75 +170,125 @@ function NewWatchPage() {
                   </ul>
                 ) : null}
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="parcel">Parcelní číslo</Label>
+                  <Input
+                    id="parcel"
+                    name="parcel"
+                    required
+                    value={parcel}
+                    placeholder="1133/77"
+                    onChange={(event) => {
+                      setParcel(event.target.value)
+                      setVerified(null)
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Předpona st. označuje stavební parcelu.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pollIntervalMinutes">Interval (minuty)</Label>
+                  <Input
+                    id="pollIntervalMinutes"
+                    name="pollIntervalMinutes"
+                    type="number"
+                    min={5}
+                    max={1440}
+                    value={interval}
+                    onChange={(event) => setIntervalMinutes(event.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Denní kontrola šetří společný rozpočet 500 volání ČÚZK denně.
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="kuCode">Kód KÚ</Label>
+                <Label htmlFor="label">Vlastní název (nepovinné)</Label>
                 <Input
-                  id="kuCode"
-                  name="kuCode"
-                  required
-                  value={kuCode}
-                  onChange={(e) => setKuCode(e.target.value)}
+                  id="label"
+                  name="label"
+                  value={label}
+                  placeholder="Převezme se z odpovědi ČÚZK"
+                  onChange={(event) => setLabel(event.target.value)}
                 />
               </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="parcelNumber">Kmenové číslo</Label>
-                <Input
-                  id="parcelNumber"
-                  name="parcelNumber"
-                  type="number"
-                  required
-                  min={1}
-                  defaultValue={1133}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="parcelSubdivision">Poddělení</Label>
-                <Input
-                  id="parcelSubdivision"
-                  name="parcelSubdivision"
-                  type="number"
-                  min={1}
-                  defaultValue={77}
-                  placeholder="volitelné"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="druhCislovani">Druh číslování</Label>
-                <select
-                  id="druhCislovani"
-                  name="druhCislovani"
-                  defaultValue={2}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+
+              {error ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
+              {verified ? (
+                <div className="space-y-2 rounded-xl border bg-muted/40 p-4 text-sm">
+                  <p className="font-medium">Ověřeno v ČÚZK</p>
+                  <p>
+                    {verified.kuName} ({verified.kuCode}) ·{' '}
+                    {verified.parcelNumber}
+                    {verified.parcelSubdivision != null
+                      ? `/${verified.parcelSubdivision}`
+                      : ''}{' '}
+                    · ISKN {verified.isknId}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {verified.typParcely ?? '—'} ·{' '}
+                    {verified.druhCislovani === 1 ? 'stavební' : 'pozemková'} ·
+                    výměra{' '}
+                    {verified.vymera != null
+                      ? `${verified.vymera.toLocaleString('cs')} m²`
+                      : 'neuvedena'}
+                    {verified.druhPozemku ? ` · ${verified.druhPozemku}` : ''}
+                    {verified.lvCislo != null ? ` · LV ${verified.lvCislo}` : ''}
+                    {verified.plomby != null
+                      ? ` · plomby: ${verified.plomby}`
+                      : ''}
+                  </p>
+                  {verified.alreadyWatchedId ? (
+                    <p className="text-destructive">
+                      Tuto parcelu už sledujete. Otevřete existující sledování.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" variant="outline" disabled={pending}>
+                  {pending && !verified ? 'Ověřuji v ČÚZK…' : 'Ověřit parcelu'}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={
+                    pending || !verified || Boolean(verified.alreadyWatchedId)
+                  }
+                  onClick={() => void onSave()}
                 >
-                  <option value={2}>2 — pozemková</option>
-                  <option value={1}>1 — stavební</option>
-                </select>
+                  {pending && verified ? 'Ukládám…' : 'Uložit sledování'}
+                </Button>
+                {verified?.alreadyWatchedId ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() =>
+                      void navigate({
+                        to: '/dashboard/watches/$id',
+                        params: { id: verified.alreadyWatchedId! },
+                      })
+                    }
+                  >
+                    Otevřít existující
+                  </Button>
+                ) : null}
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pollIntervalMinutes">Interval (minuty)</Label>
-              <Input
-                id="pollIntervalMinutes"
-                name="pollIntervalMinutes"
-                type="number"
-                defaultValue={1440}
-                min={5}
-                max={1440}
-              />
-              <p className="text-xs text-muted-foreground">
-                Výchozí denní kontrola šetří společný rozpočet 500 volání ČÚZK
-                denně. Detaily řízení a ruční kontroly spotřebují další volání.
-              </p>
-            </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Ověřuji v ČÚZK…' : 'Uložit sledování'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+
+        <WatchImportCard />
+      </div>
     </DashboardShell>
   )
 }

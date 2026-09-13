@@ -85,6 +85,13 @@
       "when": 1789276422574,
       "tag": "0011_event_history",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789277300816,
+      "tag": "0012_watch_uniqueness",
+      "breakpoints": true
     }
   ]
 }

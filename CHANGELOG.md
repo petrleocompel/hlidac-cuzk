@@ -15,6 +15,14 @@
   list the API did not return as unknown rather than removed. The watch detail pages and
   filters the history and exports CSV/JSON with acquisition times; it also states that no
   history exists from before the watch was created.
+- Adding a watch no longer needs the KÚ code: search by name without diacritics or by code,
+  write the parcel as one field (`1133/77`, `st. 25`) and confirm the verified ČÚZK answer
+  before saving. Identification is taken from that answer, and the demo parcel is prefilled
+  only with `SEED_DEMO_WATCH=1`.
+- New CSV/JSON bulk import with a preview that spends no ČÚZK call, per-row errors with line
+  numbers, duplicate detection and one verification call per imported row.
+- One user can watch one object only once; the upgrade reduces existing duplicates to the row
+  with the most recorded events before adding the unique index.
 - AMD64 and ARM64 images must pass a real Compose installation smoke test before publishing.
 - Web, worker and migrations run as UID 1000 with read-only storage; runtime dependencies
   are installed separately and pnpm is preloaded for startup without a registry connection.
@@ -29,7 +37,8 @@
 
 ### Migration from d63f2c9 (schema 0008)
 
-The upgrade adds `0009_backup_status`, `0010_watch_rizeni` and `0011_event_history`. Existing accounts, watches, events and pending
+The upgrade adds `0009_backup_status`, `0010_watch_rizeni`, `0011_event_history` and
+`0012_watch_uniqueness` (which deletes duplicate watches of the same object per user). Existing accounts, watches, events and pending
 notification deliveries are preserved. Back up the database and configuration/keys first;
 use the pinned image and the [upgrade procedure](docs/self-hosting.md#upgrade). The regression
 test upgrades the previous schema and checks both preserved data and rejected startup after

@@ -142,6 +142,25 @@ nedostupnost; timeout nebo chyba sítě zachová poslední známé údaje a zkus
 kontrole. ČÚZK nedokumentuje, jak dlouho detail po odebrání plomby zůstává dostupný —
 výchozí hodnotu si ověřte na svých řízeních. Zkrácení jen ubere volání, historii nemaže.
 
+## Přidávání sledování a hromadný import
+
+Formulář hledá katastrální území podle názvu i bez diakritiky nebo podle kódu, parcelní
+číslo přijímá v jednom poli (`1133/77`, `1133`, `st. 25`) a před uložením vyžaduje potvrzení
+odpovědi ČÚZK. Uložený kód a název KÚ i čísla parcely pocházejí z tohoto ověřeného výsledku,
+takže je ruční editace formuláře nerozpojí. Demo hodnoty se předplní jen při
+`SEED_DEMO_WATCH=1`.
+
+Hromadný import přijímá CSV se záhlavím `nazev,ku_kod,parcela,interval` (čárka i středník)
+nebo stejné klíče v JSON (`[...]` nebo `{"watches": [...]}`). Náhled kontroluje řádky lokálně
+a nespotřebuje žádné volání ČÚZK; import pak ověří každou parcelu jedním dotazem a první
+snapshot přenechá nejbližší kontrole. Chybné řádky se hlásí s číslem řádku a nezahazují
+platné; již sledované nebo v souboru opakované řádky se přeskočí. Nejvýše 200 řádků na soubor.
+
+Jeden uživatel může mít jeden objekt jen jednou: `0012_watch_uniqueness` přidává unikátní
+index `(user_id, iskn_id)`. Existující duplicity se předtím zredukují — zůstane sledování s
+nejvíce zaznamenanými událostmi (pak nejstarší) a ostatní se smažou. Pokud jste duplicity
+drželi záměrně, zálohujte před upgradem.
+
 ## Historie změn
 
 Každá událost ukládá hodnotu před i po změně a snapshot, z něhož změna vznikla, takže

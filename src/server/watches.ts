@@ -7,12 +7,14 @@ import type { PollResult } from '#/cron/jobs/poll-parcels'
 import { db } from '#/db'
 import { parcelWatches } from '#/db/schema'
 import type { ParcelWatch } from '#/db/schema'
-import { resolveIsknId } from '#/lib/cuzk/client'
-import { buildParcelSnapshot } from '#/lib/cuzk/snapshot'
+import { assertWatchCapacity } from '#/lib/cuzk/watch-limits'
 import {
-  assertWatchCapacity,
-  insertWatchWithinLimit,
-} from '#/lib/cuzk/watch-limits'
+  createVerifiedWatch,
+  importVerifiedWatches,
+} from '#/lib/cuzk/watch-create'
+import type { ImportOutcome } from '#/lib/cuzk/watch-create'
+import { planWatchImport } from '#/lib/cuzk/watch-import'
+import type { ImportPlan } from '#/lib/cuzk/watch-import'
 import { DEFAULT_POLL_MINUTES } from '#/lib/cuzk/policy'
 import { retryNotificationDelivery } from '#/lib/notifications/outbox'
 import {
@@ -29,19 +31,23 @@ import { followDays } from '#/lib/cuzk/rizeni-follow'
 import { listTrackedRizeni } from './rizeni'
 import type { TrackedRizeniDto } from './rizeni'
 
+const PollIntervalInput = z.coerce
+  .number()
+  .int()
+  .min(5)
+  .max(24 * 60)
+  .default(DEFAULT_POLL_MINUTES)
+
+/** Only the confirmed ISKN id and the user's own label; the rest comes from ČÚZK. */
 const CreateWatchInput = z.object({
-  label: z.string().min(1).max(200),
-  kuCode: z.string().min(1).max(20),
-  kuName: z.string().min(1).max(200),
-  parcelNumber: z.coerce.number().int().positive(),
-  parcelSubdivision: z.coerce.number().int().positive().nullable().optional(),
-  druhCislovani: z.coerce.number().int().min(1).max(2).default(2),
-  pollIntervalMinutes: z.coerce
-    .number()
-    .int()
-    .min(5)
-    .max(24 * 60)
-    .default(DEFAULT_POLL_MINUTES),
+  isknId: z.string().regex(/^[1-9]\d{0,27}$/),
+  label: z.string().max(200).optional(),
+  pollIntervalMinutes: PollIntervalInput,
+})
+
+const ImportInput = z.object({
+  content: z.string().min(1).max(1_000_000),
+  format: z.enum(['csv', 'json']),
 })
 
 const UpdateWatchInput = z.object({
@@ -195,48 +201,51 @@ export const createWatch = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<WatchDto> => {
     const session = await requireSession()
     await assertWatchCapacity(session.user.id)
-    const { isknId } = await resolveIsknId({
-      kodKatastralnihoUzemi: data.kuCode,
-      typParcely: 'PKN',
-      druhCislovaniParcely: data.druhCislovani as 1 | 2,
-      kmenoveCisloParcely: data.parcelNumber,
-      poddeleniCislaParcely: data.parcelSubdivision ?? null,
-    })
-
-    const now = new Date()
-    let snapshot = null as Awaited<
-      ReturnType<typeof buildParcelSnapshot>
-    > | null
-    let lastError: string | null = null
-    try {
-      snapshot = await buildParcelSnapshot(isknId, now)
-    } catch (error) {
-      lastError =
-        error instanceof Error ? error.message : 'Načtení ČÚZK selhalo.'
-    }
-
-    const row = await insertWatchWithinLimit({
+    const row = await createVerifiedWatch({
       userId: session.user.id,
+      isknId: data.isknId,
       label: data.label,
-      kuCode: data.kuCode,
-      kuName: data.kuName,
-      parcelNumber: data.parcelNumber,
-      parcelSubdivision: data.parcelSubdivision ?? null,
-      druhCislovani: data.druhCislovani,
-      isknId,
       pollIntervalMinutes: data.pollIntervalMinutes,
-      lastCheckedAt: now,
-      lastAttemptAt: now,
-      lastSuccessfulCheckAt: snapshot ? now : null,
-      nextCheckAt: new Date(
-        now.getTime() +
-          (snapshot ? data.pollIntervalMinutes * 60_000 : 300_000),
-      ),
-      lastError,
-      lastSnapshotJson: snapshot,
     })
-
     return toWatchDto(row)
+  })
+
+/** Validation and duplicate detection only; no ČÚZK call is spent on a preview. */
+export const previewWatchImport = createServerFn({ method: 'POST' })
+  .inputValidator((v) => ImportInput.parse(v))
+  .handler(async ({ data }): Promise<ImportPlan & { error?: string }> => {
+    const session = await requireSession()
+    const existing = await db
+      .select({
+        kuCode: parcelWatches.kuCode,
+        parcelNumber: parcelWatches.parcelNumber,
+        parcelSubdivision: parcelWatches.parcelSubdivision,
+        druhCislovani: parcelWatches.druhCislovani,
+      })
+      .from(parcelWatches)
+      .where(eq(parcelWatches.userId, session.user.id))
+    return planWatchImport(data.content, data.format, existing)
+  })
+
+export const runWatchImport = createServerFn({ method: 'POST' })
+  .inputValidator((v) => ImportInput.parse(v))
+  .handler(async ({ data }): Promise<ImportOutcome> => {
+    const session = await requireSession()
+    // Re-planned server side: the preview the browser saw is not authoritative.
+    const existing = await db
+      .select({
+        kuCode: parcelWatches.kuCode,
+        parcelNumber: parcelWatches.parcelNumber,
+        parcelSubdivision: parcelWatches.parcelSubdivision,
+        druhCislovani: parcelWatches.druhCislovani,
+      })
+      .from(parcelWatches)
+      .where(eq(parcelWatches.userId, session.user.id))
+    const plan = planWatchImport(data.content, data.format, existing)
+    if (plan.error) throw new Error(plan.error)
+    if (!plan.ready) throw new Error('Soubor neobsahuje žádný platný nový řádek.')
+    await assertWatchCapacity(session.user.id)
+    return importVerifiedWatches(session.user.id, plan)
   })
 
 export const updateWatch = createServerFn({ method: 'POST' })

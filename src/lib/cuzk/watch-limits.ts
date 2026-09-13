@@ -3,6 +3,16 @@ import { db } from '#/db'
 import { parcelWatches, user } from '#/db/schema'
 import { cuzkPolicy } from './policy'
 
+/** PostgreSQL unique_violation, wherever Drizzle wrapped the driver error. */
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error
+  while (current) {
+    if ((current as { code?: string }).code === '23505') return true
+    current = current instanceof Error ? current.cause : null
+  }
+  return false
+}
+
 export async function assertWatchCapacity(userId: string) {
   const [row] = await db
     .select({ count: count() })
@@ -32,7 +42,15 @@ export async function insertWatchWithinLimit(
       throw new Error(
         `Limit ${cuzkPolicy().MAX_WATCHES_PER_USER} sledování na uživatele byl dosažen.`,
       )
-    const [watch] = await tx.insert(parcelWatches).values(values).returning()
-    return watch
+    try {
+      const [watch] = await tx.insert(parcelWatches).values(values).returning()
+      return watch
+    } catch (error) {
+      // One subscription per user and object is enforced by a unique index.
+      // The driver error is wrapped by Drizzle, so check the cause chain too.
+      if (isUniqueViolation(error))
+        throw new Error('Tuto parcelu už sledujete.')
+      throw error
+    }
   })
 }
