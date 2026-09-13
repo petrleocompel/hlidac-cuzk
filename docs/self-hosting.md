@@ -775,3 +775,57 @@ Tests create and remove only their randomly named `hlidac_test_compose_*` stacks
 UID/read-only storage, bootstrap, readiness, login page, no ČÚZK calls and a graceful
 worker stop/restart. In Docker-in-Docker CI, `COMPOSE_SMOKE_IN_CONTAINER=1` probes HTTP
 inside the app because published ports belong to the daemon service, not the job container.
+
+
+### Notification rules, digests, SMTP and ntfy
+
+Migration `0013_notification_rules` adds optional delivery rules without backfilling old
+messages. Stop the old web and workers, run bootstrap, then start the matching version.
+Existing subscriptions continue to send immediately to their personal configured channels.
+
+In a watch detail, choose event kinds and channels. “All” takes precedence over individual
+checkboxes; no selection with “All” off disables delivery for that watch. Filtering never
+removes events from history and affects newly captured changes, not messages already queued.
+In **Notifikace**, set an IANA timezone (default `Europe/Prague`), optional quiet hours,
+and daily/weekly digest hour and weekday. Quiet hours may wrap over midnight. Calendar
+scheduling respects daylight-saving transitions; nonexistent spring times move forward,
+repeated autumn times use the later occurrence. Selected urgent event kinds bypass both
+quiet hours and digests; by default these are plomba changes and LV changes.
+
+A separate `deliver-digests` job runs every five minutes. It sends batches of up to five
+changes per owner/channel, shortened further to fit transport limits, with an exact-event
+link for each included change. Further batches remain queued for later runs. A batch is
+acknowledged only after the provider accepts it. Failed batches retain their events and
+retry with the existing eight-attempt ceiling per event; crashed claims recover as digests.
+Quiet hours are checked again before ordinary retries and digests. Manual retry of a failed
+digest retains digest delivery. Changing a digest schedule does not move already queued
+slots; current quiet hours still apply. If a provider accepts a message just before a worker
+crash, duplicate delivery remains possible. The linked event opens even beyond the first
+history page and is accessible only to the watch owner.
+
+SMTP is configured by the administrator using both `SMTP_URL` and `SMTP_FROM`; users supply
+one recipient address. For example, use `smtps://user:URL_ENCODED_PASSWORD@smtp.example.cz:465`
+and `hlidac@example.cz`. For mandatory STARTTLS use `smtp://...:587?requireTLS=true`.
+Keep credentials in the private deployment `.env`; SMTP failure messages omit connection
+and authentication details. Each send has a 15-second absolute deadline as well as socket
+timeouts. Without both settings e-mail delivery is unavailable. No SMTP service is installed
+or enabled automatically.
+
+For ntfy, users enter a topic URL and optionally an access token. Tokens use the same
+owner-bound encryption and rotation procedure as other notification credentials. With an
+empty ntfy allow-list, HTTPS topics are allowed. To permit internal HTTP, configure a base
+URL under **Admin → Notifikace**; it allows that base and descendant topic paths, not similarly
+named hosts or sibling paths. `NTFY_ALLOWED_URLS` seeds policy only until a policy is stored
+by an administrator. Titles with Czech characters use RFC 2047 encoding supported by
+[ntfy publishing](https://docs.ntfy.sh/publish/#message-title). Topics can expose messages to
+other subscribers; use a private authenticated topic when the watch data is private.
+
+Administrators can independently disable all five channels; queued work then waits without
+using attempts. Existing Gotify behavior is unchanged: an empty allow-list permits any
+HTTP/HTTPS base including LAN, and a nonempty list requires an exact base URL.
+`GOTIFY_URL` plus `GOTIFY_TOKEN` now provide an instance destination only when the user
+explicitly checks “Použít společné Gotify správce, pokud nemám vlastní nastavení” and has no personal URL or token.
+A complete personal configuration wins; incomplete personal credentials never combine
+with instance credentials. Shared-instance messages may be visible to the administrator
+and other subscribers. Use the saved-settings test button only when you want to send a
+real test message; automated tests use isolated local HTTP/SMTP servers.

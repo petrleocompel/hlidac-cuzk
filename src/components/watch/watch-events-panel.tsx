@@ -170,12 +170,19 @@ function EventBody({ event }: { event: WatchEventView }) {
   )
 }
 
-const CHANNEL_LABELS = { gotify: 'Gotify', slack: 'Slack', discord: 'Discord' }
+const CHANNEL_LABELS = {
+  gotify: 'Gotify',
+  slack: 'Slack',
+  discord: 'Discord',
+  ntfy: 'ntfy',
+  email: 'E-mail',
+}
 const DELIVERY_LABELS = {
   pending: 'Čeká na doručení',
   processing: 'Odesílá se',
   sent: 'Odesláno',
   failed: 'Doručení selhalo',
+  deferred: 'Čeká na souhrn',
 }
 
 function DeliveryStatus({ delivery }: { delivery: NotificationDeliveryDto }) {
@@ -195,7 +202,7 @@ function DeliveryStatus({ delivery }: { delivery: NotificationDeliveryDto }) {
       {delivery.sentAt ? (
         <p>Odesláno {new Date(delivery.sentAt).toLocaleString('cs')}</p>
       ) : null}
-      {delivery.status === 'pending' ? (
+      {delivery.status === 'pending' || delivery.status === 'deferred' ? (
         <p>
           Další pokus nejdříve{' '}
           {new Date(delivery.nextAttemptAt).toLocaleString('cs')}
@@ -404,7 +411,11 @@ export function WatchEventsPanel({
         ) : (
           <ul className="space-y-3">
             {rows.map((ev) => (
-              <li key={ev.id} className="rounded-xl border p-4">
+              <li
+                id={`event-${ev.id}`}
+                key={ev.id}
+                className="rounded-xl border p-4"
+              >
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <Badge
                     variant={
@@ -483,6 +494,27 @@ export function WatchEventsPanel({
             </Button>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function FocusedWatchEvent({ event }: { event: WatchEventView }) {
+  return (
+    <Card id={`event-${event.id}`}>
+      <CardHeader>
+        <CardTitle>Událost z upozornění</CardTitle>
+        <CardDescription>
+          {new Date(event.createdAt).toLocaleString('cs')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <EventBody event={event} />
+        <ul aria-label="Stav doručení upozornění" className="space-y-2">
+          {event.deliveries.map((delivery) => (
+            <DeliveryStatus key={delivery.id} delivery={delivery} />
+          ))}
+        </ul>
       </CardContent>
     </Card>
   )

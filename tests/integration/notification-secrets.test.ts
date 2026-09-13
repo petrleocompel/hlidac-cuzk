@@ -134,14 +134,12 @@ describe('notification secrets and administrator policy', () => {
     ).toBe('replacement')
   })
   it('migrates plaintext in a separate CLI and rotates with rollback on the wrong key', async () => {
-    await db
-      .insert(userNotificationSettings)
-      .values({
-        userId: owner,
-        gotifyUrl: gotify,
-        gotifyToken: 'legacy-fixture',
-        slackWebhookUrl: slack,
-      })
+    await db.insert(userNotificationSettings).values({
+      userId: owner,
+      gotifyUrl: gotify,
+      gotifyToken: 'legacy-fixture',
+      slackWebhookUrl: slack,
+    })
     expect(
       JSON.stringify(
         notificationSettingsDto(await readNotificationSettings(owner)),
@@ -197,4 +195,37 @@ describe('notification secrets and administrator policy', () => {
       'správce vypnul',
     )
   })
+})
+
+it('encrypts ntfy tokens and preserves masked settings through key rotation', async () => {
+  const input = SettingsInput.parse({
+    ntfyUrl: 'https://ntfy.example.test/private-topic',
+    ntfyToken: { action: 'replace', value: 'private-fixture-token' },
+  })
+  const dto = await updateNotificationSettings(owner, input)
+  expect(dto.ntfyTokenConfigured).toBe(true)
+  expect(JSON.stringify(dto)).not.toContain('private-fixture-token')
+  const row = (await readNotificationSettings(owner))!
+  expect(row.ntfyToken).toMatch(/^enc:v1:/)
+  expect(decryptNotificationSecret(row.ntfyToken!, owner, 'ntfyToken')).toBe(
+    'private-fixture-token',
+  )
+  await expect(
+    updateNotificationSettings(
+      owner,
+      SettingsInput.parse({ ntfyUrl: 'https://other.example.test/topic' }),
+    ),
+  ).rejects.toThrow('nahraďte nebo odeberte')
+  expect(() => SettingsInput.parse({ timezone: 'Mars/Olympus' })).toThrow()
+  process.env.NOTIFICATION_PREVIOUS_ENCRYPTION_KEY = key
+  process.env.NOTIFICATION_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString(
+    'base64',
+  )
+  expect(await migrateNotificationSecrets()).toBe(1)
+  delete process.env.NOTIFICATION_PREVIOUS_ENCRYPTION_KEY
+  const rotated = (await readNotificationSettings(owner))!
+  expect(rotated.ntfyToken).not.toBe(row.ntfyToken)
+  expect(
+    decryptNotificationSecret(rotated.ntfyToken!, owner, 'ntfyToken'),
+  ).toBe('private-fixture-token')
 })

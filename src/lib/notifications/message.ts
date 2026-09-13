@@ -8,6 +8,24 @@ import {
 } from '#/lib/cuzk/snapshot'
 import type { SnapshotChange } from '#/lib/cuzk/snapshot'
 
+/** Public origin of this instance, if the admin configured one. */
+function appBaseUrl(): string | null {
+  const value = process.env.BETTER_AUTH_URL ?? process.env.PUBLIC_URL
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
+}
+
+/** Deep link to the event in the history; empty when no public URL is set. */
+export function eventLink(watchId: string, eventId: string): string {
+  const base = appBaseUrl()
+  if (!base) return ''
+  return `Detail: ${base}/dashboard/watches/${watchId}?event=${eventId}#event-${eventId}`
+}
+
 export function describeChanges(changes: SnapshotChange[]): string {
   const lines: string[] = []
   for (const change of changes) {

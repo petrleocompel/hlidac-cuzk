@@ -45,6 +45,12 @@ function NotificationPolicyPage() {
                   gotifyEnabled: form.has('gotifyEnabled'),
                   slackEnabled: form.has('slackEnabled'),
                   discordEnabled: form.has('discordEnabled'),
+                  ntfyEnabled: form.has('ntfyEnabled'),
+                  emailEnabled: form.has('emailEnabled'),
+                  ntfyAllowedUrls: String(form.get('ntfyAllowedUrls') ?? '')
+                    .split('\n')
+                    .map((v) => v.trim())
+                    .filter(Boolean),
                   gotifyAllowedUrls: String(form.get('gotifyAllowedUrls') ?? '')
                     .split('\n')
                     .map((value) => value.trim())
@@ -61,20 +67,26 @@ function NotificationPolicyPage() {
         >
           <fieldset disabled={pending} className="space-y-4">
             <legend className="mb-3 font-medium">Povolené kanály</legend>
-            {(['gotify', 'slack', 'discord'] as const).map((channel) => (
-              <label key={channel} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name={`${channel}Enabled`}
-                  defaultChecked={policy[`${channel}Enabled`]}
-                />
-                {channel === 'gotify'
-                  ? 'Gotify'
-                  : channel === 'slack'
-                    ? 'Slack'
-                    : 'Discord'}
-              </label>
-            ))}
+            {(['gotify', 'slack', 'discord', 'ntfy', 'email'] as const).map(
+              (channel) => (
+                <label key={channel} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name={`${channel}Enabled`}
+                    defaultChecked={policy[`${channel}Enabled`]}
+                  />
+                  {channel === 'gotify'
+                    ? 'Gotify'
+                    : channel === 'slack'
+                      ? 'Slack'
+                      : channel === 'discord'
+                        ? 'Discord'
+                        : channel === 'ntfy'
+                          ? 'ntfy'
+                          : 'E-mail'}
+                </label>
+              ),
+            )}
             <Label htmlFor="gotifyAllowedUrls">
               Whitelist Gotify: jedna základní URL na řádek
             </Label>
@@ -90,6 +102,21 @@ function NotificationPolicyPage() {
               Prázdný seznam povoluje všechny HTTP/HTTPS servery včetně LAN.
               Vyplněný povoluje pouze přesně uvedené adresy včetně případné
               cesty. Slack a Discord používají pouze své oficiální webhooky.
+            </p>
+            <Label htmlFor="ntfyAllowedUrls">
+              Whitelist ntfy: základní adresy serverů
+            </Label>
+            <textarea
+              id="ntfyAllowedUrls"
+              name="ntfyAllowedUrls"
+              rows={4}
+              defaultValue={policy.ntfyAllowedUrls.join('\n')}
+              className="w-full rounded-md border bg-background p-2"
+            />
+            <p className="text-sm text-muted-foreground">
+              Vyplněný seznam povolí uvedené servery i jejich témata včetně
+              interního HTTP. Prázdný seznam povolí HTTPS servery. SMTP zadává
+              správce v konfiguraci instance.
             </p>
             <Button type="submit">
               {pending ? 'Ukládám…' : 'Uložit pravidla'}

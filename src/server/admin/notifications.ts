@@ -15,6 +15,9 @@ export const getNotificationPolicyAdmin = createServerFn({
     gotifyEnabled: policy.gotifyEnabled,
     slackEnabled: policy.slackEnabled,
     discordEnabled: policy.discordEnabled,
+    ntfyEnabled: policy.ntfyEnabled,
+    emailEnabled: policy.emailEnabled,
+    ntfyAllowedUrls: policy.ntfyAllowedUrls,
     gotifyAllowedUrls: policy.gotifyAllowedUrls,
   }
 })
@@ -25,6 +28,9 @@ export const saveNotificationPolicyAdmin = createServerFn({ method: 'POST' })
         gotifyEnabled: z.boolean(),
         slackEnabled: z.boolean(),
         discordEnabled: z.boolean(),
+        ntfyEnabled: z.boolean(),
+        emailEnabled: z.boolean(),
+        ntfyAllowedUrls: z.array(z.string().max(2048)).max(100),
         gotifyAllowedUrls: z.array(z.string().max(2048)).max(100),
       })
       .parse(value),
@@ -33,6 +39,9 @@ export const saveNotificationPolicyAdmin = createServerFn({ method: 'POST' })
     await requireAdmin()
     const values = {
       ...data,
+      ntfyAllowedUrls: [
+        ...new Set(data.ntfyAllowedUrls.map(normalizeGotifyUrl)),
+      ],
       gotifyAllowedUrls: [
         ...new Set(data.gotifyAllowedUrls.map(normalizeGotifyUrl)),
       ],

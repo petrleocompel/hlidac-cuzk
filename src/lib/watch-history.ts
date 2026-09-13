@@ -78,16 +78,25 @@ function toEventDto(row: EventRow): WatchEventDto {
 /** Paged history read; the index on (watchId, createdAt desc) serves the order. */
 export async function readEventPage(
   watchId: string,
-  options: { kinds?: string[]; limit?: number; offset?: number },
+  options: {
+    kinds?: string[]
+    limit?: number
+    offset?: number
+    eventId?: string
+  },
 ): Promise<WatchEventPage> {
   const limit = options.limit ?? 50
   const offset = options.offset ?? 0
-  const where = options.kinds?.length
+  const kindFilter = options.kinds?.length
     ? and(
         eq(watchEvents.watchId, watchId),
         inArray(watchEvents.kind, options.kinds),
       )
     : eq(watchEvents.watchId, watchId)
+  const where = and(
+    kindFilter,
+    options.eventId ? eq(watchEvents.id, options.eventId) : undefined,
+  )
   const rows = await db.query.watchEvents.findMany({
     where,
     columns: {

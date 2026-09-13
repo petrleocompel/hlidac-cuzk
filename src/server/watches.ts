@@ -51,6 +51,11 @@ const ImportInput = z.object({
 })
 
 const UpdateWatchInput = z.object({
+  notifyKinds: z.array(z.enum(EVENT_KINDS)).nullable().optional(),
+  notifyChannels: z
+    .array(z.enum(['gotify', 'slack', 'discord', 'ntfy', 'email']))
+    .nullable()
+    .optional(),
   id: z.string().uuid(),
   label: z.string().min(1).max(200).optional(),
   pollIntervalMinutes: z.coerce
@@ -67,6 +72,8 @@ const IdInput = z.object({ id: z.string().uuid() })
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
 
 export type WatchDto = {
+  notifyKinds: string[] | null
+  notifyChannels: string[] | null
   id: string
   userId: string
   label: string
@@ -102,6 +109,8 @@ function asJson(value: unknown): Json {
 function toWatchDto(row: ParcelWatch): WatchDto {
   return {
     id: row.id,
+    notifyKinds: row.notifyKinds,
+    notifyChannels: row.notifyChannels,
     userId: row.userId,
     label: row.label,
     kuCode: row.kuCode,
@@ -135,13 +144,16 @@ export const listWatches = createServerFn({ method: 'GET' }).handler(
 )
 
 export const getWatch = createServerFn({ method: 'GET' })
-  .inputValidator((v) => IdInput.parse(v))
+  .inputValidator((v) =>
+    IdInput.extend({ eventId: z.string().uuid().optional() }).parse(v),
+  )
   .handler(
     async ({
       data,
     }): Promise<{
       watch: WatchDto
       events: WatchEventDto[]
+      focusedEvents: WatchEventDto[]
       eventTotal: number
       rizeni: TrackedRizeniDto[]
       rizeniFollowDays: number
@@ -158,6 +170,9 @@ export const getWatch = createServerFn({ method: 'GET' })
       return {
         watch: toWatchDto(watch),
         events: page.events,
+        focusedEvents: data.eventId
+          ? (await readEventPage(watch.id, { eventId: data.eventId })).events
+          : [],
         eventTotal: page.total,
         rizeni: await listTrackedRizeni(watch.id),
         rizeniFollowDays: followDays(),
@@ -243,7 +258,8 @@ export const runWatchImport = createServerFn({ method: 'POST' })
       .where(eq(parcelWatches.userId, session.user.id))
     const plan = planWatchImport(data.content, data.format, existing)
     if (plan.error) throw new Error(plan.error)
-    if (!plan.ready) throw new Error('Soubor neobsahuje žádný platný nový řádek.')
+    if (!plan.ready)
+      throw new Error('Soubor neobsahuje žádný platný nový řádek.')
     await assertWatchCapacity(session.user.id)
     return importVerifiedWatches(session.user.id, plan)
   })
@@ -263,6 +279,12 @@ export const updateWatch = createServerFn({ method: 'POST' })
     const [row] = await db
       .update(parcelWatches)
       .set({
+        ...(data.notifyKinds !== undefined
+          ? { notifyKinds: data.notifyKinds }
+          : {}),
+        ...(data.notifyChannels !== undefined
+          ? { notifyChannels: data.notifyChannels }
+          : {}),
         ...(data.label !== undefined ? { label: data.label } : {}),
         ...(data.pollIntervalMinutes !== undefined
           ? { pollIntervalMinutes: data.pollIntervalMinutes }

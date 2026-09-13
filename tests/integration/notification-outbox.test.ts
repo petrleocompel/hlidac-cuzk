@@ -30,6 +30,8 @@ import {
   claimDelivery,
   deliverClaimedNotification,
   deliverDueNotifications,
+  deliverDueDigests,
+  resolveGotify,
   enqueueNotifications,
   retryNotificationDelivery,
 } from '../../src/lib/notifications/outbox'
@@ -41,9 +43,9 @@ vi.mock('../../src/lib/notifications/http', async (importOriginal) => {
     postNotification: async (
       url: string | URL,
       init: { headers: Record<string, string>; body: string },
-      channel: 'gotify' | 'slack' | 'discord',
+      channel: 'gotify' | 'slack' | 'discord' | 'ntfy',
     ) => {
-      if (channel === 'gotify')
+      if (channel === 'gotify' || channel === 'ntfy')
         return original.postNotification(url, init, channel)
       const response = await fetch(`${baseUrl}/${channel}`, {
         method: 'POST',
@@ -87,7 +89,7 @@ const server = createServer(async (request, response) => {
         message: 'fixture response with a secret that must not be persisted',
       }),
     )
-  } else if (path === '/slack' || path === '/discord') {
+  } else if (path === '/slack' || path === '/discord' || path === '/topic') {
     response.end('{}')
   } else {
     response.statusCode = 404
@@ -339,8 +341,13 @@ describe('durable notification outbox (PostgreSQL)', () => {
         enqueueNotifications(
           tx,
           event.id,
-          'owner',
-          'Test',
+          {
+            id: event.watchId,
+            userId: 'owner',
+            label: 'Test',
+            notifyKinds: null,
+            notifyChannels: null,
+          },
           result.changes[0],
           clock,
         ),
@@ -454,5 +461,181 @@ describe('durable notification outbox (PostgreSQL)', () => {
           ),
         ),
     ).toHaveLength(1)
+  })
+})
+
+describe('notification rules and durable digests', () => {
+  async function digestChanges(count = 1) {
+    await db
+      .update(userNotificationSettings)
+      .set({ slackWebhookUrl: null, digestMode: 'daily' })
+    for (let i = 0; i < count; i++) {
+      area++
+      await pollWatchById(watchId, clock)
+    }
+    clock = (await deliveries())[0].nextAttemptAt
+  }
+
+  it('preserves filtered changes in history and respects selected channels', async () => {
+    await db.update(parcelWatches).set({ notifyKinds: ['new_rizeni'] })
+    expect((await detectChange()).queued).toBe(0)
+    expect(await db.query.watchEvents.findMany()).toHaveLength(1)
+    await db
+      .update(parcelWatches)
+      .set({ notifyKinds: null, notifyChannels: ['slack'] })
+    area++
+    expect((await pollWatchById(watchId, clock)).queued).toBe(1)
+    expect((await deliveries()).map((row) => row.channel)).toEqual(['slack'])
+  })
+
+  it('acknowledges only events included in each bounded digest', async () => {
+    await digestChanges(7)
+    expect(await claimDelivery(clock)).toBeNull()
+    expect((await deliverDueDigests({ now: () => clock })).sent).toBe(5)
+    let rows = await deliveries()
+    expect(rows.filter((row) => row.status === 'deferred')).toHaveLength(2)
+    const first = JSON.parse(
+      requests.filter((r) => r.path === '/message')[0].body,
+    ).message as string
+    for (const row of rows.filter((item) => item.status === 'sent'))
+      expect(first).toContain(`event=${row.eventId}`)
+    expect((await deliverDueDigests({ now: () => clock })).sent).toBe(2)
+    rows = await deliveries()
+    expect(rows.every((row) => row.status === 'sent')).toBe(true)
+  })
+
+  it('does not spend attempts during quiet hours; urgent events bypass them', async () => {
+    await db
+      .update(userNotificationSettings)
+      .set({ slackWebhookUrl: null, quietFromMinutes: 0, quietToMinutes: 720 })
+    await detectChange()
+    expect(await claimDelivery(clock)).toBeNull()
+    await db.update(notificationDeliveries).set({ nextAttemptAt: clock }) // a retry becoming due during quiet time
+    const claim = await claimDelivery(clock)
+    expect(await deliverClaimedNotification(claim!, () => clock)).toBe(
+      'pending',
+    )
+    expect((await deliveries())[0].attemptCount).toBe(0)
+    await db
+      .update(userNotificationSettings)
+      .set({ urgentKinds: ['parcel_attrs'], digestMode: 'daily' })
+    area++
+    await pollWatchById(watchId, clock)
+    expect((await deliverDueNotifications({ now: () => clock })).sent).toBe(1)
+  })
+
+  it('recovers expired digest claims without individual sends and separates attempt ceilings', async () => {
+    await digestChanges(2)
+    const [old, recent] = await deliveries()
+    await db
+      .update(notificationDeliveries)
+      .set({
+        status: 'processing',
+        claimToken: crypto.randomUUID(),
+        lockedUntil: new Date(clock.getTime() - 1),
+        attemptCount: 7,
+      })
+      .where(eq(notificationDeliveries.id, old.id))
+    gotifyStatus = 503
+    expect(await claimDelivery(clock)).toBeNull()
+    expect(await deliverDueDigests({ now: () => clock })).toMatchObject({
+      failed: 1,
+      pending: 1,
+    })
+    const rows = await deliveries()
+    expect(rows.find((r) => r.id === old.id)).toMatchObject({
+      status: 'failed',
+      attemptCount: 8,
+    })
+    expect(rows.find((r) => r.id === recent.id)).toMatchObject({
+      status: 'deferred',
+      attemptCount: 1,
+    })
+    await expect(
+      retryNotificationDelivery(old.id, 'other-user', clock),
+    ).rejects.toThrow()
+    await retryNotificationDelivery(old.id, 'owner', clock)
+    expect(await claimDelivery(clock)).toBeNull()
+    gotifyStatus = 200
+    clock = rows.find((r) => r.id === recent.id)!.nextAttemptAt
+    expect((await deliverDueDigests({ now: () => clock })).sent).toBe(2)
+  })
+
+  it('pauses digests when disabled or quiet and resumes without consuming events', async () => {
+    await digestChanges()
+    await db.insert(notificationPolicy).values({ id: 1, gotifyEnabled: false })
+    expect((await deliverDueDigests({ now: () => clock })).sent).toBe(0)
+    await db.update(notificationPolicy).set({ gotifyEnabled: true })
+    await db
+      .update(userNotificationSettings)
+      .set({ quietFromMinutes: 0, quietToMinutes: 720 })
+    expect((await deliverDueDigests({ now: () => clock })).sent).toBe(0)
+    expect((await deliveries())[0]).toMatchObject({
+      status: 'deferred',
+      attemptCount: 0,
+    })
+    clock = new Date('2026-01-02T11:00:00Z')
+    expect((await deliverDueDigests({ now: () => clock })).sent).toBe(1)
+  })
+
+  it('does not double-send rows under concurrent digest workers', async () => {
+    await digestChanges(4)
+    const results = await Promise.all([
+      deliverDueDigests({ now: () => clock }),
+      deliverDueDigests({ now: () => clock }),
+    ])
+    expect(results.reduce((sum, result) => sum + result.sent, 0)).toBe(4)
+    expect(requests.filter((r) => r.path === '/message')).toHaveLength(1)
+  })
+
+  it('uses instance Gotify only with explicit opt-in and never mixes credentials', async () => {
+    vi.stubEnv('GOTIFY_URL', baseUrl)
+    vi.stubEnv('GOTIFY_TOKEN', 'instance-fixture')
+    try {
+      expect(resolveGotify(undefined)).toBeNull()
+      const row = (await db.query.userNotificationSettings.findFirst())!
+      expect(
+        resolveGotify({ ...row, useInstanceGotify: true })?.encrypted,
+      ).toBe(true)
+      expect(
+        resolveGotify({ ...row, gotifyToken: null, useInstanceGotify: true }),
+      ).toBeNull()
+      expect(
+        resolveGotify({
+          ...row,
+          gotifyUrl: null,
+          gotifyToken: null,
+          useInstanceGotify: true,
+        }),
+      ).toMatchObject({ token: 'instance-fixture', encrypted: false })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('sends ntfy through the pinned local transport and obeys administrator disabling', async () => {
+    await db
+      .update(userNotificationSettings)
+      .set({
+        gotifyUrl: null,
+        gotifyToken: null,
+        slackWebhookUrl: null,
+        ntfyUrl: `${baseUrl}/topic`,
+        ntfyToken: encryptNotificationSecret(
+          'ntfy-fixture',
+          'owner',
+          'ntfyToken',
+        ),
+      })
+    await db
+      .insert(notificationPolicy)
+      .values({ id: 1, ntfyAllowedUrls: [baseUrl], ntfyEnabled: false })
+    await detectChange()
+    expect((await deliverDueNotifications({ now: () => clock })).sent).toBe(0)
+    await db.update(notificationPolicy).set({ ntfyEnabled: true })
+    expect((await deliverDueNotifications({ now: () => clock })).sent).toBe(1)
+    expect(requests.find((r) => r.path === '/topic')?.body).toContain(
+      'Změna atributů parcely',
+    )
   })
 })

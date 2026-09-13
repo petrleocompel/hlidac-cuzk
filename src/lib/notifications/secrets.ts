@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 
 const PREFIX = 'enc:v1:'
 export type NotificationSecretField =
-  'gotifyToken' | 'slackWebhookUrl' | 'discordWebhookUrl'
+  'gotifyToken' | 'slackWebhookUrl' | 'discordWebhookUrl' | 'ntfyToken'
 
 export class NotificationConfigurationError extends Error {}
 

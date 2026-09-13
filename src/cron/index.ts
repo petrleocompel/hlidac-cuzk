@@ -4,7 +4,10 @@ import { probeReadiness } from '#/lib/monitoring/readiness'
 
 import { pollDueWatches } from './jobs/poll-parcels'
 import { refreshCuzkAccount } from '#/lib/cuzk/http'
-import { deliverDueNotifications } from '#/lib/notifications/outbox'
+import {
+  deliverDueDigests,
+  deliverDueNotifications,
+} from '#/lib/notifications/outbox'
 
 async function requireSchema() {
   if (!(await probeReadiness()))
@@ -42,6 +45,15 @@ const JOBS: ReadonlyArray<Job> = [
     run: async () => {
       const result = await deliverDueNotifications()
       console.log('[cron] deliver-notifications', result)
+      return result
+    },
+  },
+  {
+    schedule: '*/5 * * * *',
+    name: 'deliver-digests',
+    run: async () => {
+      const result = await deliverDueDigests()
+      console.log('[cron] deliver-digests', result)
       return result
     },
   },

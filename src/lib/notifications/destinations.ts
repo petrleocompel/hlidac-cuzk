@@ -2,11 +2,16 @@ import type { NotificationPolicy } from './policy'
 import { isIP } from 'node:net'
 import { NotificationConfigurationError } from './secrets'
 
-export type NotificationChannel = 'gotify' | 'slack' | 'discord'
+export type NotificationChannel =
+  | 'gotify'
+  | 'slack'
+  | 'discord'
+  /** Self-hosted ntfy is allowed, so it uses an admin allow-list like Gotify. */
+  | 'ntfy'
 
 function reject(): never {
   throw new NotificationConfigurationError(
-    'Nepovolený cíl notifikace. Ověřte adresu a seznam povolených Gotify serverů.',
+    'Nepovolený cíl notifikace. Ověřte adresu a seznam povolených serverů pro tento kanál.',
   )
 }
 
@@ -30,11 +35,18 @@ function parse(value: string): URL {
   return url
 }
 
+/** Also used for ntfy: strips trailing slashes and rejects traversal tricks. */
 export function normalizeGotifyUrl(value: string): string {
   const url = parse(value)
   url.pathname = url.pathname.replace(/\/+$/, '') || '/'
   return url.toString().replace(/\/$/, '')
 }
+
+/** Allow-listed channels may point at a LAN service the admin approved. */
+const ALLOW_LISTED = {
+  gotify: 'gotifyAllowedUrls',
+  ntfy: 'ntfyAllowedUrls',
+} as const
 
 export function validateNotificationDestination(
   value: string,
@@ -46,14 +58,20 @@ export function validateNotificationDestination(
       'Tento notifikační kanál správce vypnul.',
     )
   const url = parse(value)
-  if (channel === 'gotify') {
+  if (channel === 'gotify' || channel === 'ntfy') {
     const normalized = normalizeGotifyUrl(value)
-    const allowed = policy.gotifyAllowedUrls
-    if (
-      allowed.length &&
-      !allowed.some((entry) => normalizeGotifyUrl(entry) === normalized)
-    )
-      reject()
+    const allowed = policy[ALLOW_LISTED[channel]]
+    if (allowed.length) {
+      // Only ntfy base URLs cover descendant topic paths; Gotify remains exact.
+      const permitted = allowed.some((entry) => {
+        const base = normalizeGotifyUrl(entry)
+        return (
+          normalized === base ||
+          (channel === 'ntfy' && normalized.startsWith(`${base}/`))
+        )
+      })
+      if (!permitted) reject()
+    } else if (channel === 'ntfy' && url.protocol !== 'https:') reject()
     return new URL(normalized)
   }
   if (url.protocol !== 'https:' || url.port) reject()

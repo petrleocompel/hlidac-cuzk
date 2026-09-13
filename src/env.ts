@@ -51,6 +51,39 @@ const baseSchema = z
     NOTIFICATION_ENCRYPTION_KEY: optional(secretKey),
     NOTIFICATION_PREVIOUS_ENCRYPTION_KEY: optional(secretKey),
     METRICS_BEARER_TOKEN: optional(z.string().min(32)),
+    SMTP_URL: optional(
+      z
+        .string()
+        .url()
+        .refine(
+          (value) => ['smtp:', 'smtps:'].includes(new URL(value).protocol),
+          'Použijte smtp:// nebo smtps:// URL.',
+        ),
+    ),
+    SMTP_FROM: optional(
+      z
+        .string()
+        .min(1)
+        .refine(
+          (value) => !/[\r\n]/.test(value),
+          'Adresa odesílatele musí být na jednom řádku.',
+        ),
+    ),
+    NTFY_ALLOWED_URLS: z
+      .string()
+      .default('')
+      .refine((value) => {
+        try {
+          value
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean)
+            .forEach(normalizeGotifyUrl)
+          return true
+        } catch {
+          return false
+        }
+      }, 'Použijte platné základní HTTP/HTTPS URL.'),
     SENTRY_DSN: optional(url),
     SENTRY_ENVIRONMENT: z.string().optional(),
     SENTRY_RELEASE: z.string().optional(),
@@ -84,6 +117,8 @@ const baseSchema = z
   .superRefine((values, ctx) => {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: 'custom', path: [path], message })
+    if (Boolean(values.SMTP_URL) !== Boolean(values.SMTP_FROM))
+      issue('SMTP_URL', 'SMTP_URL a SMTP_FROM nastavte společně.')
     if (['true', '1', 'yes', 'on'].includes(values.SSO_BOOTSTRAP_ENABLED)) {
       for (const field of [
         'SSO_BOOTSTRAP_PROVIDER_ID',

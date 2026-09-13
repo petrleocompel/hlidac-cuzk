@@ -23,6 +23,7 @@ export async function migrateNotificationSecrets(): Promise<number> {
       const changed: Partial<typeof userNotificationSettings.$inferInsert> = {}
       for (const field of [
         'gotifyToken',
+        'ntfyToken',
         'slackWebhookUrl',
         'discordWebhookUrl',
       ] as const) {

@@ -199,3 +199,31 @@ describe('watch history (PostgreSQL)', () => {
     })
   })
 })
+
+it('finds an older linked event beyond the first page and scopes it to the requested watch', async () => {
+  const [old] = await db
+    .insert(watchEvents)
+    .values({ watchId, kind: 'lv_change', payloadJson: {}, createdAt: created })
+    .returning()
+  await db.insert(watchEvents).values(
+    Array.from({ length: 60 }, (_, i) => ({
+      watchId,
+      kind: 'parcel_attrs',
+      payloadJson: {},
+      createdAt: at(i + 1),
+    })),
+  )
+  expect(
+    (await readEventPage(watchId, {})).events.some(
+      (event) => event.id === old.id,
+    ),
+  ).toBe(false)
+  expect(
+    (await readEventPage(watchId, { eventId: old.id })).events.map(
+      (event) => event.id,
+    ),
+  ).toEqual([old.id])
+  expect(
+    (await readEventPage(crypto.randomUUID(), { eventId: old.id })).events,
+  ).toEqual([])
+})

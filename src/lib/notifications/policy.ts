@@ -6,7 +6,17 @@ export type NotificationPolicy = {
   gotifyEnabled: boolean
   slackEnabled: boolean
   discordEnabled: boolean
+  ntfyEnabled: boolean
+  emailEnabled: boolean
   gotifyAllowedUrls: string[]
+  ntfyAllowedUrls: string[]
+}
+
+function allowList(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
 }
 
 export async function readNotificationPolicy(): Promise<NotificationPolicy> {
@@ -18,10 +28,10 @@ export async function readNotificationPolicy(): Promise<NotificationPolicy> {
       gotifyEnabled: true,
       slackEnabled: true,
       discordEnabled: true,
-      gotifyAllowedUrls: (process.env.GOTIFY_ALLOWED_URLS ?? '')
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean),
+      ntfyEnabled: true,
+      emailEnabled: true,
+      gotifyAllowedUrls: allowList(process.env.GOTIFY_ALLOWED_URLS),
+      ntfyAllowedUrls: allowList(process.env.NTFY_ALLOWED_URLS),
     }
   )
 }

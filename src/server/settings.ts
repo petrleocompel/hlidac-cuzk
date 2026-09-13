@@ -1,11 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { requireSession } from '#/auth/session'
-import { sendDiscordWebhook } from '#/lib/notifications/discord'
-import { sendGotify } from '#/lib/notifications/gotify'
-import { sendSlackWebhook } from '#/lib/notifications/slack'
+import { sendToChannel } from '#/lib/notifications/outbox'
 import { notificationErrorMessage } from '#/lib/notifications/http'
-import { decryptNotificationSecret } from '#/lib/notifications/secrets'
 import {
   SettingsInput,
   notificationSettingsDto,
@@ -32,7 +29,7 @@ export const saveNotificationSettings = createServerFn({ method: 'POST' })
 /** Tests use saved credentials so secret values never need to round-trip to the browser. */
 export const testNotificationSettings = createServerFn({ method: 'POST' })
   .inputValidator((value) =>
-    z.enum(['gotify', 'slack', 'discord']).parse(value),
+    z.enum(['gotify', 'slack', 'discord', 'ntfy', 'email']).parse(value),
   )
   .handler(async ({ data: channel }) => {
     const session = await requireSession()
@@ -40,39 +37,10 @@ export const testNotificationSettings = createServerFn({ method: 'POST' })
     if (!settings) throw new Error('Nejprve uložte nastavení kanálu.')
     const text = 'Hlídač ČÚZK — testovací notifikace.'
     try {
-      if (channel === 'gotify' && settings.gotifyUrl && settings.gotifyToken) {
-        await sendGotify(
-          settings.gotifyUrl,
-          decryptNotificationSecret(
-            settings.gotifyToken,
-            session.user.id,
-            'gotifyToken',
-          ),
-          {
-            title: 'Hlídač ČÚZK — test',
-            message: text,
-            priority: settings.gotifyPriority ?? 5,
-          },
-        )
-      } else if (channel === 'slack' && settings.slackWebhookUrl) {
-        await sendSlackWebhook(
-          decryptNotificationSecret(
-            settings.slackWebhookUrl,
-            session.user.id,
-            'slackWebhookUrl',
-          ),
-          { text },
-        )
-      } else if (channel === 'discord' && settings.discordWebhookUrl) {
-        await sendDiscordWebhook(
-          decryptNotificationSecret(
-            settings.discordWebhookUrl,
-            session.user.id,
-            'discordWebhookUrl',
-          ),
-          { content: text },
-        )
-      } else throw new Error('channel_not_configured')
+      await sendToChannel(channel, session.user.id, settings, {
+        title: 'Hlídač ČÚZK — test',
+        message: text,
+      })
     } catch (error) {
       throw new Error(notificationErrorMessage(error))
     }

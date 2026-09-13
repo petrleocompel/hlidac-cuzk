@@ -27,7 +27,8 @@ export async function getMonitoringStatus() {
       HEARTBEAT_GRACE_SECONDS * 1000
   const poll = jobs.find((j) => j.name === 'poll-parcels')
   const deliveries = jobs.find((j) => j.name === 'deliver-notifications')
-  const progressHealthy = [poll, deliveries].every(
+  const digests = jobs.find((j) => j.name === 'deliver-digests')
+  const progressHealthy = [poll, deliveries, digests].every(
     (job) =>
       !!job?.finishedAt && now.getTime() - job.finishedAt.getTime() <= 600_000,
   )
@@ -36,6 +37,7 @@ export async function getMonitoringStatus() {
     progressHealthy &&
     !poll?.lastError &&
     !deliveries?.lastError &&
+    !digests?.lastError &&
     watches.overdue === 0 &&
     watches.stale === 0
   return {
@@ -76,7 +78,7 @@ export function renderMonitoringMetrics(m: MonitoringStatus) {
     ),
     gauge(
       'worker_progress_healthy',
-      'Poll and delivery jobs completed within ten minutes.',
+      'Poll, delivery and digest jobs completed within ten minutes.',
       Number(m.progressHealthy),
     ),
     gauge(

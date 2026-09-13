@@ -46,6 +46,7 @@ export async function postNotification(
     if (
       !addresses.length ||
       (channel !== 'gotify' &&
+        channel !== 'ntfy' &&
         addresses.some(({ address }) => !isPublicNotificationAddress(address)))
     ) {
       throw new NotificationConfigurationError(

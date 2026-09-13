@@ -59,6 +59,7 @@ async function jobs() {
     sent: 0,
     failed: 0,
   }))
+  await trackWorkerJob('deliver-digests', async () => ({ sent: 0, failed: 0 }))
 }
 async function watch() {
   await db

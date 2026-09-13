@@ -2,6 +2,12 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Per-watch notification filters, quiet hours with timezone, daily/weekly digests and
+  urgent-event bypass. Durable digest batches retain failed events and recover after crashes.
+- SMTP e-mail and self-hosted ntfy, independently controlled by administrators. Explicit
+  opt-in enables shared instance Gotify; complete personal settings take precedence.
+- Notification links open the exact owner-only event, including older history pages.
+
 - A řízení is now followed as its own object: state changes, new completed operations and
   payment state are reported for the same řízení id, and its history survives the plomba
   disappearing from the parcel. After a plomba is removed the detail is still queried for
@@ -39,7 +45,8 @@
 ### Migration from d63f2c9 (schema 0008)
 
 The upgrade adds `0009_backup_status`, `0010_watch_rizeni`, `0011_event_history` and
-`0012_watch_uniqueness` (which consolidates duplicate watches while preserving their histories and deliveries). Existing accounts, watches, events and pending
+`0012_watch_uniqueness` (which consolidates duplicate watches while preserving their histories and deliveries)
+and `0013_notification_rules`. Existing accounts, watches, events and pending
 notification deliveries are preserved. Back up the database and configuration/keys first;
 use the pinned image and the [upgrade procedure](docs/self-hosting.md#upgrade). The regression
 test upgrades the previous schema and checks both preserved data and rejected startup after

@@ -23,7 +23,10 @@ const policy = vi.hoisted(() => ({
   gotifyEnabled: true,
   slackEnabled: true,
   discordEnabled: true,
+  ntfyEnabled: true,
+  emailEnabled: true,
   gotifyAllowedUrls: [] as string[],
+  ntfyAllowedUrls: [] as string[],
 }))
 vi.mock('../src/lib/notifications/policy', () => ({
   readNotificationPolicy: async () => policy,
@@ -53,6 +56,8 @@ afterEach(() => {
   dnsLookup.mockReset()
   policy.gotifyAllowedUrls = []
   policy.gotifyEnabled = true
+  policy.ntfyEnabled = true
+  policy.ntfyAllowedUrls = []
   status = 200
   paths.length = 0
 })
@@ -65,7 +70,7 @@ const payload = {
 }
 
 describe('notification destinations and pinned transport', () => {
-  it('allows LAN with an empty whitelist, exact entries and path prefixes', async () => {
+  it('allows LAN with an empty whitelist and exact configured base URLs', async () => {
     await postNotification(base, payload, 'gotify')
     policy.gotifyAllowedUrls = [base + '/gotify/']
     await postNotification(base + '/gotify', payload, 'gotify')
@@ -178,4 +183,33 @@ describe('notification destinations and pinned transport', () => {
     for (const ip of ['1.1.1.1', '8.8.8.8', '2606:4700:4700::1111'])
       expect(isPublicNotificationAddress(ip), ip).toBe(true)
   })
+})
+
+it('allows ntfy topics only under the configured base and keeps Gotify exact', () => {
+  policy.ntfyAllowedUrls = [base + '/ntfy']
+  expect(
+    validateNotificationDestination(base + '/ntfy/topic', 'ntfy', policy)
+      .pathname,
+  ).toBe('/ntfy/topic')
+  expect(() =>
+    validateNotificationDestination(base + '/ntfy-other/topic', 'ntfy', policy),
+  ).toThrow()
+  expect(() =>
+    validateNotificationDestination(base + '/ntfy/../other', 'ntfy', policy),
+  ).toThrow()
+  policy.gotifyAllowedUrls = [base + '/gotify']
+  expect(() =>
+    validateNotificationDestination(base + '/gotify/other', 'gotify', policy),
+  ).toThrow()
+  policy.ntfyAllowedUrls = []
+  expect(() =>
+    validateNotificationDestination(base + '/topic', 'ntfy', policy),
+  ).toThrow()
+  expect(
+    validateNotificationDestination(
+      'https://ntfy.example.test/topic',
+      'ntfy',
+      policy,
+    ).hostname,
+  ).toBe('ntfy.example.test')
 })

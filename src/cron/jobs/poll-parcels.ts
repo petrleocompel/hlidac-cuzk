@@ -184,14 +184,7 @@ export async function pollWatchById(
             createdAt: now,
           })
           .returning()
-        queued += await enqueueNotifications(
-          tx,
-          event.id,
-          watch.userId,
-          watch.label,
-          change,
-          now,
-        )
+        queued += await enqueueNotifications(tx, event.id, watch, change, now)
       }
       return { status: 'checked', queued, changes }
     })

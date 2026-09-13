@@ -147,6 +147,27 @@ export const userNotificationSettings = pgTable('user_notification_settings', {
   gotifyPriority: integer('gotify_priority').default(5),
   slackWebhookUrl: text('slack_webhook_url'),
   discordWebhookUrl: text('discord_webhook_url'),
+  /** ntfy topic URL; the token is only needed for protected topics. */
+  useInstanceGotify: boolean('use_instance_gotify').notNull().default(false),
+  ntfyUrl: text('ntfy_url'),
+  ntfyToken: text('ntfy_token'),
+  /** Recipient for the instance SMTP server; the server itself is admin config. */
+  emailTo: text('email_to'),
+  timezone: text('timezone').notNull().default('Europe/Prague'),
+  /** Minutes from local midnight; null disables quiet hours. */
+  quietFromMinutes: integer('quiet_from_minutes'),
+  quietToMinutes: integer('quiet_to_minutes'),
+  digestMode: text('digest_mode', { enum: ['off', 'daily', 'weekly'] })
+    .notNull()
+    .default('off'),
+  digestHour: integer('digest_hour').notNull().default(8),
+  /** ISO weekday 1 = Monday, used by the weekly digest. */
+  digestWeekday: integer('digest_weekday').notNull().default(1),
+  /** Event kinds delivered immediately despite quiet hours or a digest. */
+  urgentKinds: text('urgent_kinds')
+    .array()
+    .notNull()
+    .default(sql`'{new_rizeni,lv_change}'::text[]`),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
@@ -185,6 +206,9 @@ export const parcelWatches = pgTable(
     manualRefreshAfter: timestamp('manual_refresh_after', {
       withTimezone: true,
     }),
+    /** null = every event kind / every configured channel. */
+    notifyKinds: text('notify_kinds').array(),
+    notifyChannels: text('notify_channels').array(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -198,7 +222,10 @@ export const parcelWatches = pgTable(
     index('parcel_watches_enabled_idx').on(table.enabled),
     index('parcel_watches_next_check_idx').on(table.enabled, table.nextCheckAt),
     // One subscription per user and object; imports rely on this, not only on code.
-    uniqueIndex('parcel_watches_user_object_idx').on(table.userId, table.isknId),
+    uniqueIndex('parcel_watches_user_object_idx').on(
+      table.userId,
+      table.isknId,
+    ),
   ],
 )
 
@@ -284,13 +311,16 @@ export const notificationDeliveries = pgTable(
       .notNull()
       .references(() => watchEvents.id, { onDelete: 'cascade' }),
     channel: text('channel', {
-      enum: ['gotify', 'slack', 'discord'],
+      enum: ['gotify', 'slack', 'discord', 'ntfy', 'email'],
     }).notNull(),
+    // `deferred` waits for the next digest; it is never sent on its own.
     status: text('status', {
-      enum: ['pending', 'processing', 'sent', 'failed'],
+      enum: ['pending', 'processing', 'sent', 'failed', 'deferred'],
     })
       .notNull()
       .default('pending'),
+    digest: boolean('digest').notNull().default(false),
+    urgent: boolean('urgent').notNull().default(false),
     // Persist the message, but resolve credentials from current settings at send time.
     title: text('title').notNull(),
     message: text('message').notNull(),
@@ -466,7 +496,13 @@ export const notificationPolicy = pgTable('notification_policy', {
   gotifyEnabled: boolean('gotify_enabled').notNull().default(true),
   slackEnabled: boolean('slack_enabled').notNull().default(true),
   discordEnabled: boolean('discord_enabled').notNull().default(true),
+  ntfyEnabled: boolean('ntfy_enabled').notNull().default(true),
+  emailEnabled: boolean('email_enabled').notNull().default(true),
   gotifyAllowedUrls: text('gotify_allowed_urls')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  ntfyAllowedUrls: text('ntfy_allowed_urls')
     .array()
     .notNull()
     .default(sql`'{}'::text[]`),
