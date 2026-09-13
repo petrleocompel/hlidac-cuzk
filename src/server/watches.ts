@@ -15,6 +15,9 @@ import {
 } from '#/lib/cuzk/watch-limits'
 import { DEFAULT_POLL_MINUTES } from '#/lib/cuzk/policy'
 import { retryNotificationDelivery } from '#/lib/notifications/outbox'
+import { followDays } from '#/lib/cuzk/rizeni-follow'
+import { listTrackedRizeni } from './rizeni'
+import type { TrackedRizeniDto } from './rizeni'
 
 const CreateWatchInput = z.object({
   label: z.string().min(1).max(200),
@@ -151,7 +154,14 @@ export const listWatches = createServerFn({ method: 'GET' }).handler(
 export const getWatch = createServerFn({ method: 'GET' })
   .inputValidator((v) => IdInput.parse(v))
   .handler(
-    async ({ data }): Promise<{ watch: WatchDto; events: WatchEventDto[] }> => {
+    async ({
+      data,
+    }): Promise<{
+      watch: WatchDto
+      events: WatchEventDto[]
+      rizeni: TrackedRizeniDto[]
+      rizeniFollowDays: number
+    }> => {
       const session = await requireSession()
       const watch = await db.query.parcelWatches.findFirst({
         where: and(
@@ -166,7 +176,12 @@ export const getWatch = createServerFn({ method: 'GET' })
         limit: 50,
         with: { deliveries: true },
       })
-      return { watch: toWatchDto(watch), events: events.map(toEventDto) }
+      return {
+        watch: toWatchDto(watch),
+        events: events.map(toEventDto),
+        rizeni: await listTrackedRizeni(watch.id),
+        rizeniFollowDays: followDays(),
+      }
     },
   )
 

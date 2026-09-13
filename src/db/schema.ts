@@ -216,6 +216,56 @@ export const watchEvents = pgTable(
   (table) => [index('watch_events_watchId_idx').on(table.watchId)],
 )
 
+/**
+ * A řízení followed as its own object: its history must survive the plomba
+ * disappearing from the parcel. `detail_json` is the last known RizeniSnapshot.
+ */
+export const watchRizeni = pgTable(
+  'watch_rizeni',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    watchId: uuid('watch_id')
+      .notNull()
+      .references(() => parcelWatches.id, { onDelete: 'cascade' }),
+    rizeniId: text('rizeni_id').notNull(),
+    source: text('source', { enum: ['plomba', 'manual'] })
+      .notNull()
+      .default('plomba'),
+    typRizeni: text('typ_rizeni'),
+    poradoveCislo: integer('poradove_cislo'),
+    rok: integer('rok'),
+    kodPracoviste: integer('kod_pracoviste'),
+    /** Currently listed among the parcel plomby. */
+    isPlomba: boolean('is_plomba').notNull().default(true),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    detachedAt: timestamp('detached_at', { withTimezone: true }),
+    followUntil: timestamp('follow_until', { withTimezone: true }),
+    followEndedAt: timestamp('follow_ended_at', { withTimezone: true }),
+    followEndedReason: text('follow_ended_reason', {
+      enum: ['window', 'unavailable', 'user', 'capacity'],
+    }),
+    detailJson: jsonb('detail_json'),
+    detailFetchedAt: timestamp('detail_fetched_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex('watch_rizeni_watch_rizeni_idx').on(
+      table.watchId,
+      table.rizeniId,
+    ),
+    index('watch_rizeni_follow_idx').on(table.watchId, table.followEndedAt),
+  ],
+)
+
 export const notificationDeliveries = pgTable(
   'notification_deliveries',
   {
@@ -365,8 +415,16 @@ export const parcelWatchesRelations = relations(
       references: [user.id],
     }),
     events: many(watchEvents),
+    rizeni: many(watchRizeni),
   }),
 )
+
+export const watchRizeniRelations = relations(watchRizeni, ({ one }) => ({
+  watch: one(parcelWatches, {
+    fields: [watchRizeni.watchId],
+    references: [parcelWatches.id],
+  }),
+}))
 
 export const watchEventsRelations = relations(watchEvents, ({ one, many }) => ({
   watch: one(parcelWatches, {
@@ -387,6 +445,7 @@ export const notificationDeliveriesRelations = relations(
 )
 
 export type ParcelWatch = typeof parcelWatches.$inferSelect
+export type WatchRizeni = typeof watchRizeni.$inferSelect
 export type WatchEvent = typeof watchEvents.$inferSelect
 export type NotificationDelivery = typeof notificationDeliveries.$inferSelect
 export type UserNotificationSettings =

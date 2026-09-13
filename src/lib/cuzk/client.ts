@@ -2,6 +2,10 @@ export type TypParcely = 'PKN' | 'PZE'
 /** 1 = stavební, 2 = pozemková */
 export type DruhCislovaniParcely = 1 | 2
 
+/** TypyRizeni code list from the ČÚZK OpenAPI contract. */
+export const TYPY_RIZENI = ['V', 'Z', 'PGP', 'PD', 'ZPV'] as const
+export type TypRizeni = (typeof TYPY_RIZENI)[number]
+
 export type RizeniDef = {
   id?: number
   poradoveCislo?: number
@@ -12,6 +16,7 @@ export type RizeniDef = {
   stav?: string | null
   stavUhrady?: string | null
   provedeneOperace?: Array<{ nazev?: string; datumProvedeni?: string }> | null
+  navazanaRizeni?: RizeniDef[] | null
   poznamky?: string[] | null
   [key: string]: unknown
 }
@@ -110,6 +115,30 @@ export async function getParcelById(
   signal?: AbortSignal,
 ): Promise<CuzkItemResponse<Parcela>> {
   return cuzkFetch(`/api/v1/Parcely/${id}`, undefined, signal)
+}
+
+export type SearchRizeniParams = {
+  typRizeni: TypRizeni
+  cislo: number
+  rok: number
+  kodPracoviste: number
+}
+
+/** All four parameters are required by the API; a miss returns an empty list. */
+export async function searchRizeni(
+  params: SearchRizeniParams,
+  signal?: AbortSignal,
+): Promise<CuzkListResponse<RizeniDef>> {
+  return cuzkFetch(
+    '/api/v1/Rizeni/Vyhledani',
+    {
+      TypRizeni: params.typRizeni,
+      Cislo: String(params.cislo),
+      Rok: String(params.rok),
+      KodPracoviste: String(params.kodPracoviste),
+    },
+    signal,
+  )
 }
 
 export async function getRizeniById(

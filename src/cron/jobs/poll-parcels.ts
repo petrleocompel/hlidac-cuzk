@@ -7,6 +7,17 @@ import {
   parseSnapshot,
 } from '#/lib/cuzk/snapshot'
 import type { RizeniCache, SnapshotChange } from '#/lib/cuzk/snapshot'
+import {
+  mergeTrackedSources,
+  planRizeniFollowUp,
+  reconcileTrackedRizeni,
+  trackedFromSnapshot,
+} from '#/lib/cuzk/rizeni-follow'
+import {
+  fetchRizeniDetails,
+  loadTrackedRizeni,
+  saveTrackedRizeni,
+} from '#/lib/cuzk/rizeni-tracking'
 import { CuzkUnavailableError, MANUAL_REFRESH_SECONDS } from '#/lib/cuzk/policy'
 import { enqueueNotifications } from '#/lib/notifications/outbox'
 
@@ -96,6 +107,12 @@ export async function pollWatchById(
   )
   try {
     const signal = AbortSignal.timeout(POLL_TIMEOUT_MS)
+    const previous = parseSnapshot(watch.lastSnapshotJson)
+    // Older instances only have řízení history inside the last snapshot.
+    const trackedBefore = mergeTrackedSources(
+      await loadTrackedRizeni(watch.id),
+      trackedFromSnapshot(previous, now),
+    )
     const next = await buildParcelSnapshot(
       watch.isknId,
       now,
@@ -103,7 +120,35 @@ export async function pollWatchById(
       options.rizeniCache,
     )
     signal.throwIfAborted()
-    const changes = diffSnapshots(parseSnapshot(watch.lastSnapshotJson), next)
+    const plan = planRizeniFollowUp(
+      trackedBefore,
+      new Set(next.rizeni.map((r) => r.id)),
+      now,
+    )
+    // Řízení detached from the parcel are still queried on their own detail.
+    const fetched = await fetchRizeniDetails(
+      plan.fetch.map((row) => row.rizeniId),
+      now,
+      signal,
+      options.rizeniCache,
+    )
+    signal.throwIfAborted()
+    const tracking = reconcileTrackedRizeni({
+      tracked: trackedBefore,
+      plomby: next.rizeni,
+      fetched,
+      ended: plan.ended,
+      now,
+    })
+    // Keep the last known detail in the snapshot: a failed detail request must
+    // not present every field as newly empty.
+    const merged = new Map(
+      tracking.rows
+        .filter((row) => row.isPlomba && row.detail)
+        .map((row) => [row.rizeniId, row.detail!]),
+    )
+    next.rizeni = next.rizeni.map((r) => merged.get(r.id) ?? r)
+    const changes = [...diffSnapshots(previous, next), ...tracking.changes]
 
     return await db.transaction(async (tx): Promise<PollResult> => {
       // Fence the entire snapshot/event/outbox commit against an expired lease
@@ -123,6 +168,8 @@ export async function pollWatchById(
         .where(ownsLease)
         .returning({ id: parcelWatches.id })
       if (!updated.length) return skipped('superseded')
+
+      await saveTrackedRizeni(tx, watch.id, tracking.rows, now)
 
       let queued = 0
       for (const change of changes) {

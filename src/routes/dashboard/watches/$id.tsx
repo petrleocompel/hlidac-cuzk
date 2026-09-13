@@ -7,6 +7,7 @@ import { Button } from '#/components/ui/button'
 import { WatchEventsPanel } from '#/components/watch/watch-events-panel'
 import { WatchCheckStatus } from '#/components/watch/watch-check-status'
 import { WatchSnapshotPanel } from '#/components/watch/watch-snapshot-panel'
+import { WatchRizeniPanel } from '#/components/watch/watch-rizeni-panel'
 import { parseSnapshot } from '#/lib/cuzk/snapshot'
 import {
   deleteWatch,
@@ -20,13 +21,21 @@ export const Route = createFileRoute('/dashboard/watches/$id')({
     const session = await getServerSession()
     if (!session) throw redirect({ to: '/login' })
     const data = await getWatch({ data: { id: params.id } })
-    return { session, watch: data.watch, events: data.events, now: Date.now() }
+    return {
+      session,
+      watch: data.watch,
+      events: data.events,
+      rizeni: data.rizeni,
+      rizeniFollowDays: data.rizeniFollowDays,
+      now: Date.now(),
+    }
   },
   component: WatchDetailPage,
 })
 
 function WatchDetailPage() {
-  const { session, watch, events, now } = Route.useLoaderData()
+  const { session, watch, events, rizeni, rizeniFollowDays, now } =
+    Route.useLoaderData()
   const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
@@ -114,6 +123,11 @@ function WatchDetailPage() {
           lastSuccessfulCheckAt={watch.lastSuccessfulCheckAt}
           lastError={watch.lastError}
           pollIntervalMinutes={watch.pollIntervalMinutes}
+        />
+        <WatchRizeniPanel
+          watchId={watch.id}
+          rizeni={rizeni}
+          followDays={rizeniFollowDays}
         />
         <WatchEventsPanel events={events} />
       </div>

@@ -148,6 +148,7 @@ Liveness: `GET /healthz`. Readiness (database and schema): `GET /readyz`. Compos
 | `CUZK_API_BASE_URL` | no | Default `https://api-kn.cuzk.gov.cz` |
 | `CUZK_REQUEST_TIMEOUT_MS` | no | Per-attempt deadline, default `15000`, range 10–30000 ms |
 | `CUZK_MIN_REQUEST_INTERVAL_MS` | no | Shared minimum spacing between request reservations, default `1000`, range 0–10000 ms |
+| `CUZK_RIZENI_FOLLOW_DAYS` | no | How long a řízení keeps being queried after it disappears from the parcel plomby; default `14`, range 0–365 days. `0` stops follow-up immediately |
 | `MAX_WATCHES_PER_USER` | no | Maximum watches per user, including paused watches; default `100`, range 1–1000 |
 | `METRICS_BEARER_TOKEN` | no | Random token of at least 32 characters for `/api/metrics`; empty/short token disables the endpoint |
 | `POSTGRES_USER` / `PASSWORD` / `DB` | yes (bundled DB) | Postgres bootstrap |
@@ -325,6 +326,24 @@ Apply migrations and replace **all** old app and cron processes before resuming 
 
 
 ---
+
+### Following a known řízení
+
+A řízení is tracked as its own object in `watch_rizeni`, so its history survives the
+plomba disappearing from the parcel. While a řízení is a plomba, its detail arrives with
+the parcel request. Once it is no longer listed on the parcel, the worker keeps requesting
+`/api/v1/Rizeni/{id}` for `CUZK_RIZENI_FOLLOW_DAYS` days (default 14) and reports state,
+payment and new operations. Removing a plomba is never reported as an approved vklad.
+
+* Each followed řízení costs **one extra API call per check** of that parcel. At most ten
+  follows per watch are queried; the rest are marked as stopped by capacity.
+* Users can add a known řízení (`/api/v1/Rizeni/Vyhledani` needs type, number, year and
+  office code) or a linked `navazanaRizeni`, and stop the follow-up at any time.
+* A 404 or an empty payload ends the follow-up as confirmed unavailable; a timeout or a
+  network error keeps the last known values and retries on the next check.
+* ČÚZK does not document how long a řízení detail stays available after the plomba is
+  removed. Verify the default against your own řízení and adjust the variable; shortening
+  it only reduces the extra calls, it never deletes history.
 
 ## ČÚZK API budget and metrics
 

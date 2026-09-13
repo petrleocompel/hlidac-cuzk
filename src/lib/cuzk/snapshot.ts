@@ -13,7 +13,19 @@ export type LvSnapshot = {
   kuNazev: string | null
 }
 
+export type RizeniDetailField = 'stav' | 'stavUhrady' | 'provedeneOperace'
+
 export type RizeniSnapshot = {
+  detailAvailable?: boolean
+  detailsFetchedAt?: string | null
+  availableFields?: RizeniDetailField[]
+  knownFields?: RizeniDetailField[]
+  navazanaRizeni?: Array<
+    Pick<
+      RizeniSnapshot,
+      'id' | 'typRizeni' | 'poradoveCislo' | 'rok' | 'kodPracoviste'
+    >
+  >
   id: string
   typRizeni: string | null
   poradoveCislo: number | null
@@ -55,7 +67,18 @@ export type ParcelSnapshot = {
   rizeni: RizeniSnapshot[]
 }
 
+export type RizeniProgressChange = {
+  kind: 'rizeni_progress'
+  previous: RizeniSnapshot
+  next: RizeniSnapshot
+  fields: RizeniDetailField[]
+  addedOperations: RizeniSnapshot['provedeneOperace']
+  /** The řízení is no longer a plomba on the parcel; we still follow it. */
+  followed: boolean
+}
+
 export type SnapshotChange =
+  | RizeniProgressChange
   | { kind: 'new_rizeni'; added: RizeniSnapshot[]; removed: RizeniSnapshot[] }
   | {
       kind: 'lv_change'
@@ -78,6 +101,41 @@ const RIZENI_TYPE_LABELS: Record<string, string> = {
 export function rizeniTypeLabel(typ: string | null | undefined): string {
   if (!typ) return 'Řízení'
   return RIZENI_TYPE_LABELS[typ] ?? typ
+}
+
+const STAV_UHRADY_LABELS: Record<string, string> = {
+  U: 'uhrazeno',
+  N: 'neuhrazeno',
+  O: 'osvobozeno od úhrady',
+}
+
+/** Unknown or missing codes must stay visible as unknown, never as a value. */
+export function stavUhradyLabel(code: string | null | undefined): string {
+  if (!code) return 'neznámý stav úhrady'
+  return STAV_UHRADY_LABELS[code] ?? code
+}
+
+/** Tolerant reader for a stored RizeniSnapshot (tracked řízení detail). */
+export function parseRizeniSnapshot(raw: unknown): RizeniSnapshot | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const value = raw as Partial<RizeniSnapshot>
+  if (typeof value.id !== 'string') return null
+  return {
+    ...value,
+    id: value.id,
+    typRizeni: value.typRizeni ?? null,
+    poradoveCislo: value.poradoveCislo ?? null,
+    rok: value.rok ?? null,
+    kodPracoviste: value.kodPracoviste ?? null,
+    datumPrijeti: value.datumPrijeti ?? null,
+    stav: value.stav ?? null,
+    stavUhrady: value.stavUhrady ?? null,
+    provedeneOperace: Array.isArray(value.provedeneOperace)
+      ? value.provedeneOperace
+      : [],
+    poznamky: Array.isArray(value.poznamky) ? value.poznamky : [],
+    isVklad: value.isVklad === true,
+  }
 }
 
 function asKodNazev(value: unknown): KodNazev | null {
@@ -106,6 +164,11 @@ function baseRizeni(r: RizeniDef): RizeniSnapshot {
   const typ =
     typeof r.typRizeni === 'string' ? r.typRizeni : (r.typRizeni?.kod ?? null)
   return {
+    detailAvailable: false,
+    availableFields: [],
+    knownFields: [],
+    detailsFetchedAt: null,
+    navazanaRizeni: [],
     id: String(r.id ?? `${r.poradoveCislo}-${r.rok}`),
     typRizeni: typ,
     poradoveCislo: r.poradoveCislo ?? null,
@@ -118,6 +181,144 @@ function baseRizeni(r: RizeniDef): RizeniSnapshot {
     poznamky: [],
     isVklad: typ === 'V' || typ === 'ZPV',
   }
+}
+
+/** Nullable API fields mean unavailable information, not a confirmed removal. */
+export function normalizeRizeni(
+  detail: RizeniDef,
+  now = new Date(),
+  fallback = baseRizeni(detail),
+): RizeniSnapshot {
+  const typ =
+    typeof detail.typRizeni === 'string'
+      ? detail.typRizeni
+      : (detail.typRizeni?.kod ?? fallback.typRizeni)
+  const availableFields: RizeniDetailField[] = []
+  if (typeof detail.stav === 'string') availableFields.push('stav')
+  if (typeof detail.stavUhrady === 'string') availableFields.push('stavUhrady')
+  if (Array.isArray(detail.provedeneOperace))
+    availableFields.push('provedeneOperace')
+  return {
+    ...fallback,
+    id: String(detail.id ?? fallback.id),
+    typRizeni: typ,
+    poradoveCislo: detail.poradoveCislo ?? fallback.poradoveCislo,
+    rok: detail.rok ?? fallback.rok,
+    kodPracoviste: detail.kodPracoviste ?? fallback.kodPracoviste,
+    datumPrijeti:
+      typeof detail.datumPrijeti === 'string' ? detail.datumPrijeti : null,
+    stav: typeof detail.stav === 'string' ? detail.stav : null,
+    stavUhrady:
+      typeof detail.stavUhrady === 'string' ? detail.stavUhrady : null,
+    provedeneOperace: Array.isArray(detail.provedeneOperace)
+      ? detail.provedeneOperace.map((op) => ({
+          nazev: op.nazev ?? 'Operace',
+          datumProvedeni: op.datumProvedeni ?? null,
+        }))
+      : [],
+    poznamky: Array.isArray(detail.poznamky)
+      ? detail.poznamky.filter(
+          (value): value is string => typeof value === 'string',
+        )
+      : [],
+    navazanaRizeni: Array.isArray(detail.navazanaRizeni)
+      ? detail.navazanaRizeni.filter((r) => r.id != null).map(baseRizeni)
+      : [],
+    isVklad: typ === 'V' || typ === 'ZPV',
+    detailAvailable: true,
+    detailsFetchedAt: now.toISOString(),
+    availableFields,
+    knownFields: availableFields,
+  }
+}
+
+function knownFields(r: RizeniSnapshot): RizeniDetailField[] {
+  // Older snapshots did not distinguish an empty operation list from failed detail.
+  return (
+    r.knownFields ??
+    r.availableFields ?? [
+      ...(r.stav != null ? ['stav' as const] : []),
+      ...(r.stavUhrady != null ? ['stavUhrady' as const] : []),
+      ...(r.provedeneOperace.length ? ['provedeneOperace' as const] : []),
+    ]
+  )
+}
+
+export function mergeRizeniDetails(
+  previous: RizeniSnapshot | undefined,
+  next: RizeniSnapshot,
+): RizeniSnapshot {
+  if (!previous) return next
+  const available = next.availableFields ?? knownFields(next)
+  return {
+    ...next,
+    stav: available.includes('stav') ? next.stav : previous.stav,
+    stavUhrady: available.includes('stavUhrady')
+      ? next.stavUhrady
+      : previous.stavUhrady,
+    provedeneOperace: available.includes('provedeneOperace')
+      ? next.provedeneOperace
+      : previous.provedeneOperace,
+    knownFields: [...new Set([...knownFields(previous), ...available])],
+    ...(next.detailAvailable === false
+      ? {
+          datumPrijeti: previous.datumPrijeti,
+          poznamky: previous.poznamky,
+          navazanaRizeni: previous.navazanaRizeni,
+          detailsFetchedAt: previous.detailsFetchedAt ?? null,
+        }
+      : {}),
+  }
+}
+
+function operationKey(op: RizeniSnapshot['provedeneOperace'][number]): string {
+  return JSON.stringify([op.nazev.trim(), op.datumProvedeni])
+}
+
+export function diffRizeni(
+  previous: RizeniSnapshot,
+  next: RizeniSnapshot,
+  includePayment = true,
+): RizeniProgressChange | null {
+  if (next.detailAvailable === false) return null
+  const available = next.availableFields ?? knownFields(next)
+  const known = knownFields(previous)
+  const fields: RizeniDetailField[] = []
+  if (
+    available.includes('stav') &&
+    known.includes('stav') &&
+    previous.stav !== next.stav
+  )
+    fields.push('stav')
+  if (
+    includePayment &&
+    available.includes('stavUhrady') &&
+    known.includes('stavUhrady') &&
+    previous.stavUhrady !== next.stavUhrady
+  )
+    fields.push('stavUhrady')
+  const before = new Set(previous.provedeneOperace.map(operationKey))
+  const seen = new Set<string>()
+  const addedOperations =
+    available.includes('provedeneOperace') && known.includes('provedeneOperace')
+      ? next.provedeneOperace.filter((op) => {
+          const key = operationKey(op)
+          if (before.has(key) || seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+      : []
+  if (addedOperations.length) fields.push('provedeneOperace')
+  return fields.length
+    ? {
+        kind: 'rizeni_progress',
+        previous,
+        next,
+        fields,
+        addedOperations,
+        followed: false,
+      }
+    : null
 }
 
 export async function buildParcelSnapshot(
@@ -152,34 +353,7 @@ export async function buildParcelSnapshot(
         rizeni.push(base)
         continue
       }
-      const typ =
-        typeof d.typRizeni === 'string'
-          ? d.typRizeni
-          : (d.typRizeni?.kod ?? base.typRizeni)
-      rizeni.push({
-        id: String(d.id ?? base.id),
-        typRizeni: typ,
-        poradoveCislo: d.poradoveCislo ?? base.poradoveCislo,
-        rok: d.rok ?? base.rok,
-        kodPracoviste: d.kodPracoviste ?? base.kodPracoviste,
-        datumPrijeti:
-          typeof d.datumPrijeti === 'string' ? d.datumPrijeti : null,
-        stav: typeof d.stav === 'string' ? d.stav : null,
-        stavUhrady: typeof d.stavUhrady === 'string' ? d.stavUhrady : null,
-        provedeneOperace: Array.isArray(d.provedeneOperace)
-          ? d.provedeneOperace.map((op) => {
-              const o = op
-              return {
-                nazev: o.nazev ?? 'Operace',
-                datumProvedeni: o.datumProvedeni ?? null,
-              }
-            })
-          : [],
-        poznamky: Array.isArray(d.poznamky)
-          ? d.poznamky.filter((p): p is string => typeof p === 'string')
-          : [],
-        isVklad: typ === 'V' || typ === 'ZPV',
-      })
+      rizeni.push(normalizeRizeni(d, now, base))
     } catch (error) {
       if (
         error instanceof CuzkUnavailableError ||

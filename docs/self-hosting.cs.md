@@ -126,6 +126,22 @@ jsou volitelné; dokud není vyplněný vzdálený cíl, neběží automatická 
 Lokální upgrade dump nezahrnuje env a klíče. Obnovujte do prázdné databáze a zachovejte
 odpovídající image i tajné klíče. Návrat starého image nevrátí nekompatibilní změnu schématu.
 
+## Sledování průběhu řízení
+
+Řízení se ukládá jako samostatný objekt, takže jeho historie nezmizí s odebráním plomby.
+Dokud je řízení plombou parcely, jeho detail přichází s dotazem na parcelu. Po odpojení od
+parcely se detail dotazuje ještě `CUZK_RIZENI_FOLLOW_DAYS` dnů (výchozí 14) a hlásí změnu
+stavu, stavu úhrady a nové provedené operace. Odebrání plomby samo o sobě neznamená
+schválený vklad.
+
+Každé takto sledované řízení spotřebuje **jedno volání API navíc při každé kontrole**
+parcely; souběžně se dotazuje nejvýše deset řízení na jedno sledování. Uživatel může přidat
+známé řízení (vyhledání vyžaduje typ, číslo, rok a kód pracoviště) i navázané řízení a
+dotazování kdykoli ukončit. Odpověď 404 nebo prázdná data ukončí dotazování jako doloženou
+nedostupnost; timeout nebo chyba sítě zachová poslední známé údaje a zkusí to při další
+kontrole. ČÚZK nedokumentuje, jak dlouho detail po odebrání plomby zůstává dostupný —
+výchozí hodnotu si ověřte na svých řízeních. Zkrácení jen ubere volání, historii nemaže.
+
 ## Síťové závislosti
 
 | Cíl | Kdy je potřeba |

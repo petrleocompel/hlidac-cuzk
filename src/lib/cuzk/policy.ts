@@ -5,6 +5,8 @@ export const DAILY_API_LIMIT = 500
 export const DEFAULT_POLL_MINUTES = 1440
 export const MANUAL_REFRESH_SECONDS = 300
 export const ACCOUNT_CACHE_MS = 15 * 60_000
+/** Each followed řízení costs one extra detail request per check. */
+export const MAX_FOLLOWED_RIZENI = 10
 
 export const cuzkPolicySchema = z.object({
   CUZK_REQUEST_TIMEOUT_MS: z.coerce
@@ -20,6 +22,9 @@ export const cuzkPolicySchema = z.object({
     .max(10_000)
     .default(1000),
   MAX_WATCHES_PER_USER: z.coerce.number().int().min(1).max(1000).default(100),
+  // How long a řízení is still queried after it stops being a plomba. The API
+  // does not document this retention; verify the value against real řízení.
+  CUZK_RIZENI_FOLLOW_DAYS: z.coerce.number().int().min(0).max(365).default(14),
 })
 
 export function cuzkPolicy() {

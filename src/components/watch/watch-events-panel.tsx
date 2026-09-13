@@ -11,7 +11,11 @@ import {
   CardHeader,
   CardTitle,
 } from '#/components/ui/card'
-import { formatLvLabel, formatRizeniHeadline } from '#/lib/cuzk/snapshot'
+import {
+  formatLvLabel,
+  formatRizeniHeadline,
+  stavUhradyLabel,
+} from '#/lib/cuzk/snapshot'
 import type { SnapshotChange } from '#/lib/cuzk/snapshot'
 
 export type WatchEventView = {
@@ -24,6 +28,7 @@ export type WatchEventView = {
 
 const KIND_LABELS: Record<string, string> = {
   new_rizeni: 'Plomby / řízení',
+  rizeni_progress: 'Průběh řízení',
   lv_change: 'Změna LV',
   parcel_attrs: 'Atributy parcely',
   error: 'Chyba',
@@ -34,6 +39,7 @@ function asChange(payload: unknown): SnapshotChange | null {
   const kind = (payload as { kind?: string }).kind
   if (
     kind === 'new_rizeni' ||
+    kind === 'rizeni_progress' ||
     kind === 'lv_change' ||
     kind === 'parcel_attrs'
   ) {
@@ -87,7 +93,7 @@ function EventBody({ event }: { event: WatchEventView }) {
         {change.removed.length > 0 ? (
           <div>
             <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">
-              Odstraněné
+              Odstraněné plomby — nepotvrzuje schválení vkladu
             </p>
             <ul className="space-y-1">
               {change.removed.map((r) => (
@@ -95,6 +101,43 @@ function EventBody({ event }: { event: WatchEventView }) {
               ))}
             </ul>
           </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (change.kind === 'rizeni_progress') {
+    return (
+      <div className="space-y-1 text-sm">
+        <p className="font-medium">{formatRizeniHeadline(change.next)}</p>
+        {change.followed ? (
+          <p className="text-xs text-muted-foreground">
+            Řízení už není plombou na parcele; sledujeme jeho vlastní detail.
+          </p>
+        ) : null}
+        {change.fields.includes('stav') ? (
+          <p>
+            Stav: {change.previous.stav ?? 'neznámý'} →{' '}
+            {change.next.stav ?? 'neznámý'}
+          </p>
+        ) : null}
+        {change.fields.includes('stavUhrady') ? (
+          <p>
+            Úhrada: {stavUhradyLabel(change.previous.stavUhrady)} →{' '}
+            {stavUhradyLabel(change.next.stavUhrady)}
+          </p>
+        ) : null}
+        {change.addedOperations.length ? (
+          <ul className="list-disc pl-5">
+            {change.addedOperations.map((op, i) => (
+              <li key={i}>
+                Nová operace: {op.nazev}
+                {op.datumProvedeni
+                  ? ` (${new Date(op.datumProvedeni).toLocaleString('cs')})`
+                  : ''}
+              </li>
+            ))}
+          </ul>
         ) : null}
       </div>
     )
