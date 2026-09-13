@@ -5,8 +5,8 @@ import { requireSession } from '#/auth/session'
 import { pollWatchById } from '#/cron/jobs/poll-parcels'
 import type { PollResult } from '#/cron/jobs/poll-parcels'
 import { db } from '#/db'
-import { parcelWatches, watchEvents } from '#/db/schema'
-import type { NotificationDelivery, ParcelWatch, WatchEvent } from '#/db/schema'
+import { parcelWatches } from '#/db/schema'
+import type { ParcelWatch } from '#/db/schema'
 import { resolveIsknId } from '#/lib/cuzk/client'
 import { buildParcelSnapshot } from '#/lib/cuzk/snapshot'
 import {
@@ -15,6 +15,16 @@ import {
 } from '#/lib/cuzk/watch-limits'
 import { DEFAULT_POLL_MINUTES } from '#/lib/cuzk/policy'
 import { retryNotificationDelivery } from '#/lib/notifications/outbox'
+import {
+  EVENT_KINDS,
+  buildEventExport,
+  readEventPage,
+} from '#/lib/watch-history'
+import type {
+  WatchEventDto,
+  WatchEventPage,
+  WatchHistoryExport,
+} from '#/lib/watch-history'
 import { followDays } from '#/lib/cuzk/rizeni-follow'
 import { listTrackedRizeni } from './rizeni'
 import type { TrackedRizeniDto } from './rizeni'
@@ -72,24 +82,12 @@ export type WatchDto = {
   updatedAt: string
 }
 
-export type NotificationDeliveryDto = {
-  id: string
-  channel: NotificationDelivery['channel']
-  status: NotificationDelivery['status']
-  attemptCount: number
-  nextAttemptAt: string
-  sentAt: string | null
-  lastError: string | null
-}
-
-export type WatchEventDto = {
-  id: string
-  watchId: string
-  deliveries: NotificationDeliveryDto[]
-  kind: string
-  payloadJson: Json
-  createdAt: string
-}
+const EventPageInput = z.object({
+  id: z.string().uuid(),
+  kinds: z.array(z.enum(EVENT_KINDS)).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).max(100_000).default(0),
+})
 
 function asJson(value: unknown): Json {
   return (value ?? null) as Json
@@ -119,27 +117,6 @@ function toWatchDto(row: ParcelWatch): WatchDto {
   }
 }
 
-function toEventDto(
-  row: WatchEvent & { deliveries: NotificationDelivery[] },
-): WatchEventDto {
-  return {
-    id: row.id,
-    watchId: row.watchId,
-    deliveries: row.deliveries.map((delivery) => ({
-      id: delivery.id,
-      channel: delivery.channel,
-      status: delivery.status,
-      attemptCount: delivery.attemptCount,
-      nextAttemptAt: delivery.nextAttemptAt.toISOString(),
-      sentAt: delivery.sentAt?.toISOString() ?? null,
-      lastError: delivery.lastError,
-    })),
-    kind: row.kind,
-    payloadJson: asJson(row.payloadJson),
-    createdAt: row.createdAt.toISOString(),
-  }
-}
-
 export const listWatches = createServerFn({ method: 'GET' }).handler(
   async (): Promise<WatchDto[]> => {
     const session = await requireSession()
@@ -159,6 +136,7 @@ export const getWatch = createServerFn({ method: 'GET' })
     }): Promise<{
       watch: WatchDto
       events: WatchEventDto[]
+      eventTotal: number
       rizeni: TrackedRizeniDto[]
       rizeniFollowDays: number
     }> => {
@@ -170,20 +148,47 @@ export const getWatch = createServerFn({ method: 'GET' })
         ),
       })
       if (!watch) throw new Error('not_found')
-      const events = await db.query.watchEvents.findMany({
-        where: eq(watchEvents.watchId, watch.id),
-        orderBy: [desc(watchEvents.createdAt)],
-        limit: 50,
-        with: { deliveries: true },
-      })
+      const page = await readEventPage(watch.id, {})
       return {
         watch: toWatchDto(watch),
-        events: events.map(toEventDto),
+        events: page.events,
+        eventTotal: page.total,
         rizeni: await listTrackedRizeni(watch.id),
         rizeniFollowDays: followDays(),
       }
     },
   )
+
+async function requireOwnedWatch(id: string, userId: string) {
+  const watch = await db.query.parcelWatches.findFirst({
+    where: and(eq(parcelWatches.id, id), eq(parcelWatches.userId, userId)),
+    columns: { id: true, label: true, createdAt: true },
+  })
+  if (!watch) throw new Error('not_found')
+  return watch
+}
+
+export const listWatchEvents = createServerFn({ method: 'GET' })
+  .inputValidator((v) => EventPageInput.parse(v))
+  .handler(async ({ data }): Promise<WatchEventPage> => {
+    const session = await requireSession()
+    const watch = await requireOwnedWatch(data.id, session.user.id)
+    return readEventPage(watch.id, data)
+  })
+
+const ExportInput = z.object({
+  id: z.string().uuid(),
+  format: z.enum(['csv', 'json']),
+  kinds: z.array(z.enum(EVENT_KINDS)).optional(),
+})
+
+export const exportWatchEvents = createServerFn({ method: 'POST' })
+  .inputValidator((v) => ExportInput.parse(v))
+  .handler(async ({ data }): Promise<WatchHistoryExport> => {
+    const session = await requireSession()
+    const watch = await requireOwnedWatch(data.id, session.user.id)
+    return buildEventExport(watch, data.format, data.kinds)
+  })
 
 export const createWatch = createServerFn({ method: 'POST' })
   .inputValidator((v) => CreateWatchInput.parse(v))

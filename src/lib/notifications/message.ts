@@ -1,6 +1,9 @@
 import {
   formatLvLabel,
+  formatParcelAttrValue,
   formatRizeniHeadline,
+  parcelAttrLabel,
+  parseSnapshotChange,
   stavUhradyLabel,
 } from '#/lib/cuzk/snapshot'
 import type { SnapshotChange } from '#/lib/cuzk/snapshot'
@@ -44,9 +47,32 @@ export function describeChanges(changes: SnapshotChange[]): string {
       lines.push(
         `Změna LV (indikátor vlastnictví): ${formatLvLabel(change.previous)} → ${formatLvLabel(change.next)}`,
       )
+    } else if (change.values?.length) {
+      lines.push('Změna atributů parcely:')
+      for (const value of change.values)
+        lines.push(
+          `• ${parcelAttrLabel(value.field)}: ${formatParcelAttrValue(value.field, value.previous)} → ${formatParcelAttrValue(value.field, value.next)}`,
+        )
     } else {
       lines.push(`Změna atributů parcely: ${change.fields.join(', ')}`)
     }
   }
   return lines.join('\n')
+}
+
+/** One-line description for history exports; never invents a missing payload. */
+export function summarizeEvent(event: {
+  kind: string
+  payloadJson: unknown
+}): string {
+  if (event.kind === 'error') {
+    const payload = event.payloadJson
+    return payload && typeof payload === 'object' && 'message' in payload
+      ? String(payload.message)
+      : 'Kontrola selhala.'
+  }
+  const change = parseSnapshotChange(event.payloadJson)
+  return change
+    ? describeChanges([change]).replaceAll('\n', ' | ')
+    : `Neznámý typ události: ${event.kind}`
 }

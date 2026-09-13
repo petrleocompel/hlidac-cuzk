@@ -25,6 +25,7 @@ export const Route = createFileRoute('/dashboard/watches/$id')({
       session,
       watch: data.watch,
       events: data.events,
+      eventTotal: data.eventTotal,
       rizeni: data.rizeni,
       rizeniFollowDays: data.rizeniFollowDays,
       now: Date.now(),
@@ -34,7 +35,7 @@ export const Route = createFileRoute('/dashboard/watches/$id')({
 })
 
 function WatchDetailPage() {
-  const { session, watch, events, rizeni, rizeniFollowDays, now } =
+  const { session, watch, events, eventTotal, rizeni, rizeniFollowDays, now } =
     Route.useLoaderData()
   const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
@@ -129,7 +130,12 @@ function WatchDetailPage() {
           rizeni={rizeni}
           followDays={rizeniFollowDays}
         />
-        <WatchEventsPanel events={events} />
+        <WatchEventsPanel
+          watchId={watch.id}
+          events={events}
+          total={eventTotal}
+          historyFrom={watch.createdAt}
+        />
       </div>
     </DashboardShell>
   )

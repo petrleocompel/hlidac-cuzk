@@ -142,6 +142,18 @@ nedostupnost; timeout nebo chyba sítě zachová poslední známé údaje a zkus
 kontrole. ČÚZK nedokumentuje, jak dlouho detail po odebrání plomby zůstává dostupný —
 výchozí hodnotu si ověřte na svých řízeních. Zkrácení jen ubere volání, historii nemaže.
 
+## Historie změn
+
+Každá událost ukládá hodnotu před i po změně a snapshot, z něhož změna vznikla, takže
+historie zůstane čitelná i po přepsání posledního snapshotu sledování. BPEJ a způsoby
+ochrany se porovnávají v normalizovaném pořadí — pouhé přeřazení událost nevytvoří. Údaj,
+který ČÚZK nevrátilo, se eviduje jako neznámý, nikoli jako odebraný.
+
+Detail sledování historii stránkuje (25 událostí na stránku), filtruje podle typu události
+a umožňuje export CSV/JSON s časem načtení dat a uvedenou aktuálností ČÚZK. Export obsahuje
+nejnovějších 5 000 odpovídajících událostí a uvádí čas založení sledování; historie z doby
+před založením k dispozici není. Retence snapshotů a událostí zůstává otevřená (NEXT-03).
+
 ## Síťové závislosti
 
 | Cíl | Kdy je potřeba |

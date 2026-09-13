@@ -345,6 +345,19 @@ payment and new operations. Removing a plomba is never reported as an approved v
   removed. Verify the default against your own řízení and adjust the variable; shortening
   it only reduces the extra calls, it never deletes history.
 
+### Change history
+
+Every change event stores the values before and after it and the snapshot it was derived
+from, so the history stays readable after the watch snapshot is overwritten. BPEJ and
+protections are compared in a normalized order, so reordering alone produces no event. A
+list the API did not return is recorded as unknown instead of a removal.
+
+The watch detail pages the history (25 events per page), filters by event kind and exports
+CSV or JSON including the acquisition time and the reported ČÚZK actuality. Export covers
+the newest 5000 matching events and states the watch creation time: there is no history
+from before the watch existed. Snapshots grow with the number of changes; retention is
+still open (NEXT-03).
+
 ## ČÚZK API budget and metrics
 
 **Admin → ČÚZK API** (`/admin/cuzk`) shows today's reserved attempts, remaining budget, success/error/retry counts, average response time, pending attempts, a 30-day history and today's endpoint breakdown. It also estimates the minimum daily scheduled parcel calls; procedure details, searches, retries and diagnostics add to this estimate. Opening or refreshing this dashboard reads PostgreSQL only.

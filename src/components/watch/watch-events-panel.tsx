@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { Button } from '#/components/ui/button'
-import { retryDelivery } from '#/server/watches'
-import type { NotificationDeliveryDto } from '#/server/watches'
+import {
+  exportWatchEvents,
+  listWatchEvents,
+  retryDelivery,
+} from '#/server/watches'
+import { EVENT_KINDS, EXPORT_LIMIT } from '#/lib/watch-history'
+import type {
+  NotificationDeliveryDto,
+  WatchEventDto,
+} from '#/lib/watch-history'
 import { Badge } from '#/components/ui/badge'
 import {
   Card,
@@ -13,18 +21,16 @@ import {
 } from '#/components/ui/card'
 import {
   formatLvLabel,
+  formatParcelAttrValue,
   formatRizeniHeadline,
+  parcelAttrLabel,
+  parseSnapshotChange,
   stavUhradyLabel,
 } from '#/lib/cuzk/snapshot'
-import type { SnapshotChange } from '#/lib/cuzk/snapshot'
 
-export type WatchEventView = {
-  id: string
-  kind: string
-  createdAt: string
-  payloadJson: unknown
-  deliveries: NotificationDeliveryDto[]
-}
+export type WatchEventView = WatchEventDto
+
+const PAGE_SIZE = 25
 
 const KIND_LABELS: Record<string, string> = {
   new_rizeni: 'Plomby / řízení',
@@ -32,20 +38,6 @@ const KIND_LABELS: Record<string, string> = {
   lv_change: 'Změna LV',
   parcel_attrs: 'Atributy parcely',
   error: 'Chyba',
-}
-
-function asChange(payload: unknown): SnapshotChange | null {
-  if (!payload || typeof payload !== 'object') return null
-  const kind = (payload as { kind?: string }).kind
-  if (
-    kind === 'new_rizeni' ||
-    kind === 'rizeni_progress' ||
-    kind === 'lv_change' ||
-    kind === 'parcel_attrs'
-  ) {
-    return payload as SnapshotChange
-  }
-  return null
 }
 
 function EventBody({ event }: { event: WatchEventView }) {
@@ -59,7 +51,7 @@ function EventBody({ event }: { event: WatchEventView }) {
     return <p className="text-sm text-destructive">{msg}</p>
   }
 
-  const change = asChange(event.payloadJson)
+  const change = parseSnapshotChange(event.payloadJson)
   if (!change) {
     return (
       <pre className="max-h-40 overflow-auto text-xs text-muted-foreground">
@@ -154,7 +146,28 @@ function EventBody({ event }: { event: WatchEventView }) {
     )
   }
 
-  return <p className="text-sm">Změněná pole: {change.fields.join(', ')}</p>
+  if (change.values?.length)
+    return (
+      <ul className="space-y-1 text-sm">
+        {change.values.map((value) => (
+          <li key={value.field}>
+            <span className="font-medium">{parcelAttrLabel(value.field)}:</span>{' '}
+            {formatParcelAttrValue(value.field, value.previous)} →{' '}
+            {formatParcelAttrValue(value.field, value.next)}
+          </li>
+        ))}
+      </ul>
+    )
+
+  // Events recorded before values were stored only know the field names.
+  return (
+    <p className="text-sm">
+      Změněná pole: {change.fields.map(parcelAttrLabel).join(', ')}
+      <span className="mt-1 block text-xs text-muted-foreground">
+        Starší událost bez uložených hodnot.
+      </span>
+    </p>
+  )
 }
 
 const CHANNEL_LABELS = { gotify: 'Gotify', slack: 'Slack', discord: 'Discord' }
@@ -221,46 +234,176 @@ function DeliveryStatus({ delivery }: { delivery: NotificationDeliveryDto }) {
   )
 }
 
-export function WatchEventsPanel({ events }: { events: WatchEventView[] }) {
+function downloadFile(filename: string, mime: string, content: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: mime }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+export function WatchEventsPanel({
+  watchId,
+  events,
+  total,
+  historyFrom,
+}: {
+  watchId: string
+  events: WatchEventView[]
+  total: number
+  historyFrom: string
+}) {
   const router = useRouter()
-  const [refreshing, setRefreshing] = useState(false)
+  const [rows, setRows] = useState(events.slice(0, PAGE_SIZE))
+  const [count, setCount] = useState(total)
+  const [offset, setOffset] = useState(0)
+  const [kinds, setKinds] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
+
+  async function load(nextOffset: number, nextKinds: string[]) {
+    setBusy(true)
+    setFeedback(null)
+    try {
+      const page = await listWatchEvents({
+        data: {
+          id: watchId,
+          kinds: nextKinds.length ? nextKinds : undefined,
+          limit: PAGE_SIZE,
+          offset: nextOffset,
+        },
+      })
+      setRows(page.events)
+      setCount(page.total)
+      setOffset(page.offset)
+      setKinds(nextKinds)
+    } catch {
+      setFeedback('Historii se nepodařilo načíst. Zkuste to znovu.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onExport(format: 'csv' | 'json') {
+    setBusy(true)
+    setFeedback(null)
+    try {
+      const file = await exportWatchEvents({
+        data: { id: watchId, format, kinds: kinds.length ? kinds : undefined },
+      })
+      downloadFile(file.filename, file.mime, file.content)
+      setFeedback(
+        file.truncated
+          ? `Export obsahuje nejnovějších ${EXPORT_LIMIT.toLocaleString('cs')} událostí; starší nejsou zahrnuté.`
+          : 'Export byl připraven ke stažení.',
+      )
+    } catch {
+      setFeedback('Export se nepodařilo připravit.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const from = count === 0 ? 0 : offset + 1
+  const to = Math.min(offset + rows.length, count)
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Historie změn</CardTitle>
         <CardDescription>
-          Detekované rozdíly mezi kontrolami (plomby, LV, atributy)
+          Zachycené rozdíly mezi kontrolami (plomby, řízení, LV, atributy).
+          Historie začíná {new Date(historyFrom).toLocaleString('cs')}, kdy bylo
+          sledování založeno — starší změny k dispozici nejsou.
         </CardDescription>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={refreshing}
-          onClick={async () => {
-            setRefreshing(true)
-            try {
-              await router.invalidate()
-              setFeedback('Stav doručení byl obnoven.')
-            } catch {
-              setFeedback('Stav se nepodařilo obnovit.')
-            } finally {
-              setRefreshing(false)
-            }
-          }}
+        <div
+          className="flex flex-wrap gap-1.5 pt-2"
+          role="group"
+          aria-label="Filtr typů událostí"
         >
-          {refreshing ? 'Obnovuji…' : 'Obnovit stav doručení'}
-        </Button>
+          {EVENT_KINDS.map((kind) => {
+            const active = kinds.includes(kind)
+            return (
+              <Button
+                key={kind}
+                type="button"
+                size="sm"
+                variant={active ? 'default' : 'outline'}
+                aria-pressed={active}
+                disabled={busy}
+                onClick={() =>
+                  void load(
+                    0,
+                    active
+                      ? kinds.filter((value) => value !== kind)
+                      : [...kinds, kind],
+                  )
+                }
+              >
+                {KIND_LABELS[kind] ?? kind}
+              </Button>
+            )
+          })}
+          {kinds.length ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => void load(0, [])}
+            >
+              Zrušit filtr
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={async () => {
+              await router.invalidate()
+              await load(offset, kinds)
+              setFeedback('Stav doručení byl obnoven.')
+            }}
+          >
+            {busy ? 'Obnovuji…' : 'Obnovit stav doručení'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => void onExport('csv')}
+          >
+            Export CSV
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => void onExport('json')}
+          >
+            Export JSON
+          </Button>
+        </div>
         <p role="status" className="text-xs">
           {feedback}
         </p>
       </CardHeader>
       <CardContent>
-        {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Zatím žádné události.</p>
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {kinds.length
+              ? 'Pro zvolený filtr nejsou žádné události.'
+              : 'Zatím žádné události.'}
+          </p>
         ) : (
           <ul className="space-y-3">
-            {events.map((ev) => (
+            {rows.map((ev) => (
               <li key={ev.id} className="rounded-xl border p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <Badge
@@ -279,6 +422,16 @@ export function WatchEventsPanel({ events }: { events: WatchEventView[] }) {
                   </span>
                 </div>
                 <EventBody event={ev} />
+                {ev.dataFetchedAt || ev.dataAsOf ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {ev.dataFetchedAt
+                      ? `Data načtena ${new Date(ev.dataFetchedAt).toLocaleString('cs')}`
+                      : ''}
+                    {ev.dataAsOf
+                      ? ` · ČÚZK k ${new Date(ev.dataAsOf).toLocaleString('cs')}`
+                      : ''}
+                  </p>
+                ) : null}
                 {ev.kind !== 'error' ? (
                   <div className="mt-3 border-t pt-3">
                     {ev.deliveries.length ? (
@@ -305,6 +458,31 @@ export function WatchEventsPanel({ events }: { events: WatchEventView[] }) {
             ))}
           </ul>
         )}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {count === 0 ? 'Bez událostí' : `${from}–${to} z ${count}`}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || offset === 0}
+              onClick={() => void load(Math.max(0, offset - PAGE_SIZE), kinds)}
+            >
+              Novější
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy || to >= count}
+              onClick={() => void load(offset + PAGE_SIZE, kinds)}
+            >
+              Starší
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

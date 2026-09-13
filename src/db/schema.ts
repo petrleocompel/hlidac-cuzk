@@ -207,13 +207,21 @@ export const watchEvents = pgTable(
     watchId: uuid('watch_id')
       .notNull()
       .references(() => parcelWatches.id, { onDelete: 'cascade' }),
-    kind: text('kind').notNull(), // new_rizeni | error
+    kind: text('kind').notNull(), // new_rizeni | rizeni_progress | lv_change | parcel_attrs | error
     payloadJson: jsonb('payload_json'),
+    /** Snapshot as of this change, so history is not lost on the next overwrite. */
+    snapshotJson: jsonb('snapshot_json'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (table) => [index('watch_events_watchId_idx').on(table.watchId)],
+  (table) => [
+    index('watch_events_watchId_idx').on(table.watchId),
+    index('watch_events_watch_created_idx').on(
+      table.watchId,
+      table.createdAt.desc(),
+    ),
+  ],
 )
 
 /**

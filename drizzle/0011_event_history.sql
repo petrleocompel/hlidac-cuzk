@@ -1,0 +1,2 @@
+ALTER TABLE "watch_events" ADD COLUMN "snapshot_json" jsonb;--> statement-breakpoint
+CREATE INDEX "watch_events_watch_created_idx" ON "watch_events" USING btree ("watch_id","created_at" DESC NULLS LAST);

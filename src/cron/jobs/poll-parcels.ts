@@ -179,6 +179,8 @@ export async function pollWatchById(
             watchId: watch.id,
             kind: change.kind,
             payloadJson: change,
+            // Keep the snapshot behind this change; the watch row is overwritten.
+            snapshotJson: next,
             createdAt: now,
           })
           .returning()

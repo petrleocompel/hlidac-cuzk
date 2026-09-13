@@ -58,8 +58,9 @@ export type ParcelSnapshot = {
     zpusobUrceniVymery: string | null
     druhPozemku: string | null
     zpusobVyuziti: string | null
-    zpusobyOchrany: string[]
-    bpej: Array<{ kod: number | null; vymera: number | null }>
+    /** `null` means the API did not return the list, not an empty one. */
+    zpusobyOchrany: string[] | null
+    bpej: Array<{ kod: number | null; vymera: number | null }> | null
     definicniBod: { x: number | null; y: number | null } | null
     stavbaId: string | null
     pravoStavbyId: string | null
@@ -77,6 +78,22 @@ export type RizeniProgressChange = {
   followed: boolean
 }
 
+export type BpejEntry = { kod: number | null; vymera: number | null }
+export type ParcelAttrValue = string | number | string[] | BpejEntry[] | null
+
+export type ParcelAttrDiff = {
+  field: ParcelAttrField
+  previous: ParcelAttrValue
+  next: ParcelAttrValue
+}
+
+export type ParcelAttrsChange = {
+  kind: 'parcel_attrs'
+  /** Names only; events stored before values were recorded have just these. */
+  fields: string[]
+  values?: ParcelAttrDiff[]
+}
+
 export type SnapshotChange =
   | RizeniProgressChange
   | { kind: 'new_rizeni'; added: RizeniSnapshot[]; removed: RizeniSnapshot[] }
@@ -85,10 +102,7 @@ export type SnapshotChange =
       previous: LvSnapshot | null
       next: LvSnapshot | null
     }
-  | {
-      kind: 'parcel_attrs'
-      fields: string[]
-    }
+  | ParcelAttrsChange
 
 const RIZENI_TYPE_LABELS: Record<string, string> = {
   V: 'Vklad',
@@ -113,6 +127,97 @@ const STAV_UHRADY_LABELS: Record<string, string> = {
 export function stavUhradyLabel(code: string | null | undefined): string {
   if (!code) return 'neznámý stav úhrady'
   return STAV_UHRADY_LABELS[code] ?? code
+}
+
+/** Reads a stored event payload back as a change, or null for unknown shapes. */
+export function parseSnapshotChange(payload: unknown): SnapshotChange | null {
+  if (!payload || typeof payload !== 'object') return null
+  const kind = (payload as { kind?: string }).kind
+  if (
+    kind === 'new_rizeni' ||
+    kind === 'rizeni_progress' ||
+    kind === 'lv_change' ||
+    kind === 'parcel_attrs'
+  )
+    return payload as SnapshotChange
+  return null
+}
+
+const PARCEL_ATTR_DEFS = [
+  { field: 'vymera', label: 'Výměra', kind: 'area' },
+  { field: 'druhPozemku', label: 'Druh pozemku', kind: 'text' },
+  { field: 'zpusobVyuziti', label: 'Způsob využití', kind: 'text' },
+  { field: 'zpusobUrceniVymery', label: 'Způsob určení výměry', kind: 'text' },
+  { field: 'mapovyList', label: 'Mapový list', kind: 'text' },
+  { field: 'zpusobyOchrany', label: 'Způsoby ochrany', kind: 'list' },
+  { field: 'bpej', label: 'BPEJ', kind: 'bpej' },
+  { field: 'stavbaId', label: 'Vazba na stavbu (ISKN)', kind: 'text' },
+  {
+    field: 'pravoStavbyId',
+    label: 'Vazba na právo stavby (ISKN)',
+    kind: 'text',
+  },
+] as const
+
+export type ParcelAttrField = (typeof PARCEL_ATTR_DEFS)[number]['field']
+
+export function parcelAttrLabel(field: string): string {
+  return PARCEL_ATTR_DEFS.find((def) => def.field === field)?.label ?? field
+}
+
+export function formatParcelAttrValue(
+  field: string,
+  value: ParcelAttrValue,
+): string {
+  if (value == null) return 'neuvedeno'
+  if (field === 'vymera') return `${Number(value).toLocaleString('cs')} m²`
+  if (field === 'bpej') {
+    const rows = value as BpejEntry[]
+    if (!rows.length) return 'bez BPEJ'
+    return rows
+      .map(
+        (row) =>
+          `${row.kod ?? '—'}${
+            row.vymera != null ? ` (${row.vymera.toLocaleString('cs')} m²)` : ''
+          }`,
+      )
+      .join(', ')
+  }
+  if (Array.isArray(value)) return value.length ? value.join(', ') : 'žádné'
+  return String(value)
+}
+
+/** Order of BPEJ and protections is not information; compare them normalized. */
+function normalizedAttr(field: string, value: ParcelAttrValue): unknown {
+  if (field === 'zpusobyOchrany')
+    return Array.isArray(value) ? [...(value as string[])].sort() : null
+  if (field === 'bpej')
+    return Array.isArray(value)
+      ? (value as BpejEntry[])
+          .map((row) => `${row.kod ?? ''}:${row.vymera ?? ''}`)
+          .sort()
+      : null
+  return value
+}
+
+export function diffParcelAttrs(
+  previous: ParcelSnapshot['parcel'],
+  next: ParcelSnapshot['parcel'],
+): ParcelAttrDiff[] {
+  const diffs: ParcelAttrDiff[] = []
+  for (const def of PARCEL_ATTR_DEFS) {
+    const before = previous[def.field] ?? null
+    const after = next[def.field] ?? null
+    // A list the API did not return is unknown data, not a confirmed removal.
+    if ((def.kind === 'list' || def.kind === 'bpej') && (!before || !after))
+      continue
+    if (
+      JSON.stringify(normalizedAttr(def.field, before)) !==
+      JSON.stringify(normalizedAttr(def.field, after))
+    )
+      diffs.push({ field: def.field, previous: before, next: after })
+  }
+  return diffs
 }
 
 /** Tolerant reader for a stored RizeniSnapshot (tracked řízení detail). */
@@ -366,10 +471,11 @@ export async function buildParcelSnapshot(
     }
   }
 
-  const bpejRaw = Array.isArray(parcel.bpej) ? parcel.bpej : []
+  // Keep an omitted list distinguishable from a list that came back empty.
+  const bpejRaw = Array.isArray(parcel.bpej) ? parcel.bpej : null
   const ochronaRaw = Array.isArray(parcel.zpusobyOchrany)
     ? parcel.zpusobyOchrany
-    : []
+    : null
   const bod = parcel.definicniBod
   const mapovy = parcel.mapovyList
   const stavba = parcel.stavba
@@ -396,13 +502,15 @@ export async function buildParcelSnapshot(
       zpusobUrceniVymery: labelOf(parcel.zpusobUrceniVymery),
       druhPozemku: labelOf(parcel.druhPozemku),
       zpusobVyuziti: labelOf(parcel.zpusobVyuziti),
-      zpusobyOchrany: ochronaRaw
-        .map((o) => labelOf(o))
-        .filter((s): s is string => Boolean(s)),
-      bpej: bpejRaw.map((b) => {
-        const row = b as { kod?: number; vymera?: number }
-        return { kod: row.kod ?? null, vymera: row.vymera ?? null }
-      }),
+      zpusobyOchrany:
+        ochronaRaw
+          ?.map((o) => labelOf(o))
+          .filter((value): value is string => Boolean(value)) ?? null,
+      bpej:
+        bpejRaw?.map((b) => {
+          const row = b as { kod?: number; vymera?: number }
+          return { kod: row.kod ?? null, vymera: row.vymera ?? null }
+        }) ?? null,
       definicniBod:
         bod && (bod.x != null || bod.y != null)
           ? { x: bod.x ?? null, y: bod.y ?? null }
@@ -437,8 +545,8 @@ export function parseSnapshot(raw: unknown): ParcelSnapshot | null {
         zpusobUrceniVymery: null,
         druhPozemku: null,
         zpusobVyuziti: null,
-        zpusobyOchrany: [],
-        bpej: [],
+        zpusobyOchrany: null,
+        bpej: null,
         definicniBod: null,
         stavbaId: null,
         pravoStavbyId: null,
@@ -487,18 +595,13 @@ export function diffSnapshots(
     })
   }
 
-  const fields: string[] = []
-  const p = previous.parcel
-  const n = next.parcel
-  if (p.vymera !== n.vymera) fields.push('vymera')
-  if (p.druhPozemku !== n.druhPozemku) fields.push('druhPozemku')
-  if (p.zpusobVyuziti !== n.zpusobVyuziti) fields.push('zpusobVyuziti')
-  if (JSON.stringify(p.zpusobyOchrany) !== JSON.stringify(n.zpusobyOchrany)) {
-    fields.push('zpusobyOchrany')
-  }
-  if (JSON.stringify(p.bpej) !== JSON.stringify(n.bpej)) fields.push('bpej')
-  if (fields.length > 0) {
-    changes.push({ kind: 'parcel_attrs', fields })
+  const values = diffParcelAttrs(previous.parcel, next.parcel)
+  if (values.length > 0) {
+    changes.push({
+      kind: 'parcel_attrs',
+      fields: values.map((value) => value.field),
+      values,
+    })
   }
 
   return changes

@@ -177,8 +177,12 @@ export function WatchSnapshotPanel({
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Způsoby ochrany
             </p>
-            {p.zpusobyOchrany.length === 0 ? (
-              <p className="text-sm text-muted-foreground">—</p>
+            {!p.zpusobyOchrany ? (
+              <p className="text-sm text-muted-foreground">
+                ČÚZK tento údaj nevrátilo.
+              </p>
+            ) : p.zpusobyOchrany.length === 0 ? (
+              <p className="text-sm text-muted-foreground">žádné</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {p.zpusobyOchrany.map((o) => (
@@ -194,8 +198,12 @@ export function WatchSnapshotPanel({
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               BPEJ
             </p>
-            {p.bpej.length === 0 ? (
-              <p className="text-sm text-muted-foreground">—</p>
+            {!p.bpej ? (
+              <p className="text-sm text-muted-foreground">
+                ČÚZK tento údaj nevrátilo.
+              </p>
+            ) : p.bpej.length === 0 ? (
+              <p className="text-sm text-muted-foreground">bez BPEJ</p>
             ) : (
               <div className="overflow-hidden rounded-lg border">
                 <table className="w-full text-sm">

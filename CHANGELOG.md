@@ -10,6 +10,11 @@
   known values; a 404 or empty payload ends the follow-up as confirmed unavailable.
 - Users can add a known řízení (type, number, year, office code) or a linked
   `navazanaRizeni` and stop the extra queries at any time.
+- History now records the value before and after each change (`Výměra: 976 → 980 m²`) plus
+  the snapshot behind it, compares BPEJ and protections in a normalized order, and treats a
+  list the API did not return as unknown rather than removed. The watch detail pages and
+  filters the history and exports CSV/JSON with acquisition times; it also states that no
+  history exists from before the watch was created.
 - AMD64 and ARM64 images must pass a real Compose installation smoke test before publishing.
 - Web, worker and migrations run as UID 1000 with read-only storage; runtime dependencies
   are installed separately and pnpm is preloaded for startup without a registry connection.
@@ -24,7 +29,7 @@
 
 ### Migration from d63f2c9 (schema 0008)
 
-The upgrade adds `0009_backup_status` and `0010_watch_rizeni`. Existing accounts, watches, events and pending
+The upgrade adds `0009_backup_status`, `0010_watch_rizeni` and `0011_event_history`. Existing accounts, watches, events and pending
 notification deliveries are preserved. Back up the database and configuration/keys first;
 use the pinned image and the [upgrade procedure](docs/self-hosting.md#upgrade). The regression
 test upgrades the previous schema and checks both preserved data and rejected startup after

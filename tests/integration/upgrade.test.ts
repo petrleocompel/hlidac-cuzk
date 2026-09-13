@@ -85,10 +85,30 @@ it('blocks web and worker after a failed migration, then upgrades the previous s
     'watch_events',
     'notification_deliveries',
   ]
+  // Compare the columns the old schema had: an upgrade may add columns, but it
+  // must not change or drop existing data.
+  const legacyColumns = new Map(
+    await Promise.all(
+      tables.map(
+        async (table) =>
+          [
+            table,
+            (
+              await client`select column_name from information_schema.columns where table_schema = 'public' and table_name = ${table} order by column_name`
+            ).map((row) => row.column_name as string),
+          ] as const,
+      ),
+    ),
+  )
   const snapshot = async () =>
     Promise.all(
       tables.map((table) =>
-        client.unsafe(`select * from "${table}" order by id`),
+        client.unsafe(
+          `select ${legacyColumns
+            .get(table)!
+            .map((column) => `"${column}"`)
+            .join(', ')} from "${table}" order by id`,
+        ),
       ),
     )
   const before = await snapshot()
