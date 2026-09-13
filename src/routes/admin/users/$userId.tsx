@@ -8,6 +8,7 @@ import {
 import { useState } from 'react'
 import { authClient } from '#/auth/client'
 import { getServerSession } from '#/auth/session'
+import { describeWatchObject } from '#/lib/cuzk/object-snapshot'
 import { DashboardShell } from '#/components/layout/dashboard-shell'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -330,11 +331,15 @@ function AdminUserDetailPage() {
                   </p>
                   <p>
                     <span className="text-muted-foreground">Discord: </span>
-                    {detail.notifications.discordWebhookConfigured ? 'nastaven' : '—'}
+                    {detail.notifications.discordWebhookConfigured
+                      ? 'nastaven'
+                      : '—'}
                   </p>
                   <p>
                     <span className="text-muted-foreground">Slack: </span>
-                    {detail.notifications.slackWebhookConfigured ? 'nastaven' : '—'}
+                    {detail.notifications.slackWebhookConfigured
+                      ? 'nastaven'
+                      : '—'}
                   </p>
                 </>
               )}
@@ -357,11 +362,7 @@ function AdminUserDetailPage() {
                         <div>
                           <p className="font-medium">{w.label}</p>
                           <p className="text-xs text-muted-foreground">
-                            {w.kuName} ({w.kuCode}) ·{' '}
-                            {w.parcelSubdivision != null
-                              ? `${w.parcelNumber}/${w.parcelSubdivision}`
-                              : w.parcelNumber}{' '}
-                            · ISKN {w.isknId}
+                            {describeWatchObject(w)} · ISKN {w.isknId}
                           </p>
                         </div>
                         <Badge variant={w.enabled ? 'secondary' : 'outline'}>

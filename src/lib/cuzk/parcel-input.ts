@@ -53,21 +53,29 @@ export function formatParcelNumberInput(value: {
     : `${prefix}${value.kmenoveCisloParcely}`
 }
 
-/** Matches a KÚ by name without diacritics or by code prefix; max `limit` hits. */
-export function filterKatastralniUzemi(
-  list: KatastralniUzemi[],
+/**
+ * Matches a code list entry by name without diacritics or by code prefix. Used
+ * for katastrální území (KN) and části obce (RÚIAN); the caller decides which
+ * register it passes in, the two code spaces are never mixed here.
+ */
+export function filterByNameOrCode<T extends { kod: number; nazev: string }>(
+  list: T[],
   query: string,
   limit = 20,
-): KatastralniUzemi[] {
+): T[] {
   const text = query.trim()
   if (text.length < 2) return []
   if (/^\d+$/.test(text)) {
-    const exact = list.filter((ku) => String(ku.kod) === text)
+    const exact = list.filter((entry) => String(entry.kod) === text)
     if (exact.length) return exact.slice(0, limit)
-    return list.filter((ku) => String(ku.kod).startsWith(text)).slice(0, limit)
+    return list
+      .filter((entry) => String(entry.kod).startsWith(text))
+      .slice(0, limit)
   }
   const folded = foldDiacritics(text)
-  const hits = list.filter((ku) => foldDiacritics(ku.nazev).includes(folded))
+  const hits = list.filter((entry) =>
+    foldDiacritics(entry.nazev).includes(folded),
+  )
   // Names starting with the query are the more likely intent.
   return hits
     .sort((a, b) => {
@@ -77,4 +85,12 @@ export function filterKatastralniUzemi(
       return a.nazev.localeCompare(b.nazev, 'cs')
     })
     .slice(0, limit)
+}
+
+export function filterKatastralniUzemi(
+  list: KatastralniUzemi[],
+  query: string,
+  limit = 20,
+): KatastralniUzemi[] {
+  return filterByNameOrCode(list, query, limit)
 }

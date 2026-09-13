@@ -81,10 +81,12 @@ export type RizeniProgressChange = {
 }
 
 export type BpejEntry = { kod: number | null; vymera: number | null }
-export type ParcelAttrValue = string | number | string[] | BpejEntry[] | null
+export type ParcelAttrValue =
+  string | number | boolean | string[] | BpejEntry[] | null
 
 export type ParcelAttrDiff = {
-  field: ParcelAttrField
+  /** Attribute name of the watched register; labels come from the registry. */
+  field: string
   previous: ParcelAttrValue
   next: ParcelAttrValue
 }
@@ -163,8 +165,23 @@ const PARCEL_ATTR_DEFS = [
 
 export type ParcelAttrField = (typeof PARCEL_ATTR_DEFS)[number]['field']
 
+export type AttrDef = {
+  field: string
+  label: string
+  kind: 'text' | 'area' | 'list' | 'bpej' | 'flag'
+}
+
+/** Labels of every watched register, so one history renderer serves them all. */
+const ATTR_LABELS = new Map<string, string>(
+  PARCEL_ATTR_DEFS.map((def) => [def.field, def.label]),
+)
+
+export function registerAttrLabels(defs: ReadonlyArray<AttrDef>): void {
+  for (const def of defs) ATTR_LABELS.set(def.field, def.label)
+}
+
 export function parcelAttrLabel(field: string): string {
-  return PARCEL_ATTR_DEFS.find((def) => def.field === field)?.label ?? field
+  return ATTR_LABELS.get(field) ?? field
 }
 
 export function formatParcelAttrValue(
@@ -172,6 +189,7 @@ export function formatParcelAttrValue(
   value: ParcelAttrValue,
 ): string {
   if (value == null) return 'neuvedeno'
+  if (typeof value === 'boolean') return value ? 'ano' : 'ne'
   if (field === 'vymera') return `${Number(value).toLocaleString('cs')} m²`
   if (field === 'bpej') {
     const rows = value as BpejEntry[]
@@ -191,8 +209,9 @@ export function formatParcelAttrValue(
 
 /** Order of BPEJ and protections is not information; compare them normalized. */
 function normalizedAttr(field: string, value: ParcelAttrValue): unknown {
-  if (field === 'zpusobyOchrany')
-    return Array.isArray(value) ? [...(value as string[])].sort() : null
+  if (field === 'bpej' && !Array.isArray(value)) return null
+  if (Array.isArray(value) && field !== 'bpej')
+    return [...(value as string[])].sort()
   if (field === 'bpej')
     return Array.isArray(value)
       ? (value as BpejEntry[])
@@ -202,15 +221,19 @@ function normalizedAttr(field: string, value: ParcelAttrValue): unknown {
   return value
 }
 
-export function diffParcelAttrs(
-  previous: ParcelSnapshot['parcel'],
-  next: ParcelSnapshot['parcel'],
+/**
+ * Compares the given attributes of any watched object. A list the API did not
+ * return is unknown data, not a confirmed removal, so it is skipped.
+ */
+export function diffAttrValues(
+  defs: ReadonlyArray<AttrDef>,
+  previous: Record<string, ParcelAttrValue | undefined>,
+  next: Record<string, ParcelAttrValue | undefined>,
 ): ParcelAttrDiff[] {
   const diffs: ParcelAttrDiff[] = []
-  for (const def of PARCEL_ATTR_DEFS) {
+  for (const def of defs) {
     const before = previous[def.field] ?? null
     const after = next[def.field] ?? null
-    // A list the API did not return is unknown data, not a confirmed removal.
     if ((def.kind === 'list' || def.kind === 'bpej') && (!before || !after))
       continue
     if (
@@ -220,6 +243,17 @@ export function diffParcelAttrs(
       diffs.push({ field: def.field, previous: before, next: after })
   }
   return diffs
+}
+
+export function diffParcelAttrs(
+  previous: ParcelSnapshot['parcel'],
+  next: ParcelSnapshot['parcel'],
+): ParcelAttrDiff[] {
+  return diffAttrValues(
+    PARCEL_ATTR_DEFS,
+    previous as Record<string, ParcelAttrValue>,
+    next as Record<string, ParcelAttrValue>,
+  )
 }
 
 /** Tolerant reader for a stored RizeniSnapshot (tracked řízení detail). */
@@ -256,8 +290,17 @@ function labelOf(value: unknown): string | null {
   return kn.nazev ?? (kn.kod != null ? String(kn.kod) : null)
 }
 
-function lvFromParcel(parcel: Parcela): LvSnapshot | null {
-  const lv = parcel.lv
+/** Shared LV shape of parcels, buildings, units and rights of superficies. */
+export function lvFromDef(
+  lv:
+    | {
+        id?: number
+        cislo?: number
+        katastralniUzemi?: { kod?: number; nazev?: string }
+      }
+    | null
+    | undefined,
+): LvSnapshot | null {
   if (!lv) return null
   return {
     id: lv.id != null ? String(lv.id) : null,
@@ -266,6 +309,12 @@ function lvFromParcel(parcel: Parcela): LvSnapshot | null {
     kuNazev: lv.katastralniUzemi?.nazev ?? null,
   }
 }
+
+function lvFromParcel(parcel: Parcela): LvSnapshot | null {
+  return lvFromDef(parcel.lv)
+}
+
+export const labelOfValue = labelOf
 
 function baseRizeni(r: RizeniDef): RizeniSnapshot {
   const typ =
@@ -428,30 +477,17 @@ export function diffRizeni(
     : null
 }
 
-export async function buildParcelSnapshot(
-  isknId: string | number,
-  now = new Date(),
+/**
+ * Loads the detail of every plomba once per cycle. A failing detail keeps the
+ * plomba with its basic definition; an API-wide problem is rethrown.
+ */
+export async function collectRizeniSnapshots(
+  plomby: RizeniDef[],
+  now: Date,
   signal?: AbortSignal,
   rizeniCache: RizeniCache = new Map(),
-  parcelCache: ParcelCache = new Map(),
-): Promise<ParcelSnapshot> {
-  const key = String(isknId)
-  let request = parcelCache.get(key)
-  if (!request) {
-    request = getParcelById(isknId, signal)
-    parcelCache.set(key, request)
-    void request.catch(() => {
-      if (parcelCache.get(key) === request) parcelCache.delete(key)
-    })
-  }
-  const response = await request
-  signal?.throwIfAborted()
-  const parcel = response.data
-  if (!parcel) throw new Error('Prázdná odpověď ČÚZK')
-
-  const plomby = Array.isArray(parcel.rizeniPlomby) ? parcel.rizeniPlomby : []
+): Promise<RizeniSnapshot[]> {
   const rizeni: RizeniSnapshot[] = []
-
   for (const item of plomby) {
     const base = baseRizeni(item)
     if (item.id == null) {
@@ -483,6 +519,36 @@ export async function buildParcelSnapshot(
       rizeni.push(base)
     }
   }
+  return rizeni
+}
+
+export async function buildParcelSnapshot(
+  isknId: string | number,
+  now = new Date(),
+  signal?: AbortSignal,
+  rizeniCache: RizeniCache = new Map(),
+  parcelCache: ParcelCache = new Map(),
+): Promise<ParcelSnapshot> {
+  const key = String(isknId)
+  let request = parcelCache.get(key)
+  if (!request) {
+    request = getParcelById(isknId, signal)
+    parcelCache.set(key, request)
+    void request.catch(() => {
+      if (parcelCache.get(key) === request) parcelCache.delete(key)
+    })
+  }
+  const response = await request
+  signal?.throwIfAborted()
+  const parcel = response.data
+  if (!parcel) throw new Error('Prázdná odpověď ČÚZK')
+
+  const rizeni = await collectRizeniSnapshots(
+    Array.isArray(parcel.rizeniPlomby) ? parcel.rizeniPlomby : [],
+    now,
+    signal,
+    rizeniCache,
+  )
 
   // Keep an omitted list distinguishable from a list that came back empty.
   const bpejRaw = Array.isArray(parcel.bpej) ? parcel.bpej : null
@@ -585,6 +651,19 @@ function rizeniIds(items: RizeniSnapshot[]): Set<string> {
   return new Set(items.map((r) => r.id))
 }
 
+/** Added and removed plomby of any watched object, or null when unchanged. */
+export function rizeniSetChange(
+  previous: RizeniSnapshot[],
+  next: RizeniSnapshot[],
+): SnapshotChange | null {
+  const prevIds = rizeniIds(previous)
+  const nextIds = rizeniIds(next)
+  const added = next.filter((r) => !prevIds.has(r.id))
+  const removed = previous.filter((r) => !nextIds.has(r.id))
+  if (!added.length && !removed.length) return null
+  return { kind: 'new_rizeni', added, removed }
+}
+
 export function diffSnapshots(
   previous: ParcelSnapshot | null,
   next: ParcelSnapshot,
@@ -592,13 +671,8 @@ export function diffSnapshots(
   if (!previous) return []
 
   const changes: SnapshotChange[] = []
-  const prevIds = rizeniIds(previous.rizeni)
-  const nextIds = rizeniIds(next.rizeni)
-  const added = next.rizeni.filter((r) => !prevIds.has(r.id))
-  const removed = previous.rizeni.filter((r) => !nextIds.has(r.id))
-  if (added.length > 0 || removed.length > 0) {
-    changes.push({ kind: 'new_rizeni', added, removed })
-  }
+  const rizeni = rizeniSetChange(previous.rizeni, next.rizeni)
+  if (rizeni) changes.push(rizeni)
 
   if (lvKey(previous.parcel.lv) !== lvKey(next.parcel.lv)) {
     changes.push({

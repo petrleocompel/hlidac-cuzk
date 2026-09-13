@@ -28,6 +28,12 @@ export type KatastralniUzemi = {
   platnostDo?: string | null
 }
 
+export type LvDef = {
+  id?: number
+  cislo?: number
+  katastralniUzemi?: { kod?: number; nazev?: string }
+}
+
 export type Parcela = {
   id?: number
   typParcely?: TypParcely
@@ -35,11 +41,7 @@ export type Parcela = {
   kmenoveCisloParcely?: number
   poddeleniCislaParcely?: number | null
   katastralniUzemi?: { kod?: number; nazev?: string }
-  lv?: {
-    id?: number
-    cislo?: number
-    katastralniUzemi?: { kod?: number; nazev?: string }
-  } | null
+  lv?: LvDef | null
   vymera?: number
   mapovyList?: { kod?: number; oznaceni?: string } | null
   zpusobUrceniVymery?: unknown
@@ -50,6 +52,65 @@ export type Parcela = {
   definicniBod?: { id?: number; x?: number; y?: number } | null
   stavba?: { id?: number } | null
   pravoStavby?: { id?: number } | null
+  rizeniPlomby?: RizeniDef[] | null
+  [key: string]: unknown
+}
+
+/** Typy staveb povolené ve vyhledávání: 1 = číslo popisné, 2 = číslo evidenční. */
+export const TYPY_STAVBY_QUERY = [1, 2] as const
+export type TypStavbyQuery = (typeof TYPY_STAVBY_QUERY)[number]
+
+export type Stavba = {
+  id?: number
+  typStavby?: { kod?: number; nazev?: string } | null
+  cislaDomovni?: number[] | null
+  castObce?: { kod?: number; nazev?: string } | null
+  obec?: { kod?: number; nazev?: string } | null
+  docasna?: boolean
+  typyVazby?: string | null
+  lv?: LvDef | null
+  pravoStavby?: { id?: number; datumUkonceni?: string | null } | null
+  definicniBod?: { id?: number; x?: number; y?: number } | null
+  jednotky?: Array<{ id?: number; cisloJednotky?: number }> | null
+  zpusobVyuziti?: unknown
+  zpusobyOchrany?: unknown[] | null
+  parcely?: Array<Partial<Parcela>> | null
+  /** RÚIAN codes of address places; never a KN identifier. */
+  adresniMista?: number[] | null
+  rizeniPlomby?: RizeniDef[] | null
+  [key: string]: unknown
+}
+
+export type Jednotka = {
+  id?: number
+  cisloJednotky?: number
+  typJednotky?: { kod?: number; nazev?: string } | null
+  zpusobVyuziti?: unknown
+  zpusobyOchrany?: unknown[] | null
+  podilNaSpolecnychCastechDomu?: {
+    citatel?: number
+    jmenovatel?: number
+  } | null
+  lv?: LvDef | null
+  vymezenaVeStavbe?: {
+    id?: number
+    typStavby?: { kod?: number; nazev?: string }
+    cislaDomovni?: number[] | null
+    castObce?: { kod?: number; nazev?: string }
+  } | null
+  rizeniPlomby?: RizeniDef[] | null
+  [key: string]: unknown
+}
+
+export type PravoStavby = {
+  id?: number
+  datumUkonceni?: string | null
+  datumPrijeti?: string | null
+  ucelyPravaStavby?: unknown[] | null
+  lv?: LvDef | null
+  parcely?: Array<Partial<Parcela>> | null
+  stavby?: Array<Partial<Stavba>> | null
+  zpusobyOchrany?: unknown[] | null
   rizeniPlomby?: RizeniDef[] | null
   [key: string]: unknown
 }
@@ -146,6 +207,98 @@ export async function getRizeniById(
   signal?: AbortSignal,
 ): Promise<CuzkItemResponse<RizeniDef>> {
   return cuzkFetch(`/api/v1/Rizeni/${id}`, undefined, signal)
+}
+
+export async function getStavbaById(
+  id: number | string,
+  signal?: AbortSignal,
+): Promise<CuzkItemResponse<Stavba>> {
+  return cuzkFetch(`/api/v1/Stavby/${id}`, undefined, signal)
+}
+
+export async function getJednotkaById(
+  id: number | string,
+  signal?: AbortSignal,
+): Promise<CuzkItemResponse<Jednotka>> {
+  return cuzkFetch(`/api/v1/Jednotky/${id}`, undefined, signal)
+}
+
+export async function getPravoStavbyById(
+  id: number | string,
+  signal?: AbortSignal,
+): Promise<CuzkItemResponse<PravoStavby>> {
+  return cuzkFetch(`/api/v1/PravaStavby/${id}`, undefined, signal)
+}
+
+export type SearchStavbaParams = {
+  /** RÚIAN code of the část obce, not a katastrální území code. */
+  kodCastiObce: number
+  typStavby: TypStavbyQuery
+  cisloDomovni: number
+}
+
+export async function searchStavba(
+  params: SearchStavbaParams,
+  signal?: AbortSignal,
+): Promise<CuzkListResponse<Stavba>> {
+  return cuzkFetch(
+    '/api/v1/Stavby/Vyhledani',
+    {
+      KodCastiObce: String(params.kodCastiObce),
+      TypStavby: String(params.typStavby),
+      CisloDomovni: String(params.cisloDomovni),
+    },
+    signal,
+  )
+}
+
+export type SearchJednotkaParams = SearchStavbaParams & {
+  cisloJednotky: number
+}
+
+export async function searchJednotka(
+  params: SearchJednotkaParams,
+  signal?: AbortSignal,
+): Promise<CuzkListResponse<Jednotka>> {
+  return cuzkFetch(
+    '/api/v1/Jednotky/Vyhledani',
+    {
+      KodCastiObce: String(params.kodCastiObce),
+      TypStavby: String(params.typStavby),
+      CisloDomovni: String(params.cisloDomovni),
+      CisloJednotky: String(params.cisloJednotky),
+    },
+    signal,
+  )
+}
+
+export type CastObce = {
+  kod: number
+  nazev: string
+  kodObce?: number
+  nazevObce?: string
+}
+
+let castiObciCache: CastObce[] | null = null
+let castiObciCacheAt = 0
+
+/** RÚIAN parts of municipalities; one cached call serves the autocomplete. */
+export async function listCastiObci(): Promise<CastObce[]> {
+  const now = Date.now()
+  if (castiObciCache && now - castiObciCacheAt < KU_CACHE_TTL_MS)
+    return castiObciCache
+  const result = await cuzkFetch<CuzkListResponse<CastObce>>(
+    '/api/v1/CiselnikyUzemnichJednotek/CastiObci',
+  )
+  castiObciCache = result.data ?? []
+  castiObciCacheAt = now
+  return castiObciCache
+}
+
+export async function searchCastObce(query: string): Promise<CastObce[]> {
+  const { filterByNameOrCode } = await import('./parcel-input')
+  if (query.trim().length < 2) return []
+  return filterByNameOrCode(await listCastiObci(), query)
 }
 
 let kuCache: KatastralniUzemi[] | null = null

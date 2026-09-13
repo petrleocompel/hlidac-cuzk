@@ -2,10 +2,10 @@ import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db'
 import { parcelWatches, watchEvents } from '#/db/schema'
 import {
-  buildParcelSnapshot,
-  diffSnapshots,
-  parseSnapshot,
-} from '#/lib/cuzk/snapshot'
+  buildWatchSnapshot,
+  diffWatchSnapshots,
+  parseWatchSnapshot,
+} from '#/lib/cuzk/object-snapshot'
 import type {
   ParcelCache,
   RizeniCache,
@@ -112,19 +112,17 @@ export async function pollWatchById(
   )
   try {
     const signal = AbortSignal.timeout(POLL_TIMEOUT_MS)
-    const previous = parseSnapshot(watch.lastSnapshotJson)
+    const previous = parseWatchSnapshot(watch.lastSnapshotJson)
     // Older instances only have řízení history inside the last snapshot.
     const trackedBefore = mergeTrackedSources(
       await loadTrackedRizeni(watch.id),
       trackedFromSnapshot(previous, now),
     )
-    const next = await buildParcelSnapshot(
-      watch.isknId,
-      now,
+    const next = await buildWatchSnapshot(watch.objectType, watch.isknId, now, {
       signal,
-      options.rizeniCache,
-      options.parcelCache,
-    )
+      rizeniCache: options.rizeniCache,
+      parcelCache: options.parcelCache,
+    })
     signal.throwIfAborted()
     const plan = planRizeniFollowUp(
       trackedBefore,
@@ -154,7 +152,7 @@ export async function pollWatchById(
         .map((row) => [row.rizeniId, row.detail!]),
     )
     next.rizeni = next.rizeni.map((r) => merged.get(r.id) ?? r)
-    const changes = [...diffSnapshots(previous, next), ...tracking.changes]
+    const changes = [...diffWatchSnapshots(previous, next), ...tracking.changes]
 
     return await db.transaction(async (tx): Promise<PollResult> => {
       // Fence the entire snapshot/event/outbox commit against an expired lease

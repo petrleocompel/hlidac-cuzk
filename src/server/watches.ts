@@ -9,9 +9,11 @@ import { parcelWatches } from '#/db/schema'
 import type { ParcelWatch } from '#/db/schema'
 import { assertWatchCapacity } from '#/lib/cuzk/watch-limits'
 import {
+  createVerifiedObjectWatch,
   createVerifiedWatch,
   importVerifiedWatches,
 } from '#/lib/cuzk/watch-create'
+import { OBJECT_TYPES } from '#/lib/cuzk/object-snapshot'
 import type { ImportOutcome } from '#/lib/cuzk/watch-create'
 import { planWatchImport } from '#/lib/cuzk/watch-import'
 import type { ImportPlan } from '#/lib/cuzk/watch-import'
@@ -38,8 +40,9 @@ const PollIntervalInput = z.coerce
   .max(24 * 60)
   .default(DEFAULT_POLL_MINUTES)
 
-/** Only the confirmed ISKN id and the user's own label; the rest comes from ČÚZK. */
+/** Only the register, the confirmed ISKN id and the user's own label. */
 const CreateWatchInput = z.object({
+  objectType: z.enum(OBJECT_TYPES).default('parcel'),
   isknId: z.string().regex(/^[1-9]\d{0,27}$/),
   label: z.string().max(200).optional(),
   pollIntervalMinutes: PollIntervalInput,
@@ -77,9 +80,11 @@ export type WatchDto = {
   id: string
   userId: string
   label: string
-  kuCode: string
-  kuName: string
-  parcelNumber: number
+  objectType: ParcelWatch['objectType']
+  objectSummary: string | null
+  kuCode: string | null
+  kuName: string | null
+  parcelNumber: number | null
   parcelSubdivision: number | null
   druhCislovani: number
   isknId: string
@@ -113,6 +118,8 @@ function toWatchDto(row: ParcelWatch): WatchDto {
     notifyChannels: row.notifyChannels,
     userId: row.userId,
     label: row.label,
+    objectType: row.objectType,
+    objectSummary: row.objectSummary,
     kuCode: row.kuCode,
     kuName: row.kuName,
     parcelNumber: row.parcelNumber,
@@ -157,6 +164,12 @@ export const getWatch = createServerFn({ method: 'GET' })
       eventTotal: number
       rizeni: TrackedRizeniDto[]
       rizeniFollowDays: number
+      /** Objects this user already watches, so links do not spend an API call. */
+      watchedObjects: Array<{
+        id: string
+        objectType: ParcelWatch['objectType']
+        isknId: string
+      }>
     }> => {
       const session = await requireSession()
       const watch = await db.query.parcelWatches.findFirst({
@@ -176,6 +189,14 @@ export const getWatch = createServerFn({ method: 'GET' })
         eventTotal: page.total,
         rizeni: await listTrackedRizeni(watch.id),
         rizeniFollowDays: followDays(),
+        watchedObjects: await db
+          .select({
+            id: parcelWatches.id,
+            objectType: parcelWatches.objectType,
+            isknId: parcelWatches.isknId,
+          })
+          .from(parcelWatches)
+          .where(eq(parcelWatches.userId, session.user.id)),
       }
     },
   )
@@ -216,12 +237,21 @@ export const createWatch = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<WatchDto> => {
     const session = await requireSession()
     await assertWatchCapacity(session.user.id)
-    const row = await createVerifiedWatch({
-      userId: session.user.id,
-      isknId: data.isknId,
-      label: data.label,
-      pollIntervalMinutes: data.pollIntervalMinutes,
-    })
+    const row =
+      data.objectType === 'parcel'
+        ? await createVerifiedWatch({
+            userId: session.user.id,
+            isknId: data.isknId,
+            label: data.label,
+            pollIntervalMinutes: data.pollIntervalMinutes,
+          })
+        : await createVerifiedObjectWatch({
+            userId: session.user.id,
+            objectType: data.objectType,
+            isknId: data.isknId,
+            label: data.label,
+            pollIntervalMinutes: data.pollIntervalMinutes,
+          })
     return toWatchDto(row)
   })
 

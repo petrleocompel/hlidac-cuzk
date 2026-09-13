@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { db } from '#/db'
 import { parcelWatches } from '#/db/schema'
-import { parseSnapshot } from '#/lib/cuzk/snapshot'
+import { parseWatchSnapshot, snapshotLv } from '#/lib/cuzk/object-snapshot'
 import { summarizeEvent } from '#/lib/notifications/message'
 
 export type PortfolioWatch = {
@@ -37,16 +37,20 @@ export async function readPortfolio(userId: string): Promise<PortfolioGroup[]> {
   const membership: { watch_id: string; group_key: string }[] = []
   const labels = new Map<string, string>()
   for (const watch of watches) {
-    const lv = parseSnapshot(watch.lastSnapshotJson)?.parcel.lv
-    const kuCode = String(lv?.kuKod ?? watch.kuCode)
-    const kuName = lv?.kuNazev ?? watch.kuName
+    const lv = snapshotLv(parseWatchSnapshot(watch.lastSnapshotJson))
+    const kuCode = String(lv?.kuKod ?? watch.kuCode ?? 'neznámé KÚ')
+    const kuName = lv?.kuNazev ?? watch.kuName ?? 'Neznámé katastrální území'
     const number = lv?.cislo ?? null
     const key = `${kuCode}:${number ?? 'unknown'}`
-    let group = groups.get(key)
-    if (!group) {
-      group = { key, kuCode, kuName, lvNumber: number, watches: [], events: [] }
-      groups.set(key, group)
+    const group = groups.get(key) ?? {
+      key,
+      kuCode,
+      kuName,
+      lvNumber: number,
+      watches: [],
+      events: [],
     }
+    groups.set(key, group)
     group.watches.push({
       id: watch.id,
       label: watch.label,

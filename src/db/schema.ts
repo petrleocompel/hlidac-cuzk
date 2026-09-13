@@ -182,9 +182,18 @@ export const parcelWatches = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     label: text('label').notNull(),
-    kuCode: text('ku_code').notNull(),
-    kuName: text('ku_name').notNull(),
-    parcelNumber: integer('parcel_number').notNull(),
+    /** Which KN register the subscription follows; parcels are the default. */
+    objectType: text('object_type', {
+      enum: ['parcel', 'stavba', 'jednotka', 'pravo_stavby'],
+    })
+      .notNull()
+      .default('parcel'),
+    /** Verified human identification of the object, e.g. `č.p. 123`. */
+    objectSummary: text('object_summary'),
+    // Katastrální území and parcel numbers stay empty for objects that have none.
+    kuCode: text('ku_code'),
+    kuName: text('ku_name'),
+    parcelNumber: integer('parcel_number'),
     parcelSubdivision: integer('parcel_subdivision'),
     druhCislovani: integer('druh_cislovani').notNull().default(2),
     isknId: text('iskn_id').notNull(),
@@ -221,9 +230,11 @@ export const parcelWatches = pgTable(
     index('parcel_watches_userId_idx').on(table.userId),
     index('parcel_watches_enabled_idx').on(table.enabled),
     index('parcel_watches_next_check_idx').on(table.enabled, table.nextCheckAt),
-    // One subscription per user and object; imports rely on this, not only on code.
+    // One subscription per user and object. ISKN ids are unique inside a register,
+    // so the type is part of the key.
     uniqueIndex('parcel_watches_user_object_idx').on(
       table.userId,
+      table.objectType,
       table.isknId,
     ),
   ],

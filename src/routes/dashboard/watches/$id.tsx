@@ -12,8 +12,14 @@ import {
 } from '#/components/watch/watch-events-panel'
 import { WatchCheckStatus } from '#/components/watch/watch-check-status'
 import { WatchSnapshotPanel } from '#/components/watch/watch-snapshot-panel'
+import { WatchObjectPanel } from '#/components/watch/watch-object-panel'
+import { WatchLinkedObjects } from '#/components/watch/watch-linked-objects'
 import { WatchRizeniPanel } from '#/components/watch/watch-rizeni-panel'
-import { parseSnapshot } from '#/lib/cuzk/snapshot'
+import {
+  isObjectSnapshot,
+  objectTypeLabel,
+  parseWatchSnapshot,
+} from '#/lib/cuzk/object-snapshot'
 import {
   deleteWatch,
   getWatch,
@@ -45,6 +51,7 @@ export const Route = createFileRoute('/dashboard/watches/$id')({
       focusedEvents: data.focusedEvents,
       eventTotal: data.eventTotal,
       rizeni: data.rizeni,
+      watchedObjects: data.watchedObjects,
       rizeniFollowDays: data.rizeniFollowDays,
       now: Date.now(),
     }
@@ -61,13 +68,39 @@ function WatchDetailPage() {
     eventTotal,
     rizeni,
     rizeniFollowDays,
+    watchedObjects,
     now,
   } = Route.useLoaderData()
   const { event: focusedId } = Route.useSearch()
   const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
-  const snapshot = parseSnapshot(watch.lastSnapshotJson)
+  const snapshot = parseWatchSnapshot(watch.lastSnapshotJson)
+  const parcelSnapshot =
+    snapshot && !isObjectSnapshot(snapshot) ? snapshot : null
+  // A parcel links to its building and right of superficies by ISKN id.
+  const parcelLinks = parcelSnapshot
+    ? [
+        ...(parcelSnapshot.parcel.stavbaId
+          ? [
+              {
+                objectType: 'stavba' as const,
+                isknId: parcelSnapshot.parcel.stavbaId,
+                label: `ISKN ${parcelSnapshot.parcel.stavbaId}`,
+              },
+            ]
+          : []),
+        ...(parcelSnapshot.parcel.pravoStavbyId
+          ? [
+              {
+                objectType: 'pravo_stavby' as const,
+                isknId: parcelSnapshot.parcel.pravoStavbyId,
+                label: `ISKN ${parcelSnapshot.parcel.pravoStavbyId}`,
+              },
+            ]
+          : []),
+      ]
+    : []
 
   return (
     <DashboardShell user={session.user} isAdmin={session.user.role === 'admin'}>
@@ -77,7 +110,10 @@ function WatchDetailPage() {
             {watch.label}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {watch.kuName} ({watch.kuCode}) · ISKN {watch.isknId}
+            {objectTypeLabel(watch.objectType)}
+            {watch.objectSummary ? ` ${watch.objectSummary}` : ''}
+            {watch.kuName ? ` · ${watch.kuName}` : ''}
+            {watch.kuCode ? ` (${watch.kuCode})` : ''} · ISKN {watch.isknId}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -155,12 +191,33 @@ function WatchDetailPage() {
         <WatchNotificationRules watch={watch} />
         <WatchNeighborsPanel watchId={watch.id} />
         <WatchCheckStatus watch={watch} now={now} />
-        <WatchSnapshotPanel
-          snapshot={snapshot}
-          lastSuccessfulCheckAt={watch.lastSuccessfulCheckAt}
-          lastError={watch.lastError}
-          pollIntervalMinutes={watch.pollIntervalMinutes}
-        />
+        {snapshot && isObjectSnapshot(snapshot) ? (
+          <WatchObjectPanel
+            snapshot={snapshot}
+            lastSuccessfulCheckAt={watch.lastSuccessfulCheckAt}
+            lastError={watch.lastError}
+            pollIntervalMinutes={watch.pollIntervalMinutes}
+            watchedObjects={watchedObjects}
+          />
+        ) : (
+          <div className="space-y-4">
+            <WatchSnapshotPanel
+              snapshot={parcelSnapshot}
+              lastSuccessfulCheckAt={watch.lastSuccessfulCheckAt}
+              lastError={watch.lastError}
+              pollIntervalMinutes={watch.pollIntervalMinutes}
+            />
+            {parcelLinks.length ? (
+              <div className="rounded-xl border p-4">
+                <WatchLinkedObjects
+                  links={parcelLinks}
+                  watched={watchedObjects}
+                  pollIntervalMinutes={watch.pollIntervalMinutes}
+                />
+              </div>
+            ) : null}
+          </div>
+        )}
         <WatchRizeniPanel
           watchId={watch.id}
           rizeni={rizeni}

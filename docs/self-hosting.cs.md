@@ -173,6 +173,30 @@ a umožňuje export CSV/JSON s časem načtení dat a uvedenou aktuálností Č�
 nejnovějších 5 000 odpovídajících událostí a uvádí čas založení sledování; historie z doby
 před založením k dispozici není. Retence snapshotů a událostí zůstává otevřená (NEXT-03).
 
+## Stavby, jednotky a práva stavby
+
+Sledování nese registr katastru, který hlídá (`object_type`: `parcel`, `stavba`, `jednotka`,
+`pravo_stavby`), a ověřenou identifikaci objektu. Existující sledování parcel fungují dál
+beze změny jako `parcel`. Každý registr má vlastní sadu atributů, snapshot i diff a sleduje
+se jen to, co příslušné API skutečně vrací. Plomby, změna LV i dosledování řízení fungují
+u všech registrů stejně.
+
+Stavba a jednotka se vyhledávají podle kódu **části obce (RÚIAN)**, typu čísla (1 = popisné,
+2 = evidenční), čísla domovního a u jednotky čísla jednotky. Výsledek vyhledání je jen
+ukazatel — potvrzuje a ukládá se odpověď detailu. Kódy částí obce jsou z RÚIAN a nikdy se
+nepoužívají jako identifikátory KN; adresní místa stavby zůstávají označená jako RÚIAN.
+
+Právo stavby REST API vyhledávat neumí, přidává se podle ISKN id z detailu parcely nebo
+stavby a potvrzuje se jeho detailem. Detail parcely nabídne stavbu a právo stavby, detail
+stavby její parcely, jednotky a právo stavby, detail jednotky její stavbu. Každá vazba se
+zakládá jako samostatné sledování s vlastní historií, intervalem i pravidly upozornění;
+automaticky se nic nepřidává. Katastrální území ani parcelní čísla se u registrů, které je
+nemají, nevyplňují — v přehledech se zobrazuje ověřená identifikace objektu.
+
+Migrace `0014_object_watches` přidává sloupce registru a mění klíč unikátnosti na
+`(uživatel, registr, ISKN id)`: stejné číslo ve dvou registrech jsou dva různé objekty.
+Parcely zjednodušené evidence (PZE) zatím podporované nejsou.
+
 ## Přehled podle LV
 
 **Přehled podle LV** seskupuje objekty, které už sledujete, podle katastrálního území a čísla

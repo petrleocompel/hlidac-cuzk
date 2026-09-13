@@ -156,14 +156,16 @@ export function parseImportRows(
   }
 }
 
+/** Parcel identification of an existing watch; other registers have none. */
 export type ExistingWatchKey = {
-  kuCode: string
-  parcelNumber: number
+  kuCode: string | null
+  parcelNumber: number | null
   parcelSubdivision: number | null
   druhCislovani: number
 }
 
-function keyOf(value: ExistingWatchKey): string {
+function keyOf(value: ExistingWatchKey): string | null {
+  if (!value.kuCode || value.parcelNumber == null) return null
   return [
     value.kuCode,
     value.parcelNumber,
@@ -184,7 +186,9 @@ export function planWatchImport(
   const parsed = parseImportRows(content, format)
   if (parsed.error)
     return { rows: [], ready: 0, skipped: 0, apiCalls: 0, error: parsed.error }
-  const known = new Set(existing.map(keyOf))
+  const known = new Set(
+    existing.map(keyOf).filter((key): key is string => key !== null),
+  )
   const seen = new Set<string>()
   const rows: ImportRow[] = []
   for (const [index, raw] of parsed.raw.entries()) {
@@ -215,7 +219,7 @@ export function planWatchImport(
       parcelNumber: candidate.kmenoveCisloParcely,
       parcelSubdivision: candidate.poddeleniCislaParcely,
       druhCislovani: candidate.druhCislovani,
-    })
+    })!
     if (known.has(key)) {
       rows.push({
         line,

@@ -1,9 +1,5 @@
 import { diffRizeni, mergeRizeniDetails } from './snapshot'
-import type {
-  ParcelSnapshot,
-  RizeniProgressChange,
-  RizeniSnapshot,
-} from './snapshot'
+import type { RizeniProgressChange, RizeniSnapshot } from './snapshot'
 import { MAX_FOLLOWED_RIZENI, cuzkPolicy } from './policy'
 
 export type FollowEndReason = 'window' | 'unavailable' | 'user' | 'capacity'
@@ -43,7 +39,7 @@ export function isFollowActive(row: TrackedRizeni): boolean {
 
 /** Baseline for instances whose řízení history only exists in the last snapshot. */
 export function trackedFromSnapshot(
-  previous: ParcelSnapshot | null,
+  previous: { rizeni: RizeniSnapshot[] } | null,
   now: Date,
 ): TrackedRizeni[] {
   if (!previous) return []

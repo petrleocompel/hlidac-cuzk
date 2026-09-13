@@ -831,6 +831,32 @@ and other subscribers. Use the saved-settings test button only when you want to 
 real test message; automated tests use isolated local HTTP/SMTP servers.
 
 
+### Buildings, units and rights of superficies
+
+A subscription now carries the KN register it follows (`object_type`: `parcel`, `stavba`,
+`jednotka`, `pravo_stavby`) plus the verified identification of the object. Existing parcel
+watches keep working unchanged and stay `parcel`. Each register has its own attribute set,
+snapshot and diff; only the fields the given API really returns are stored and watched.
+Plomby, LV changes and řízení follow-up work the same way for every register.
+
+* Buildings and units are searched by **RÚIAN část obce** code, the number type (1 = číslo
+  popisné, 2 = číslo evidenční), the house number and, for a unit, the unit number. The
+  search result is only a pointer: the detail request is what gets confirmed and stored.
+  Part-of-municipality codes come from RÚIAN and are never treated as KN identifiers; a
+  building's `adresniMista` are RÚIAN address places and are stored as such.
+* Rights of superficies have no search endpoint in the REST API. They are added by the ISKN
+  id shown on the parcel, building or a linked object, and the detail confirms them.
+* A parcel detail offers its building and right of superficies, a building offers its
+  parcels, units and right of superficies, and a unit offers its building. Each link becomes
+  an independent watch with its own history, interval and notification rules; nothing is
+  subscribed automatically.
+* Katastrální území and parcel numbers stay empty for registers that do not have them, so
+  lists show the verified identification instead of invented parcel data.
+* `0014_object_watches` adds the register columns and makes the uniqueness key
+  `(user, register, ISKN id)`: the same numeric id in two registers is two different objects.
+* PZE parcels remain unsupported, and no register is discovered in bulk: every new watch is
+  an explicit user action costing one verification request.
+
 ### Portfolio overview by LV
 
 **Přehled podle LV** groups the objects a user already watches by katastrální území and by

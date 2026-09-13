@@ -11,11 +11,12 @@ import {
   CardHeader,
   CardTitle,
 } from '#/components/ui/card'
+import { formatLvLabel, formatParcelNumber } from '#/lib/cuzk/snapshot'
 import {
-  formatLvLabel,
-  formatParcelNumber,
-  parseSnapshot,
-} from '#/lib/cuzk/snapshot'
+  describeWatchObject,
+  isObjectSnapshot,
+  parseWatchSnapshot,
+} from '#/lib/cuzk/object-snapshot'
 import {
   dataAge,
   formatCheckTime,
@@ -72,9 +73,11 @@ function DashboardPage() {
       ) : (
         <ul className="space-y-3">
           {watches.map((w) => {
-            const snapshot = parseSnapshot(w.lastSnapshotJson)
-            const plomby = snapshot?.rizeni.length ?? 0
-            const vklady = snapshot?.rizeni.filter((r) => r.isVklad).length ?? 0
+            const stored = parseWatchSnapshot(w.lastSnapshotJson)
+            const snapshot = stored && !isObjectSnapshot(stored) ? stored : null
+            const object = stored && isObjectSnapshot(stored) ? stored : null
+            const plomby = stored?.rizeni.length ?? 0
+            const vklady = stored?.rizeni.filter((r) => r.isVklad).length ?? 0
             return (
               <li key={w.id}>
                 <Link
@@ -86,16 +89,26 @@ function DashboardPage() {
                     <div>
                       <p className="font-medium">{w.label}</p>
                       <p className="text-sm text-muted-foreground">
-                        {w.kuName} ({w.kuCode}) ·{' '}
-                        {w.parcelSubdivision != null
-                          ? `${w.parcelNumber}/${w.parcelSubdivision}`
-                          : String(w.parcelNumber)}
+                        {describeWatchObject(w)}
                       </p>
                     </div>
                     <Badge variant={w.enabled ? 'secondary' : 'outline'}>
                       {w.enabled ? 'aktivní' : 'vypnuto'}
                     </Badge>
                   </div>
+
+                  {object ? (
+                    <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+                      <p>
+                        <span className="text-muted-foreground">LV </span>
+                        {formatLvLabel(object.object.lv)}
+                      </p>
+                      <p className="sm:col-span-2">
+                        <span className="text-muted-foreground">Objekt </span>
+                        {object.object.summary}
+                      </p>
+                    </div>
+                  ) : null}
 
                   {snapshot && snapshot.parcel.id ? (
                     <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">

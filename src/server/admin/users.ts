@@ -49,9 +49,11 @@ export type AdminUserDetail = {
   watches: Array<{
     id: string
     label: string
-    kuName: string
-    kuCode: string
-    parcelNumber: number
+    objectType: string
+    objectSummary: string | null
+    kuName: string | null
+    kuCode: string | null
+    parcelNumber: number | null
     parcelSubdivision: number | null
     isknId: string
     enabled: boolean
@@ -192,6 +194,8 @@ export const getUserAdmin = createServerFn({ method: 'GET' })
       watches: watches.map((w) => ({
         id: w.id,
         label: w.label,
+        objectType: w.objectType,
+        objectSummary: w.objectSummary,
         kuName: w.kuName,
         kuCode: w.kuCode,
         parcelNumber: w.parcelNumber,

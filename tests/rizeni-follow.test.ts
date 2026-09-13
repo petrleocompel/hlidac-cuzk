@@ -275,33 +275,9 @@ describe('reconciling tracked rizeni', () => {
 
 describe('tracked sources', () => {
   it('seeds missing rows from the last snapshot and prefers stored rows', () => {
+    // Any stored snapshot shape works: only its plomby matter for seeding.
     const seeded = trackedFromSnapshot(
-      {
-        version: 1,
-        fetchedAt: NOW.toISOString(),
-        aktualnostDatK: null,
-        parcel: {
-          id: '1',
-          typParcely: 'PKN',
-          druhCislovaniParcely: 2,
-          kmenoveCisloParcely: 1133,
-          poddeleniCislaParcely: 77,
-          kuKod: 777552,
-          kuNazev: 'Vejprnice',
-          vymera: 976,
-          lv: null,
-          mapovyList: null,
-          zpusobUrceniVymery: null,
-          druhPozemku: null,
-          zpusobVyuziti: null,
-          zpusobyOchrany: [],
-          bpej: [],
-          definicniBod: null,
-          stavbaId: null,
-          pravoStavbyId: null,
-        },
-        rizeni: [detail(), detail({ id: 701 })],
-      },
+      { rizeni: [detail(), detail({ id: 701 })] },
       NOW,
     )
     expect(seeded.map((row) => row.rizeniId)).toEqual(['700', '701'])

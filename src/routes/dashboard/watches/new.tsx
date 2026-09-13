@@ -13,6 +13,7 @@ import {
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { WatchImportCard } from '#/components/watch/watch-import-card'
+import { WatchObjectFormCard } from '#/components/watch/watch-object-form-card'
 import { lookupParcel, searchKu } from '#/server/cuzk'
 import type { ParcelLookup } from '#/lib/cuzk/watch-create'
 import { createWatch } from '#/server/watches'
@@ -286,6 +287,8 @@ function NewWatchPage() {
             </form>
           </CardContent>
         </Card>
+
+        <WatchObjectFormCard />
 
         <WatchImportCard />
       </div>

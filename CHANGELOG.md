@@ -2,6 +2,12 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Buildings, units and rights of superficies can be watched as objects of their own, next to
+  parcels. Each register has its own attributes, snapshot and diff, and only the data the
+  given API returns is stored. Buildings and units are searched by RÚIAN část obce, number
+  type and house/unit number; rights of superficies are added by the ISKN id a related object
+  shows. A parcel, building or unit detail offers its linked objects as separate watches.
+- Existing parcel watches are unchanged; uniqueness is now per user, register and ISKN id.
 - New **Přehled podle LV** groups the objects a user already watches by katastrální území and
   LV number with the latest ten events per group. It queries no ČÚZK data, says plainly that
   it is not the complete contents of an LV, discovers no property on its own and does not
@@ -52,9 +58,10 @@
 
 ### Migration from d63f2c9 (schema 0008)
 
-The upgrade adds `0009_backup_status`, `0010_watch_rizeni`, `0011_event_history` and
-`0012_watch_uniqueness` (which consolidates duplicate watches while preserving their histories and deliveries)
-and `0013_notification_rules`. Existing accounts, watches, events and pending
+The upgrade adds `0009_backup_status`, `0010_watch_rizeni`, `0011_event_history`,
+`0012_watch_uniqueness` (which consolidates duplicate watches while preserving their
+histories and deliveries), `0013_notification_rules` and `0014_object_watches` (watched
+register plus uniqueness per user, register and ISKN id). Existing accounts, watches, events and pending
 notification deliveries are preserved. Back up the database and configuration/keys first;
 use the pinned image and the [upgrade procedure](docs/self-hosting.md#upgrade). The regression
 test upgrades the previous schema and checks both preserved data and rejected startup after

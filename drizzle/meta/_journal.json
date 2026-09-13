@@ -99,6 +99,13 @@
       "when": 1789277962508,
       "tag": "0013_notification_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789300756976,
+      "tag": "0014_object_watches",
+      "breakpoints": true
     }
   ]
 }
