@@ -22,21 +22,9 @@ import type { ObjectSnapshot, ObjectType } from './object-snapshot'
 import { CuzkUnavailableError } from './policy'
 import { insertWatchWithinLimit } from './watch-limits'
 import type { ImportPlan, ImportRow } from './watch-import'
+import type { VerifiedParcel } from './neighbor-types'
 
-/** Identification taken from a verified ČÚZK answer, never from user input. */
-export type VerifiedParcel = {
-  isknId: string
-  kuCode: string
-  kuName: string
-  parcelNumber: number
-  parcelSubdivision: number | null
-  druhCislovani: number
-  typParcely: string | null
-  vymera: number | null
-  druhPozemku: string | null
-  lvCislo: number | null
-  plomby: number | null
-}
+export type { VerifiedParcel } from './neighbor-types'
 
 function requireIdentification(value: {
   isknId: string | null

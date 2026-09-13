@@ -24,7 +24,20 @@ const config = defineConfig(({ mode }) => ({
     devtools(),
     nitro({ rollupConfig: { external: [/^@sentry\//] } }),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      importProtection: {
+        client: {
+          // Keep Node DB drivers and the app DB module out of browser chunks.
+          // Defaults for *.server.* remain; these are additive deny rules.
+          files: ['**/*.server.*', '**/db/index.ts'],
+          specifiers: [
+            '@tanstack/react-start/server',
+            'postgres',
+            'drizzle-orm/postgres-js',
+          ],
+        },
+      },
+    }),
     viteReact(),
   ],
 }))

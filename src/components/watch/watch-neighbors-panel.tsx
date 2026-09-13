@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useRouter } from '@tanstack/react-router'
 import { Button } from '#/components/ui/button'
 import { addNeighbors, getNeighbors } from '#/server/neighbors'
-import type { NeighborPreview } from '#/lib/cuzk/neighbors'
+import type { NeighborPreview } from '#/lib/cuzk/neighbor-types'
 
 export function WatchNeighborsPanel({ watchId }: { watchId: string }) {
   const router = useRouter()

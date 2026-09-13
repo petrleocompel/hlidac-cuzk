@@ -4,18 +4,22 @@ import { db } from '#/db'
 import { parcelWatches, user } from '#/db/schema'
 import { getNeighborParcels } from './client'
 import { verifiedFromParcela } from './watch-create'
-import type { VerifiedParcel } from './watch-create'
+import type { VerifiedParcel } from './neighbor-types'
+import {
+  MAX_NEIGHBOR_SELECTION,
+  NeighborSelection,
+} from './neighbor-types'
 import { cuzkPolicy, DAILY_API_LIMIT, DEFAULT_POLL_MINUTES } from './policy'
 
-export const MAX_NEIGHBOR_SELECTION = 20
+export {
+  MAX_NEIGHBOR_SELECTION,
+  NeighborSelection,
+  type NeighborPreview,
+  type NeighborSelectionInput,
+  type VerifiedParcel,
+} from './neighbor-types'
+
 const MAX_PREVIEW = 100
-export const NeighborSelection = z.object({
-  watchId: z.string().uuid(),
-  ids: z
-    .array(z.string().regex(/^[1-9]\d{0,27}$/))
-    .min(1)
-    .max(MAX_NEIGHBOR_SELECTION),
-})
 
 async function ownedWatch(userId: string, watchId: string) {
   const watch = await db.query.parcelWatches.findFirst({
@@ -79,7 +83,6 @@ export async function previewNeighbors(userId: string, watchId: string) {
     dailyLimit: DAILY_API_LIMIT,
   }
 }
-export type NeighborPreview = Awaited<ReturnType<typeof previewNeighbors>>
 
 /**
  * Confirm against a fresh server answer, never client-supplied identification.

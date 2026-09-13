@@ -20,7 +20,7 @@ import {
 import {
   addSelectedNeighbors,
   previewNeighbors,
-} from '../../src/lib/cuzk/neighbors'
+} from '../../src/lib/cuzk/neighbors.server'
 
 let watchId: string
 let calls = 0

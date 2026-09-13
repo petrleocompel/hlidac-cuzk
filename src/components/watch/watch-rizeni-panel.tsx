@@ -12,7 +12,7 @@ import {
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { followRizeni, unfollowRizeni } from '#/server/rizeni'
-import type { TrackedRizeniDto } from '#/server/rizeni'
+import type { TrackedRizeniDto } from '#/lib/cuzk/rizeni-dto'
 import { TYPY_RIZENI } from '#/lib/cuzk/rizeni-codes'
 import type { TypRizeni } from '#/lib/cuzk/rizeni-codes'
 import { rizeniTypeLabel, stavUhradyLabel } from '#/lib/cuzk/snapshot'

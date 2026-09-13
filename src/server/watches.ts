@@ -30,8 +30,7 @@ import type {
   WatchHistoryExport,
 } from '#/lib/watch-history'
 import { followDays } from '#/lib/cuzk/rizeni-follow'
-import { listTrackedRizeni } from './rizeni'
-import type { TrackedRizeniDto } from './rizeni'
+import type { TrackedRizeniDto } from '#/lib/cuzk/rizeni-dto'
 
 const PollIntervalInput = z.coerce
   .number()
@@ -180,6 +179,7 @@ export const getWatch = createServerFn({ method: 'GET' })
       })
       if (!watch) throw new Error('not_found')
       const page = await readEventPage(watch.id, {})
+      const { listTrackedRizeni } = await import('./rizeni.server')
       return {
         watch: toWatchDto(watch),
         events: page.events,
