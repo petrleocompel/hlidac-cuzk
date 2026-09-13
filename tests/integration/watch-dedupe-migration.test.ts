@@ -109,6 +109,13 @@ it('keeps the richest duplicate watch and then enforces one watch per object', a
   )
   await client`insert into watch_events (watch_id, kind, payload_json) values (${withHistory}, 'parcel_attrs', '{"fields":["vymera"]}')`
 
+  // A shorter history on the discarded row must also survive, including jobs.
+  const [olderEvent] =
+    await client`insert into watch_events (watch_id, kind, payload_json) values (${oldest}, 'lv_change', '{}') returning id`
+  await client`insert into notification_deliveries (event_id, channel, title, message) values (${olderEvent.id}, 'gotify', 'Fixture', 'Pending fixture')`
+  await client`insert into watch_events (watch_id, kind, payload_json) values (${withHistory}, 'new_rizeni', '{}')`
+  await client`insert into watch_rizeni (watch_id, rizeni_id) values (${oldest}, 'unique-old'), (${oldest}, 'shared'), (${withHistory}, 'shared')`
+
   await migrateUpTo(99)
 
   const rows = await client`select id, label from parcel_watches order by label`
@@ -124,7 +131,16 @@ it('keeps the richest duplicate watch and then enforces one watch per object', a
   // The preserved row keeps its history.
   expect(
     await client`select count(*)::int as total from watch_events where watch_id = ${withHistory}`,
-  ).toMatchObject([{ total: 1 }])
+  ).toMatchObject([{ total: 3 }])
+  expect(
+    await client`select status, event_id from notification_deliveries`,
+  ).toMatchObject([{ status: 'pending', event_id: olderEvent.id }])
+  expect(
+    await client`select watch_id, rizeni_id from watch_rizeni order by rizeni_id`,
+  ).toEqual([
+    { watch_id: withHistory, rizeni_id: 'shared' },
+    { watch_id: withHistory, rizeni_id: 'unique-old' },
+  ])
   await expect(
     insert('dedupe-owner', 'Now rejected', '1', '2026-03-01T00:00:00Z'),
   ).rejects.toMatchObject({ code: '23505' })

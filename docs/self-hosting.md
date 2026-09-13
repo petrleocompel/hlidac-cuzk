@@ -362,8 +362,10 @@ watched or repeated inside the file are skipped. At most 200 rows per file.
 
 One user can watch one object only once: `0012_watch_uniqueness` adds a unique index on
 `(user_id, iskn_id)`. Pre-existing duplicates are reduced first — the row with the most
-recorded events (then the oldest) is kept and the others are deleted, so back up before the
-upgrade if you intentionally kept duplicates.
+recorded events (then the oldest) supplies the surviving name and settings. All events and
+their notification jobs are moved to it before removing the other subscriptions. Distinct
+tracked procedures survive; overlapping procedure trackers keep the most recently fetched
+state. Back up first and stop writers during this migration.
 
 ### Change history
 

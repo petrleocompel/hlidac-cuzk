@@ -22,7 +22,8 @@
 - New CSV/JSON bulk import with a preview that spends no ČÚZK call, per-row errors with line
   numbers, duplicate detection and one verification call per imported row.
 - One user can watch one object only once; the upgrade reduces existing duplicates to the row
-  with the most recorded events before adding the unique index.
+  with the most recorded events before adding the unique index. All histories, pending
+  deliveries and distinct tracked procedures are transferred before removing duplicates.
 - AMD64 and ARM64 images must pass a real Compose installation smoke test before publishing.
 - Web, worker and migrations run as UID 1000 with read-only storage; runtime dependencies
   are installed separately and pnpm is preloaded for startup without a registry connection.
@@ -38,7 +39,7 @@
 ### Migration from d63f2c9 (schema 0008)
 
 The upgrade adds `0009_backup_status`, `0010_watch_rizeni`, `0011_event_history` and
-`0012_watch_uniqueness` (which deletes duplicate watches of the same object per user). Existing accounts, watches, events and pending
+`0012_watch_uniqueness` (which consolidates duplicate watches while preserving their histories and deliveries). Existing accounts, watches, events and pending
 notification deliveries are preserved. Back up the database and configuration/keys first;
 use the pinned image and the [upgrade procedure](docs/self-hosting.md#upgrade). The regression
 test upgrades the previous schema and checks both preserved data and rejected startup after
