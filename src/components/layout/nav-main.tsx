@@ -38,6 +38,7 @@ type NavItem = {
 }
 
 const mainNav: NavItem[] = [
+  { title: 'Mapa sledování', to: '/dashboard/map', icon: MapPinned },
   {
     title: 'Sledování',
     to: '/dashboard',

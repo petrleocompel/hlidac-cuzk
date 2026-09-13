@@ -269,3 +269,18 @@ describe('identification line', () => {
     expect(describeWatchObject({ objectType: 'parcel' })).toBe('Parcela')
   })
 })
+
+it('preserves a supported building point and rejects unsupported historical coordinates', () => {
+  const stored = parseWatchSnapshot(
+    object({ definicniBod: { x: -743305, y: -1043590 } }),
+  )
+  expect(
+    stored && isObjectSnapshot(stored) && stored.object.definicniBod,
+  ).toEqual({ x: -743305, y: -1043590 })
+  const invalid = parseWatchSnapshot(
+    object({ definicniBod: { x: 743305, y: 1043590 } }),
+  )
+  expect(
+    invalid && isObjectSnapshot(invalid) && invalid.object.definicniBod,
+  ).toBeNull()
+})

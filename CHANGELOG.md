@@ -2,6 +2,11 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Optional cadastral map on watch details and the overview, with orthophoto, stored definition
+  points and exact parcel geometry from INSPIRE CP. Click or keyboard center selection offers
+  a parcel for explicit verification and daily subscription. Map failure preserves text details.
+- Development/tests require Node 22.13 or later (including the DOM geometry test environment).
+
 - GitLab container job builds, smokes and publishes `linux/amd64` only; multiarch
   `linux/amd64,linux/arm64` remains on GitHub Actions / GHCR.
 - Watches can be added by address: RÚIAN suggests address places, the exact match yields the

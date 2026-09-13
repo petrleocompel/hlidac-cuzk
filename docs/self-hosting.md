@@ -913,3 +913,44 @@ PZE and incomplete definitions cannot be added through this flow. No migration i
 
 Contract checked against the [official OpenAPI](https://api-kn.cuzk.gov.cz/swagger/v1.0/swagger.json)
 on 13 September 2026; integration tests use a local fixture and never query live parcels.
+
+## Cadastral map
+
+Open **Mapa sledování** or the map section on any watch detail. Map assets are bundled
+locally, while map data is requested directly by the browser only after opening the map.
+ČÚZK consequently receives the client's IP and the requested map extent/object identifier;
+private watch names and notification credentials are never included in those requests.
+There is no additional map API key. Closing the map cancels its geometry request.
+
+The cadastral base is WMS `KN` (or `KN_I` over orthophoto); orthophoto uses layer `0`.
+Geometry uses WFS 2.0 INSPIRE CP. All sources use EPSG:5514, east/north in metres,
+so the app performs no approximate reprojection. A definition point is not a boundary.
+Unsupported coordinates stay unlocated. Existing building snapshots acquire a point on their
+next regular check; units/rights without a supplied point remain in the text list.
+
+Select an owned parcel in the list to retrieve its exact `CP.<ISKN id>` polygon.
+Click at a close zoom or use **Vybrat parcelu uprostřed mapy** after keyboard navigation.
+`GetFeatureByPoint` can return a nearby parcel: inspect its number and outline before
+confirming. Adding always uses the existing authenticated KN verification and the 500/day
+instance budget. WMS/WFS requests are separate public services outside this REST counter.
+Each new watch defaults to daily checking; retries and procedure details can add API calls.
+
+WFS is bounded to 15 seconds, 2 MB and 20 returned objects. A five-minute browser cache
+holds at most 100 public queries. Failed/truncated responses are rejected; geometry absence
+is not a claim of parcel disappearance. A highlighted polygon is visual information, not a
+survey. The UI distinguishes map retrieval time from the saved KN source timestamp and
+warns that imagery dates vary by area. Failed layers, geometry or map loading leave text
+pages available. Links to Nahlížení target the parcel's ISKN id; CAPTCHA may be required
+there, and the application does not automate it.
+
+Public contracts verified 13 September 2026:
+
+- [REST KN OpenAPI: DefinicniBod EPSG:5514](https://api-kn.cuzk.gov.cz/swagger/v1.0/swagger.json)
+- [WMS KN capabilities](https://services.cuzk.gov.cz/wms/local-km-wms.asp?service=WMS&request=GetCapabilities&version=1.3.0)
+- [Orthophoto capabilities](https://ags.cuzk.gov.cz/arcgis1/services/ORTOFOTO/MapServer/WMSServer?service=WMS&request=GetCapabilities&version=1.3.0)
+- [INSPIRE CP download queries and limits](https://services.cuzk.cz/doc/inspire-cp-download.pdf)
+- [ČÚZK map service catalogue](https://services.cuzk.gov.cz/)
+
+The layout adapts to the available width and provides labelled controls, a keyboard center
+selection and a text alternative. Automated geometry and HTTP checks passed; a visual
+mobile/browser review was unavailable in the implementation environment.

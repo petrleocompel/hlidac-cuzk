@@ -1,3 +1,4 @@
+import { WatchMap } from '#/components/watch/watch-map'
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { RefreshCw } from 'lucide-react'
 import { useState } from 'react'
@@ -191,6 +192,7 @@ function WatchDetailPage() {
         <WatchNotificationRules watch={watch} />
         <WatchNeighborsPanel watchId={watch.id} />
         <WatchCheckStatus watch={watch} now={now} />
+        <WatchMap watches={[watch]} />
         {snapshot && isObjectSnapshot(snapshot) ? (
           <WatchObjectPanel
             snapshot={snapshot}

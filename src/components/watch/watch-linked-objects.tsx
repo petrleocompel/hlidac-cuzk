@@ -26,10 +26,12 @@ export function WatchLinkedObjects({
   links,
   watched,
   pollIntervalMinutes,
+  heading = 'Navázané objekty v katastru',
 }: {
   links: LinkedObject[]
   watched: WatchedObject[]
   pollIntervalMinutes: number
+  heading?: string
 }) {
   const router = useRouter()
   const [pending, setPending] = useState<string | null>(null)
@@ -43,7 +45,7 @@ export function WatchLinkedObjects({
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Navázané objekty v katastru
+        {heading}
       </p>
       <ul className="space-y-2 text-sm">
         {links.map((link) => {

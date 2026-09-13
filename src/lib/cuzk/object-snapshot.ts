@@ -1,3 +1,4 @@
+import { mapPoint } from '../map/coordinates'
 import {
   buildParcelSnapshot,
   collectRizeniSnapshots,
@@ -66,6 +67,7 @@ export type ObjectSnapshot = {
     id: string
     /** Verified identification shown to the user, never invented locally. */
     summary: string
+    definicniBod?: { x: number | null; y: number | null } | null
     kuKod: number | null
     kuNazev: string | null
     lv: LvSnapshot | null
@@ -317,6 +319,15 @@ export async function objectSnapshotFrom(
     fetchedAt: now.toISOString(),
     aktualnostDatK: response.aktualnostDatK ?? null,
     object: {
+      definicniBod:
+        objectType === 'stavba'
+          ? (data as Stavba).definicniBod
+            ? {
+                x: (data as Stavba).definicniBod?.x ?? null,
+                y: (data as Stavba).definicniBod?.y ?? null,
+              }
+            : null
+          : null,
       id: data.id != null ? String(data.id) : '',
       summary: detail.summary,
       kuKod: lv?.kuKod ?? null,
@@ -421,6 +432,9 @@ export function parseWatchSnapshot(raw: unknown): WatchSnapshot | null {
     aktualnostDatK:
       typeof value.aktualnostDatK === 'string' ? value.aktualnostDatK : null,
     object: {
+      definicniBod: mapPoint(object.definicniBod)
+        ? (object.definicniBod as { x: number; y: number })
+        : null,
       id: typeof object.id === 'string' ? object.id : '',
       summary: typeof object.summary === 'string' ? object.summary : '',
       kuKod: typeof object.kuKod === 'number' ? object.kuKod : null,

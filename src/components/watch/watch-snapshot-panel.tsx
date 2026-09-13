@@ -117,7 +117,7 @@ export function WatchSnapshotPanel({
             <Fact label="Mapový list" value={p.mapovyList} />
           </dl>
           <a
-            href="https://nahlizenidokn.cuzk.gov.cz/"
+            href={`https://nahlizenidokn.cuzk.gov.cz/ZobrazObjekt.aspx?typ=parcela&id=${encodeURIComponent(p.id)}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
