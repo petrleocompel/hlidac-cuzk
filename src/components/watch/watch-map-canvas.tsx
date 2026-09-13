@@ -1,3 +1,4 @@
+import type { GeometryQuery } from '#/lib/map/coordinates'
 import { cadastralProjection as projection } from '#/lib/map/projection'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
@@ -42,9 +43,7 @@ export default function WatchMapCanvas({ watches }: { watches: WatchDto[] }) {
     map: Map
     ortho: TileLayer<TileWMS>
     kn: TileWMS
-    select: (
-      query: { id: string } | { point: [number, number] },
-    ) => Promise<void>
+    select: (query: GeometryQuery) => Promise<void>
   } | null>(null)
   const watchesRef = useRef(watches)
   watchesRef.current = watches
@@ -123,9 +122,7 @@ export default function WatchMapCanvas({ watches }: { watches: WatchDto[] }) {
         maxZoom: 18,
         minResolution: 1,
       })
-    const select = async (
-      query: { id: string } | { point: [number, number] },
-    ) => {
+    const select = async (query: GeometryQuery) => {
       request?.abort()
       const current = new AbortController()
       request = current
@@ -235,6 +232,29 @@ export default function WatchMapCanvas({ watches }: { watches: WatchDto[] }) {
       >
         Vybrat parcelu uprostřed mapy
       </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={() => {
+          const current = api.current
+          if (!current) return
+          const extent = current.map
+            .getView()
+            .calculateExtent(current.map.getSize())
+          void current.select({
+            extent: [extent[0], extent[1], extent[2], extent[3]],
+          })
+        }}
+      >
+        Vybrat parcely v zobrazeném výřezu
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Výběr oblasti: nejvýše 1 × 1 km a 20 parcel. Jde o průnik geometrie s
+        výřezem, i parcela přesahující okraj může být zahrnuta. Při překročení
+        limitu výřez zmenšete. Nabídnuté parcely přidáváte jednotlivě; mapa sama
+        nové odběry nezaloží.
+      </p>
       <p role="status" className="text-sm">
         {message}
       </p>

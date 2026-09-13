@@ -954,3 +954,14 @@ Public contracts verified 13 September 2026:
 The layout adapts to the available width and provides labelled controls, a keyboard center
 selection and a text alternative. Automated geometry and HTTP checks passed; a visual
 mobile/browser review was unavailable in the implementation environment.
+
+### Area selection
+
+**Vybrat parcely v zobrazeném výřezu** queries INSPIRE CP geometry intersecting the
+visible map rectangle, bounded to 1 × 1 km and 20 parcels. Parcels crossing its border
+can be included. Invalid/oversized extents are rejected before fetching, and WFS truncated
+responses must be retried with a smaller view. Each displayed parcel still requires a
+separate confirmation and KN verification before it becomes a daily watch. This does not
+use the REST polygon endpoint, which searches definition points. Rights-of-superficies
+expiry reminders remain pending verification of a real source response; dates shown in
+the detail currently cause no scheduled reminder.

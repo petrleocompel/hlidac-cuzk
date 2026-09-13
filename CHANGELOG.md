@@ -2,6 +2,8 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Bounded map-area preview (1 × 1 km, up to 20 parcel geometries) with individual confirmations.
+
 - Optional cadastral map on watch details and the overview, with orthophoto, stored definition
   points and exact parcel geometry from INSPIRE CP. Click or keyboard center selection offers
   a parcel for explicit verification and daily subscription. Map failure preserves text details.

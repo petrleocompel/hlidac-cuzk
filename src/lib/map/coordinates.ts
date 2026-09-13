@@ -26,9 +26,11 @@ export function parcelIdFromFeature(id: unknown): string | null {
     : null
 }
 export const WFS_URL = 'https://services.cuzk.gov.cz/wfs/inspire-cp-wfs.asp'
-export function parcelGeometryUrl(
-  query: { id: string } | { point: [number, number] },
-): string {
+export type GeometryQuery =
+  | { id: string }
+  | { point: [number, number] }
+  | { extent: [number, number, number, number] }
+export function parcelGeometryUrl(query: GeometryQuery): string {
   const url = new URL(WFS_URL)
   const params = url.searchParams
   params.set('service', 'WFS')
@@ -41,6 +43,23 @@ export function parcelGeometryUrl(
       throw new Error('Neplatné ID parcely.')
     params.set('storedQuery_id', 'GetFeatureById')
     params.set('ID', `CP.${query.id}`)
+  } else if ('extent' in query) {
+    const [west, south, east, north] = query.extent
+    if (
+      !mapPoint({ x: west, y: south }) ||
+      !mapPoint({ x: east, y: north }) ||
+      east <= west ||
+      north <= south ||
+      east - west > 1000 ||
+      north - south > 1000
+    )
+      throw new Error('Zmenšete výřez mapy nejvýše na 1 × 1 km.')
+    params.set('typeNames', 'cp:CadastralParcel')
+    params.set(
+      'bbox',
+      query.extent.map((value) => value.toFixed(2)).join(',') +
+        ',http://www.opengis.net/def/crs/EPSG/0/5514',
+    )
   } else {
     const [x, y] = query.point
     if (!mapPoint({ x, y })) throw new Error('Bod je mimo podporované území.')

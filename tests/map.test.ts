@@ -101,3 +101,50 @@ describe('parcel map', () => {
     ).toHaveLength(1)
   })
 })
+
+it('bounds an area query before network access and uses the geometry BBOX', async () => {
+  const url = new URL(
+    parcelGeometryUrl({ extent: [-744000, -1044000, -743000, -1043000] }),
+  )
+  expect(url.searchParams.get('bbox')).toBe(
+    '-744000.00,-1044000.00,-743000.00,-1043000.00,http://www.opengis.net/def/crs/EPSG/0/5514',
+  )
+  expect(url.searchParams.get('typeNames')).toBe('cp:CadastralParcel')
+  const fetcher = vi.fn()
+  vi.stubGlobal('fetch', fetcher)
+  for (const extent of [
+    [-744001, -1044000, -743000, -1043000],
+    [-743000, -1044000, -744000, -1043000],
+    [-743000, -1044000, -743000, -1043000],
+    [-744000, -1044000, NaN, -1043000],
+  ]) {
+    await expect(
+      loadParcelGeometry(
+        { extent: extent as [number, number, number, number] },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow()
+  }
+  expect(fetcher).not.toHaveBeenCalled()
+})
+it('rejects a truncated area response even when it contains valid parcels', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          fixture('401').replace(
+            '</wfs:FeatureCollection>',
+            '<truncatedResponse><ExceptionReport><Exception>too many</Exception></ExceptionReport></truncatedResponse></wfs:FeatureCollection>',
+          ),
+        ),
+      ),
+  )
+  await expect(
+    loadParcelGeometry(
+      { extent: [-744000, -1044000, -743000, -1043000] },
+      new AbortController().signal,
+    ),
+  ).rejects.toThrow('neúplný')
+})

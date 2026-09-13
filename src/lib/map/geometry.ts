@@ -59,6 +59,7 @@ export async function loadParcelGeometry(
     dataProjection: 'EPSG:5514',
     featureProjection: 'EPSG:5514',
   })
+  if (features.length > 20) throw new Error('Výběr obsahuje více než 20 parcel. Zmenšete výřez.')
   // INSPIRE CP also has referencePoint; OL otherwise selects the last geometry.
   for (const feature of features) feature.setGeometryName('geometry')
   if (cache.size >= 100) cache.delete(cache.keys().next().value!)
