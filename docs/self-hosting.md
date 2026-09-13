@@ -733,12 +733,14 @@ See the [network dependency table](self-hosting.cs.md#síťové-závislosti).
 
 ## ARM64, runtime permissions and container storage
 
-Release workflows build and smoke-test the application for `linux/amd64` and
-`linux/arm64` before publishing the multiarch manifest. Docker selects the platform for
-your host; inspect a published reference with `docker buildx imagetools inspect IMAGE`.
-Building uses the native builder for architecture-independent JS/assets and installs
-runtime dependencies for the target platform. QEMU is used for cross-architecture CI
-smoke tests; native hardware testing remains useful for performance. See
+Release workflows publish a multiarch manifest for `linux/amd64` and `linux/arm64`.
+GitHub Actions smoke-tests both architectures under QEMU before that publish. GitLab
+CI smoke-tests the runner's native architecture (Compose cannot reliably exec
+cross-arch images in this DinD setup) and still builds both platforms on push.
+Docker selects the platform for your host; inspect a published reference with
+`docker buildx imagetools inspect IMAGE`. Building uses the native builder for
+architecture-independent JS/assets and installs runtime dependencies for the target
+platform. Native hardware testing remains useful for performance. See
 [Docker multi-platform builds](https://docs.docker.com/build/building/multi-platform/).
 
 App, migration and worker containers run as `node` (UID/GID 1000), with an init process,

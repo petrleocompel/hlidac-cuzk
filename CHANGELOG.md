@@ -2,6 +2,9 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- GitLab container job smoke-tests the runner's native architecture only; DinD on the
+  builder cannot exec loaded ARM64 app images even with binfmt registered. Multiarch
+  `linux/amd64,linux/arm64` publish is unchanged; GitHub Actions still smokes both.
 - Watches can be added by address: RÚIAN suggests address places, the exact match yields the
   address place code and ČÚZK turns it into the building, which is offered together with its
   units and parcels. An ambiguous or unmatched address is confirmed by the user; coordinates
