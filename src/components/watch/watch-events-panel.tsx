@@ -6,11 +6,11 @@ import {
   listWatchEvents,
   retryDelivery,
 } from '#/server/watches'
-import { EVENT_KINDS, EXPORT_LIMIT } from '#/lib/watch-history'
+import { EVENT_KINDS, EXPORT_LIMIT } from '#/lib/watch-event'
 import type {
   NotificationDeliveryDto,
   WatchEventDto,
-} from '#/lib/watch-history'
+} from '#/lib/watch-event'
 import { Badge } from '#/components/ui/badge'
 import {
   Card,

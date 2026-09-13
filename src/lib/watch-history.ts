@@ -4,49 +4,28 @@ import { watchEvents } from '#/db/schema'
 import type { NotificationDelivery, WatchEvent } from '#/db/schema'
 import { summarizeEvent } from '#/lib/notifications/message'
 import { csvRows } from '#/lib/csv'
+import { EXPORT_LIMIT } from '#/lib/watch-event'
+import type {
+  NotificationDeliveryDto,
+  WatchEventDto,
+  WatchEventPage,
+  WatchHistoryExport,
+} from '#/lib/watch-event'
+
+export {
+  EVENT_KINDS,
+  EXPORT_LIMIT,
+  type NotificationDeliveryDto,
+  type WatchEventDto,
+  type WatchEventPage,
+  type WatchHistoryExport,
+} from '#/lib/watch-event'
 
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
 
 function asJson(value: unknown): Json {
   return (value ?? null) as Json
 }
-
-export type NotificationDeliveryDto = {
-  id: string
-  channel: NotificationDelivery['channel']
-  status: NotificationDelivery['status']
-  attemptCount: number
-  nextAttemptAt: string
-  sentAt: string | null
-  lastError: string | null
-}
-
-export type WatchEventDto = {
-  id: string
-  watchId: string
-  deliveries: NotificationDeliveryDto[]
-  kind: string
-  payloadJson: Json
-  /** When the data behind this change was read, and its ČÚZK actuality. */
-  dataFetchedAt: string | null
-  dataAsOf: string | null
-  createdAt: string
-}
-
-export type WatchEventPage = {
-  events: WatchEventDto[]
-  total: number
-  limit: number
-  offset: number
-}
-
-export const EVENT_KINDS = [
-  'new_rizeni',
-  'rizeni_progress',
-  'lv_change',
-  'parcel_attrs',
-  'error',
-] as const
 
 type EventRow = Omit<WatchEvent, 'snapshotJson'> & {
   deliveries: NotificationDelivery[]
@@ -60,15 +39,17 @@ function toEventDto(row: EventRow): WatchEventDto {
     watchId: row.watchId,
     dataFetchedAt: row.dataFetchedAt ?? null,
     dataAsOf: row.dataAsOf ?? null,
-    deliveries: row.deliveries.map((delivery) => ({
-      id: delivery.id,
-      channel: delivery.channel,
-      status: delivery.status,
-      attemptCount: delivery.attemptCount,
-      nextAttemptAt: delivery.nextAttemptAt.toISOString(),
-      sentAt: delivery.sentAt?.toISOString() ?? null,
-      lastError: delivery.lastError,
-    })),
+    deliveries: row.deliveries.map(
+      (delivery): NotificationDeliveryDto => ({
+        id: delivery.id,
+        channel: delivery.channel,
+        status: delivery.status,
+        attemptCount: delivery.attemptCount,
+        nextAttemptAt: delivery.nextAttemptAt.toISOString(),
+        sentAt: delivery.sentAt?.toISOString() ?? null,
+        lastError: delivery.lastError,
+      }),
+    ),
     kind: row.kind,
     payloadJson: asJson(row.payloadJson),
     createdAt: row.createdAt.toISOString(),
@@ -129,15 +110,6 @@ export async function readEventPage(
     limit,
     offset,
   }
-}
-
-export const EXPORT_LIMIT = 5000
-
-export type WatchHistoryExport = {
-  filename: string
-  mime: string
-  content: string
-  truncated: boolean
 }
 
 /**

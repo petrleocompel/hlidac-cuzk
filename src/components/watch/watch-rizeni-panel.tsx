@@ -13,8 +13,8 @@ import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { followRizeni, unfollowRizeni } from '#/server/rizeni'
 import type { TrackedRizeniDto } from '#/server/rizeni'
-import { TYPY_RIZENI } from '#/lib/cuzk/client'
-import type { TypRizeni } from '#/lib/cuzk/client'
+import { TYPY_RIZENI } from '#/lib/cuzk/rizeni-codes'
+import type { TypRizeni } from '#/lib/cuzk/rizeni-codes'
 import { rizeniTypeLabel, stavUhradyLabel } from '#/lib/cuzk/snapshot'
 
 const END_REASONS: Record<string, string> = {

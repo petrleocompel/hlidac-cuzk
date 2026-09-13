@@ -13,10 +13,20 @@ const url = z
       ['http:', 'https:'].includes(new URL(value).protocol),
     'Použijte HTTP/HTTPS URL.',
   )
+/** Canonical 32-byte key as standard base64 (works without Node Buffer). */
+function isCanonicalSecretKey(value: string): boolean {
+  try {
+    const binary = atob(value)
+    if (binary.length !== 32) return false
+    return btoa(binary) === value
+  } catch {
+    return false
+  }
+}
 const secretKey = z
   .string()
   .regex(/^[A-Za-z0-9+/]{43}=$/)
-  .refine((value) => Buffer.from(value, 'base64').toString('base64') === value)
+  .refine(isCanonicalSecretKey)
 const baseSchema = z
   .object({
     NODE_ENV: z

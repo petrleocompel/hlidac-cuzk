@@ -1,10 +1,10 @@
+import type { TypRizeni } from './rizeni-codes'
+
 export type TypParcely = 'PKN' | 'PZE'
 /** 1 = stavební, 2 = pozemková */
 export type DruhCislovaniParcely = 1 | 2
 
-/** TypyRizeni code list from the ČÚZK OpenAPI contract. */
-export const TYPY_RIZENI = ['V', 'Z', 'PGP', 'PD', 'ZPV'] as const
-export type TypRizeni = (typeof TYPY_RIZENI)[number]
+export { TYPY_RIZENI, type TypRizeni } from './rizeni-codes'
 
 export type RizeniDef = {
   id?: number
@@ -374,15 +374,7 @@ export function rizeniFingerprint(items: RizeniDef[]): string {
   return JSON.stringify(ids)
 }
 
-export function formatRizeniLabel(r: RizeniDef): string {
-  const cislo = r.poradoveCislo ?? '?'
-  const rok = r.rok ?? '?'
-  const typ =
-    typeof r.typRizeni === 'string'
-      ? r.typRizeni
-      : (r.typRizeni?.kod ?? r.typRizeni?.nazev ?? '')
-  return typ ? `${typ} ${cislo}/${rok}` : `${cislo}/${rok}`
-}
+export { formatRizeniLabel } from './rizeni-codes'
 
 /** Basic definitions only; neighbors do not include parcel geometry or full detail. */
 export async function getNeighborParcels(

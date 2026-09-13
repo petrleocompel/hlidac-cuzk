@@ -19,7 +19,6 @@ import type {
   RizeniSnapshot,
   SnapshotChange,
 } from './snapshot'
-import { getJednotkaById, getPravoStavbyById, getStavbaById } from './client'
 import type { Jednotka, Parcela, PravoStavby, Stavba } from './client'
 
 /** KN registers this application can subscribe to. */
@@ -289,15 +288,6 @@ export type ObjectFetch = {
   aktualnostDatK?: string
 }
 
-const FETCHERS: Record<
-  Exclude<ObjectType, 'parcel'>,
-  (id: string | number, signal?: AbortSignal) => Promise<ObjectFetch>
-> = {
-  stavba: getStavbaById,
-  jednotka: getJednotkaById,
-  pravo_stavby: getPravoStavbyById,
-}
-
 /** Builds a snapshot from an already fetched register answer. */
 export async function objectSnapshotFrom(
   objectType: Exclude<ObjectType, 'parcel'>,
@@ -347,7 +337,14 @@ export async function buildObjectSnapshot(
   signal?: AbortSignal,
   rizeniCache: RizeniCache = new Map(),
 ): Promise<ObjectSnapshot> {
-  const response = await FETCHERS[objectType](isknId, signal)
+  const { getJednotkaById, getPravoStavbyById, getStavbaById } =
+    await import('./client')
+  const fetchers = {
+    stavba: getStavbaById,
+    jednotka: getJednotkaById,
+    pravo_stavby: getPravoStavbyById,
+  } as const
+  const response = await fetchers[objectType](isknId, signal)
   signal?.throwIfAborted()
   return objectSnapshotFrom(objectType, response, now, signal, rizeniCache)
 }

@@ -1,6 +1,6 @@
 import { CuzkHttpError, CuzkUnavailableError } from './policy'
-import { formatRizeniLabel, getParcelById, getRizeniById } from './client'
 import type { CuzkItemResponse, Parcela, RizeniDef } from './client'
+import { formatRizeniLabel } from './rizeni-codes'
 
 export type ParcelCache = Map<string, Promise<CuzkItemResponse<Parcela>>>
 
@@ -498,6 +498,7 @@ export async function collectRizeniSnapshots(
       const cacheKey = String(item.id)
       let detail = rizeniCache.get(cacheKey)
       if (!detail) {
+        const { getRizeniById } = await import('./client')
         detail = getRizeniById(item.id, signal)
         rizeniCache.set(cacheKey, detail)
       }
@@ -532,6 +533,7 @@ export async function buildParcelSnapshot(
   const key = String(isknId)
   let request = parcelCache.get(key)
   if (!request) {
+    const { getParcelById } = await import('./client')
     request = getParcelById(isknId, signal)
     parcelCache.set(key, request)
     void request.catch(() => {
