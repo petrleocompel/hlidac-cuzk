@@ -2,6 +2,10 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Watches can be added by address: RÚIAN suggests address places, the exact match yields the
+  address place code and ČÚZK turns it into the building, which is offered together with its
+  units and parcels. An ambiguous or unmatched address is confirmed by the user; coordinates
+  and the geocoder's internal key are never used as identification.
 - Buildings, units and rights of superficies can be watched as objects of their own, next to
   parcels. Each register has its own attributes, snapshot and diff, and only the data the
   given API returns is stored. Buildings and units are searched by RÚIAN část obce, number

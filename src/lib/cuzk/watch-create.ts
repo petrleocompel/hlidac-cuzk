@@ -2,15 +2,22 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '#/db'
 import { parcelWatches } from '#/db/schema'
 import type { ParcelWatch } from '#/db/schema'
-import { resolveIsknId, searchJednotka, searchStavba } from './client'
+import {
+  getStavbaByAdresniMisto,
+  resolveIsknId,
+  searchJednotka,
+  searchStavba,
+} from './client'
 import type { Parcela, TypStavbyQuery } from './client'
 import { buildParcelSnapshot, formatParcelAttrValue } from './snapshot'
 import type { ParcelSnapshot } from './snapshot'
 import {
   buildObjectSnapshot,
   objectAttrDefs,
+  objectSnapshotFrom,
   objectTypeLabel,
 } from './object-snapshot'
+import type { AddressPlace } from '#/lib/ruian/geocode'
 import type { ObjectSnapshot, ObjectType } from './object-snapshot'
 import { CuzkUnavailableError } from './policy'
 import { insertWatchWithinLimit } from './watch-limits'
@@ -326,6 +333,73 @@ export async function createVerifiedObjectWatch(input: {
     lastError: null,
     lastSnapshotJson: snapshot,
   })
+}
+
+export type AddressResolution = {
+  place: AddressPlace
+  /** KN building the RÚIAN address place points to. */
+  building: ObjectLookup
+  /** Units and parcels of that building, offered as separate watches. */
+  links: Array<{
+    objectType: ObjectType
+    isknId: string
+    label: string
+  }>
+}
+
+/**
+ * Turns a RÚIAN address place into the KN building it belongs to. The address
+ * place code is the documented bridge between the registers; coordinates are
+ * never used to identify an object.
+ */
+export async function lookupAddressForWatch(
+  userId: string,
+  place: AddressPlace,
+  now = new Date(),
+): Promise<AddressResolution> {
+  const response = await getStavbaByAdresniMisto(place.kod)
+  if (!response.data?.id)
+    throw new Error(
+      'ČÚZK k tomuto adresnímu místu nevrací stavbu v katastru. Zkuste jinou adresu nebo objekt přidejte podle čísla.',
+    )
+  const snapshot = await objectSnapshotFrom('stavba', response, now)
+  const building = lookupFromSnapshot(
+    snapshot,
+    await existingWatchId(userId, 'stavba', snapshot.object.id),
+  )
+  const label = (attr: string, id: string) => {
+    const value = snapshot.object.attrs[attr]
+    if (Array.isArray(value)) {
+      const hit = (value as string[]).find((entry) => entry.includes(`[${id}]`))
+      if (hit) return hit
+    }
+    return `ISKN ${id}`
+  }
+  return {
+    place,
+    building,
+    links: [
+      ...snapshot.object.links.jednotkaIds.map((id) => ({
+        objectType: 'jednotka' as const,
+        isknId: id,
+        label: label('jednotky', id),
+      })),
+      ...snapshot.object.links.parcelIds.map((id) => ({
+        objectType: 'parcel' as const,
+        isknId: id,
+        label: label('parcely', id),
+      })),
+      ...(snapshot.object.links.pravoStavbyId
+        ? [
+            {
+              objectType: 'pravo_stavby' as const,
+              isknId: snapshot.object.links.pravoStavbyId,
+              label: `ISKN ${snapshot.object.links.pravoStavbyId}`,
+            },
+          ]
+        : []),
+    ],
+  }
 }
 
 export type ImportOutcome = {

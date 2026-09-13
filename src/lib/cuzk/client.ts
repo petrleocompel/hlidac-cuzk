@@ -230,6 +230,21 @@ export async function getPravoStavbyById(
   return cuzkFetch(`/api/v1/PravaStavby/${id}`, undefined, signal)
 }
 
+/**
+ * Verified link from RÚIAN to KN: the parameter is a RÚIAN address place code,
+ * the answer is a KN building. The two code spaces are never interchanged.
+ */
+export async function getStavbaByAdresniMisto(
+  kodAdresnihoMista: number | string,
+  signal?: AbortSignal,
+): Promise<CuzkItemResponse<Stavba>> {
+  return cuzkFetch(
+    `/api/v1/Stavby/AdresniMisto/${kodAdresnihoMista}`,
+    undefined,
+    signal,
+  )
+}
+
 export type SearchStavbaParams = {
   /** RÚIAN code of the část obce, not a katastrální území code. */
   kodCastiObce: number

@@ -148,6 +148,7 @@ Liveness: `GET /healthz`. Readiness (database and schema): `GET /readyz`. Compos
 | `CUZK_API_BASE_URL` | no | Default `https://api-kn.cuzk.gov.cz` |
 | `CUZK_REQUEST_TIMEOUT_MS` | no | Per-attempt deadline, default `15000`, range 10–30000 ms |
 | `CUZK_MIN_REQUEST_INTERVAL_MS` | no | Shared minimum spacing between request reservations, default `1000`, range 0–10000 ms |
+| `RUIAN_GEOCODE_URL` | no | RÚIAN MapServer used for address search; default `https://ags.cuzk.gov.cz/arcgis/rest/services/RUIAN/MapServer`. Public service without an API key, so it does not spend the KN budget |
 | `CUZK_RIZENI_FOLLOW_DAYS` | no | How long a řízení keeps being queried after it disappears from the parcel plomby; default `14`, range 0–365 days. `0` stops follow-up immediately |
 | `MAX_WATCHES_PER_USER` | no | Maximum watches per user, including paused watches; default `100`, range 1–1000 |
 | `METRICS_BEARER_TOKEN` | no | Random token of at least 32 characters for `/api/metrics`; empty/short token disables the endpoint |
@@ -830,6 +831,22 @@ with instance credentials. Shared-instance messages may be visible to the admini
 and other subscribers. Use the saved-settings test button only when you want to send a
 real test message; automated tests use isolated local HTTP/SMTP servers.
 
+
+### Adding a watch by address
+
+The address field suggests RÚIAN address places (`GeocodeSOE/suggest` with
+`category=AdresniMisto`, debounced and cached), so parcel definition points never appear as
+addresses. A chosen address is matched **exactly** against the RÚIAN `AdresniMisto` layer to
+read its address place code; an address that does not match exactly, or that matches several
+places, is reported for confirmation instead of being guessed. Coordinates, the geocoder's
+internal `magicKey` and nearest-point matching are never used as identification — verified on
+13 September 2026 that the `magicKey` is not the address place code.
+
+The address place code is then passed to KN `/api/v1/Stavby/AdresniMisto/{kod}`, which is the
+documented bridge between the registers. The confirmed building is offered as a watch together
+with its units and parcels; nothing is subscribed automatically. RÚIAN requests need outbound
+access to `ags.cuzk.gov.cz` and are independent of the KN API key, quota and outage handling:
+if the address service is down, buildings and units can still be added by their numbers.
 
 ### Buildings, units and rights of superficies
 

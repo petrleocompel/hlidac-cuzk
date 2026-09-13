@@ -173,6 +173,21 @@ a umožňuje export CSV/JSON s časem načtení dat a uvedenou aktuálností Č�
 nejnovějších 5 000 odpovídajících událostí a uvádí čas založení sledování; historie z doby
 před založením k dispozici není. Retence snapshotů a událostí zůstává otevřená (NEXT-03).
 
+## Přidání sledování podle adresy
+
+Pole adresy našeptává adresní místa z RÚIAN (`GeocodeSOE/suggest` s `category=AdresniMisto`,
+s prodlevou a cache), takže definiční body parcel se mezi adresami neobjeví. Vybraná adresa se
+**přesně** porovná s vrstvou `AdresniMisto` a z ní se přečte kód adresního místa. Adresa, která
+přesně neodpovídá nebo odpovídá více místům, se vrátí k potvrzení a nic se nedohaduje.
+Souřadnice, vnitřní `magicKey` geokodéru ani nejbližší bod se za identifikaci nepovažují —
+ověřeno 13. 9. 2026, že `magicKey` není kód adresního místa.
+
+Kód adresního místa pak jde do KN `/api/v1/Stavby/AdresniMisto/{kod}`, což je dokumentovaná
+vazba mezi registry. Potvrzená stavba se nabídne ke sledování spolu s jednotkami a parcelami;
+automaticky se nepřidává nic. Dotazy do RÚIAN vyžadují přístup na `ags.cuzk.gov.cz` a jsou
+nezávislé na klíči a kvótě KN: při výpadku adresní služby lze stavbu i jednotku přidat podle
+čísel.
+
 ## Stavby, jednotky a práva stavby
 
 Sledování nese registr katastru, který hlídá (`object_type`: `parcel`, `stavba`, `jednotka`,
@@ -222,6 +237,7 @@ podle LV.
 | --- | --- |
 | PostgreSQL | Web, bootstrap, cron, metriky a zálohy |
 | `api-kn.cuzk.gov.cz` | Vyhledávání a kontroly; společný limit 500 pokusů/den |
+| `ags.cuzk.gov.cz` | Našeptávání adres z RÚIAN; bez klíče a mimo rozpočet KN |
 | Nastavený OIDC poskytovatel | Přihlášení SSO a jeho bootstrap |
 | Zvolené Gotify/Slack/Discord servery | Odesílání notifikací |
 | Sentry | Pouze při nastaveném DSN |

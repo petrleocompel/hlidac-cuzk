@@ -48,6 +48,10 @@ const baseSchema = z
     SEED_DEMO_WATCH: z.enum(['0', '1']).default('0'),
     CUZK_API_KEY: z.string().trim().min(1),
     CUZK_API_BASE_URL: url.default('https://api-kn.cuzk.gov.cz'),
+    // Public RÚIAN address service; no API key and outside the KN budget.
+    RUIAN_GEOCODE_URL: url.default(
+      'https://ags.cuzk.gov.cz/arcgis/rest/services/RUIAN/MapServer',
+    ),
     NOTIFICATION_ENCRYPTION_KEY: optional(secretKey),
     NOTIFICATION_PREVIOUS_ENCRYPTION_KEY: optional(secretKey),
     METRICS_BEARER_TOKEN: optional(z.string().min(32)),

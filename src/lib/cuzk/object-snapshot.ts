@@ -284,7 +284,7 @@ function pravoStavbyAttrs(pravo: PravoStavby): {
   }
 }
 
-type ObjectFetch = {
+export type ObjectFetch = {
   data?: Stavba | Jednotka | PravoStavby
   aktualnostDatK?: string
 }
@@ -298,16 +298,14 @@ const FETCHERS: Record<
   pravo_stavby: getPravoStavbyById,
 }
 
-/** Builds a snapshot of a building, unit or right of superficies. */
-export async function buildObjectSnapshot(
+/** Builds a snapshot from an already fetched register answer. */
+export async function objectSnapshotFrom(
   objectType: Exclude<ObjectType, 'parcel'>,
-  isknId: string | number,
+  response: ObjectFetch,
   now = new Date(),
   signal?: AbortSignal,
   rizeniCache: RizeniCache = new Map(),
 ): Promise<ObjectSnapshot> {
-  const response = await FETCHERS[objectType](isknId, signal)
-  signal?.throwIfAborted()
   const data = response.data
   if (!data) throw new Error('Prázdná odpověď ČÚZK')
   const detail =
@@ -329,7 +327,7 @@ export async function buildObjectSnapshot(
     fetchedAt: now.toISOString(),
     aktualnostDatK: response.aktualnostDatK ?? null,
     object: {
-      id: String(data.id ?? isknId),
+      id: data.id != null ? String(data.id) : '',
       summary: detail.summary,
       kuKod: lv?.kuKod ?? null,
       kuNazev: lv?.kuNazev ?? null,
@@ -339,6 +337,19 @@ export async function buildObjectSnapshot(
     },
     rizeni,
   }
+}
+
+/** Builds a snapshot of a building, unit or right of superficies by ISKN id. */
+export async function buildObjectSnapshot(
+  objectType: Exclude<ObjectType, 'parcel'>,
+  isknId: string | number,
+  now = new Date(),
+  signal?: AbortSignal,
+  rizeniCache: RizeniCache = new Map(),
+): Promise<ObjectSnapshot> {
+  const response = await FETCHERS[objectType](isknId, signal)
+  signal?.throwIfAborted()
+  return objectSnapshotFrom(objectType, response, now, signal, rizeniCache)
 }
 
 /** One entry point for every register, so callers only pass the watch type. */

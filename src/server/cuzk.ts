@@ -5,11 +5,18 @@ import { searchCastObce, searchKatastralniUzemi } from '#/lib/cuzk/client'
 import type { TypStavbyQuery } from '#/lib/cuzk/client'
 import { parseParcelNumber } from '#/lib/cuzk/parcel-input'
 import {
+  lookupAddressForWatch,
   lookupBuildingOrUnit,
   lookupObjectForWatch,
   lookupParcelForWatch,
 } from '#/lib/cuzk/watch-create'
-import type { ObjectLookup, ParcelLookup } from '#/lib/cuzk/watch-create'
+import type {
+  AddressResolution,
+  ObjectLookup,
+  ParcelLookup,
+} from '#/lib/cuzk/watch-create'
+import { resolveAddressPlaces, suggestAddresses } from '#/lib/ruian/geocode'
+import type { AddressPlace } from '#/lib/ruian/geocode'
 
 const SearchKuInput = z.object({
   query: z.string().min(2).max(100),
@@ -109,4 +116,50 @@ export const lookupBuilding = createServerFn({ method: 'POST' })
       cisloDomovni: data.cisloDomovni,
       cisloJednotky: data.cisloJednotky ?? null,
     })
+  })
+
+const SuggestAddressInput = z.object({
+  query: z.string().min(3).max(120),
+})
+
+/** RÚIAN suggestions; this service is free of the ČÚZK KN request budget. */
+export const suggestAddress = createServerFn({ method: 'GET' })
+  .inputValidator((v) => SuggestAddressInput.parse(v))
+  .handler(async ({ data }): Promise<{ suggestions: string[] }> => {
+    await requireSession()
+    const rows = await suggestAddresses(data.query)
+    return { suggestions: rows.map((row) => row.text) }
+  })
+
+const LookupAddressInput = z.object({
+  address: z.string().min(3).max(200),
+  /** Chosen address place when one address text matched several places. */
+  kod: z.coerce.number().int().min(1).optional(),
+})
+
+export type AddressLookupResult = {
+  places: AddressPlace[]
+  resolved: AddressResolution | null
+}
+
+/**
+ * An address is only accepted when RÚIAN matches it exactly. An ambiguous or
+ * unmatched address returns the candidates instead of a silent best guess.
+ */
+export const lookupAddress = createServerFn({ method: 'POST' })
+  .inputValidator((v) => LookupAddressInput.parse(v))
+  .handler(async ({ data }): Promise<AddressLookupResult> => {
+    const session = await requireSession()
+    const places = await resolveAddressPlaces(data.address)
+    const chosen =
+      data.kod != null
+        ? (places.find((place) => place.kod === data.kod) ?? null)
+        : places.length === 1
+          ? places[0]
+          : null
+    if (!chosen) return { places, resolved: null }
+    return {
+      places,
+      resolved: await lookupAddressForWatch(session.user.id, chosen),
+    }
   })
