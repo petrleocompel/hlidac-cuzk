@@ -6,10 +6,11 @@ import { parcelWatches, user, userNotificationSettings } from '#/db/schema'
 export async function exportAccount(userId: string) {
   return db.transaction(
     async (tx) => {
-      const [owner] = await tx
+      const owners = await tx
         .select({ name: user.name, email: user.email })
         .from(user)
         .where(eq(user.id, userId))
+      const owner = owners.at(0)
       if (!owner) throw new Error('Účet není dostupný.')
       const watches = await tx
         .select({
@@ -31,7 +32,7 @@ export async function exportAccount(userId: string) {
         .from(parcelWatches)
         .where(eq(parcelWatches.userId, userId))
         .orderBy(parcelWatches.createdAt, parcelWatches.id)
-      const [settings] = await tx
+      const settingsRows = await tx
         .select({
           gotifyPriority: userNotificationSettings.gotifyPriority,
           useInstanceGotify: userNotificationSettings.useInstanceGotify,
@@ -51,9 +52,9 @@ export async function exportAccount(userId: string) {
         exportedAt: new Date().toISOString(),
         profile: owner,
         watches,
-        notifications: settings ?? null,
+        notifications: settingsRows.at(0) ?? null,
       }
     },
-    { isolationLevel: 'repeatable read', readOnly: true },
+    { isolationLevel: 'repeatable read', accessMode: 'read only' },
   )
 }

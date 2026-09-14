@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { requireSession } from '#/auth/session'
+
 export const downloadAccount = createServerFn({ method: 'POST' }).handler(
   async () => {
     const session = await requireSession()

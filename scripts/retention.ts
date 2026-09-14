@@ -1,3 +1,4 @@
+import { retainAudit } from '../src/lib/audit/retention.ts'
 import { getEnv } from '../src/env.ts'
 import { closeDb } from '../src/db/index.ts'
 import { runRetention } from '../src/lib/maintenance/retention.ts'
@@ -14,7 +15,10 @@ try {
   )
     throw new Error('Použijte --dry-run (výchozí) nebo --apply.')
   console.log(
-    JSON.stringify(await runRetention({ apply: args.includes('--apply') })),
+    JSON.stringify({
+      ...(await runRetention({ apply: args.includes('--apply') })),
+      audit: await retainAudit({ apply: args.includes('--apply') }),
+    }),
   )
 } catch (error) {
   console.error(error instanceof Error ? error.message : 'Retence selhala.')

@@ -1,3 +1,4 @@
+import { downloadAccount } from '#/server/account-export'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
@@ -42,6 +43,8 @@ type LinkedAccount = {
 
 function AccountPage() {
   const { session, ssoProviders } = Route.useLoaderData()
+  const [exportPending, setExportPending] = useState(false)
+  const [exportMessage, setExportMessage] = useState('')
   const search = Route.useSearch()
   const [name, setName] = useState(session.user.name)
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
@@ -149,7 +152,9 @@ function AccountPage() {
   }
 
   const linkedProviderIds = new Set(accounts.map((a) => a.providerId))
-  const linkable = ssoProviders.filter((p) => !linkedProviderIds.has(p.providerId))
+  const linkable = ssoProviders.filter(
+    (p) => !linkedProviderIds.has(p.providerId),
+  )
   const hasCredential = accounts.some((a) => a.providerId === 'credential')
 
   function providerLabel(providerId: string) {
@@ -160,10 +165,7 @@ function AccountPage() {
   }
 
   return (
-    <DashboardShell
-      user={session.user}
-      isAdmin={session.user.role === 'admin'}
-    >
+    <DashboardShell user={session.user} isAdmin={session.user.role === 'admin'}>
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Účet</h1>
@@ -175,7 +177,9 @@ function AccountPage() {
         <Card>
           <CardHeader>
             <CardTitle>Profil</CardTitle>
-            <CardDescription>Jméno a e-mail přihlášeného uživatele</CardDescription>
+            <CardDescription>
+              Jméno a e-mail přihlášeného uživatele
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={onSaveProfile}>
@@ -215,8 +219,8 @@ function AccountPage() {
           <CardHeader>
             <CardTitle>Přihlášení</CardTitle>
             <CardDescription>
-              Propojené identity. SSO se nepropojuje automaticky při přihlášení —
-              jen explicitně zde (stejný e-mail).
+              Propojené identity. SSO se nepropojuje automaticky při přihlášení
+              — jen explicitně zde (stejný e-mail).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -230,15 +234,13 @@ function AccountPage() {
                     className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0"
                   >
                     <span>{providerLabel(a.providerId)}</span>
-                    {a.providerId !== 'credential' ||
-                    accounts.length > 1 ? (
+                    {a.providerId !== 'credential' || accounts.length > 1 ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         disabled={
-                          a.providerId === 'credential' &&
-                          accounts.length === 1
+                          a.providerId === 'credential' && accounts.length === 1
                         }
                         onClick={() => void onUnlink(a.providerId)}
                       >
@@ -282,6 +284,51 @@ function AccountPage() {
             {linkMsg ? (
               <p className="text-sm text-muted-foreground">{linkMsg}</p>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Export účtu</CardTitle>
+            <CardDescription>
+              Stáhněte vlastní sledování, poznámky, štítky a nastavení oznámení.
+              Soubor obsahuje e-mail, ale neobsahuje hesla, tokeny ani adresy
+              poskytovatelů oznámení. Historii lze exportovat zvlášť u
+              sledování. Tento soubor není úplná záloha a aplikace jej zatím
+              neumí automaticky obnovit.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              disabled={exportPending}
+              onClick={async () => {
+                setExportPending(true)
+                setExportMessage('')
+                try {
+                  const data = await downloadAccount()
+                  const url = URL.createObjectURL(
+                    new Blob([JSON.stringify(data, null, 2)], {
+                      type: 'application/json',
+                    }),
+                  )
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = 'hlidac-cuzk-account.json'
+                  document.body.append(link)
+                  link.click()
+                  link.remove()
+                  setTimeout(() => URL.revokeObjectURL(url), 1000)
+                  setExportMessage('Export je připraven ke stažení.')
+                } catch {
+                  setExportMessage('Export se nepodařil. Zkuste to znovu.')
+                } finally {
+                  setExportPending(false)
+                }
+              }}
+            >
+              {exportPending ? 'Připravuji…' : 'Stáhnout export JSON'}
+            </Button>
+            <p role="status">{exportMessage}</p>
           </CardContent>
         </Card>
 

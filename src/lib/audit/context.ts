@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { db } from '#/db'
+
 export type AuditTransaction = Parameters<
   Parameters<typeof db.transaction>[0]
 >[0]

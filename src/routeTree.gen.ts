@@ -16,6 +16,7 @@ import { Route as ReadyzRouteImport } from './routes/readyz'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccessRouteImport } from './routes/admin/access'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminCuzkRouteImport } from './routes/admin/cuzk'
 import { Route as AdminMonitoringRouteImport } from './routes/admin/monitoring'
 import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
@@ -66,6 +67,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminAccessRoute = AdminAccessRouteImport.update({
   id: '/admin/access',
   path: '/admin/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminCuzkRoute = AdminCuzkRouteImport.update({
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/readyz': typeof ReadyzRoute
   '/signup': typeof SignupRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/readyz': typeof ReadyzRoute
   '/signup': typeof SignupRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -207,6 +215,7 @@ export interface FileRoutesById {
   '/readyz': typeof ReadyzRoute
   '/signup': typeof SignupRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/cuzk': typeof AdminCuzkRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -234,6 +243,7 @@ export interface FileRouteTypes {
     | '/readyz'
     | '/signup'
     | '/admin/access'
+    | '/admin/audit'
     | '/admin/cuzk'
     | '/admin/monitoring'
     | '/admin/notifications'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/readyz'
     | '/signup'
     | '/admin/access'
+    | '/admin/audit'
     | '/admin/cuzk'
     | '/admin/monitoring'
     | '/admin/notifications'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/readyz'
     | '/signup'
     | '/admin/access'
+    | '/admin/audit'
     | '/admin/cuzk'
     | '/admin/monitoring'
     | '/admin/notifications'
@@ -310,6 +322,7 @@ export interface RootRouteChildren {
   ReadyzRoute: typeof ReadyzRoute
   SignupRoute: typeof SignupRoute
   AdminAccessRoute: typeof AdminAccessRoute
+  AdminAuditRoute: typeof AdminAuditRoute
   AdminCuzkRoute: typeof AdminCuzkRoute
   AdminMonitoringRoute: typeof AdminMonitoringRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
@@ -378,6 +391,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/access'
       fullPath: '/admin/access'
       preLoaderRoute: typeof AdminAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/cuzk': {
@@ -502,6 +522,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReadyzRoute: ReadyzRoute,
   SignupRoute: SignupRoute,
   AdminAccessRoute: AdminAccessRoute,
+  AdminAuditRoute: AdminAuditRoute,
   AdminCuzkRoute: AdminCuzkRoute,
   AdminMonitoringRoute: AdminMonitoringRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,

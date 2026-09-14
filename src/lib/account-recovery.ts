@@ -14,34 +14,34 @@ export async function recoverLocalPassword(input: unknown) {
     .parse(input)
   const password = await hashPassword(data.password)
   return withAuditActor('local-cli', async (tx) => {
-    const [owner] = await tx
+    const owners = await tx
       .select({ id: user.id })
       .from(user)
       .where(eq(user.email, data.email))
       .for('update')
+    const owner = owners.at(0)
     if (!owner)
       throw new Error('Účet nebyl nalezen; žádný nový účet se nevytvořil.')
-    const [credential] = await tx
+    const credentials = await tx
       .select({ id: account.id })
       .from(account)
       .where(
         and(eq(account.userId, owner.id), eq(account.providerId, 'credential')),
       )
+    const credential = credentials.at(0)
     if (credential)
       await tx
         .update(account)
         .set({ password })
         .where(eq(account.id, credential.id))
     else
-      await tx
-        .insert(account)
-        .values({
-          id: crypto.randomUUID(),
-          accountId: owner.id,
-          userId: owner.id,
-          providerId: 'credential',
-          password,
-        })
+      await tx.insert(account).values({
+        id: crypto.randomUUID(),
+        accountId: owner.id,
+        userId: owner.id,
+        providerId: 'credential',
+        password,
+      })
     await tx.delete(session).where(eq(session.userId, owner.id))
     return { ok: true }
   })

@@ -37,6 +37,7 @@ export async function probeReadiness(
       await client`select ntfy_enabled, email_enabled from notification_policy limit 0`
       await client`select digest, urgent from notification_deliveries limit 0`
       await client`select use_instance_gotify from user_notification_settings limit 0`
+      await client`select actor_id, action, details from admin_audit limit 0`
       return true
     }
     return await Promise.race([

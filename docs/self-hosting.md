@@ -1028,3 +1028,26 @@ are updated. A shared API pause ends the cycle before fetching further objects; 
 due rows are counted for the summary. Raw register answers are reused within that cycle
 across owners and pages, keyed by register plus ISKN id; independent cycles/manual checks
 start fresh. Per-owner tracked procedures, history, notes and notification rules remain separate.
+
+## Account export, password recovery and administration audit
+
+Users can download **Account → Export JSON**. Version 1 contains their profile name/email, watches (including notes and tags), polling and notification preferences. The server selects the current user's rows explicitly, using a consistent database snapshot. It omits authentication records, password hashes, tokens, encrypted credentials, provider URLs (which can themselves contain secrets), event history and snapshots. Free-text notes and email addresses remain personal data. This export is for inspection/portability; there is currently no automatic import of this format. Use the existing per-watch history export and encrypted database backup for their respective purposes.
+
+A local operator with database access can recover an **existing** account without SMTP:
+
+```sh
+# Create/edit a temporary file containing the new password, readable only by you.
+umask 077
+${EDITOR:-vi} /tmp/hlidac-new-password
+chmod 600 /tmp/hlidac-new-password
+pnpm account:recover --email account@example.cz --password-file /tmp/hlidac-new-password
+rm /tmp/hlidac-new-password
+```
+
+Run inside the app environment (for Compose, provide the private file inside the container and run `node --import tsx scripts/recover-password.ts` with the same arguments). The password must have 12–200 characters. Do not put it in a command argument, shell history, logs or a Git-tracked file. The CLI requires the current schema, hashes the password with Better Auth, creates a local credential if the existing user only had SSO, and revokes all sessions atomically. It neither creates a missing user nor changes a role, a ban, linked SSO accounts or watches. In `AUTH_MODE=sso` password login remains disabled: the operator must deliberately choose `hybrid`/`local` and restart if local recovery is needed. This is an operator recovery mechanism, not a public password-reset endpoint.
+
+**Admin → Audit správy** lists 50 entries per page using a stable time/ID cursor. Migration `0017_administration_audit.sql` records role changes, bans, SSO configuration changes, impersonation session creation/removal, credential password changes and user deletion. Successful admin auth API mutations and the application SSO management use a transaction-local actor from the verified session. Database triggers write the record in the same transaction as the mutation; an audit write failure rolls back that mutation. Direct SQL and unwrapped system actions have an unknown actor; CLI recovery uses `local-cli`. Impersonation removal may also result from session revocation or user deletion, so it is not labelled as a confirmed click on “stop impersonating”. Failed/rejected requests are not a success audit event.
+
+Audit rows retain opaque actor/target IDs even after account deletion. Details contain role values, ban state/expiry and whether the reason changed, or **names** of changed SSO fields. They exclude ban reason text, SSO configuration values, URLs, passwords, hashes and session tokens. Initial deployment does not reconstruct historical actions. This database audit is not tamperproof against a database owner; protect database access and backups independently.
+
+`AUDIT_RETENTION_DAYS` defaults to **90**, accepts 1–3650 (zero is invalid), and is independent of the opt-in history retention settings. The hourly retention job removes at most 1,000 expired audit rows per run; a backlog can therefore remain beyond the configured period until subsequent batches catch up. `pnpm retention` reports a dry-run `audit` count; `pnpm retention --apply` applies one bounded batch. Keep the worker running and monitor its retention job. Backups have their own retention and may contain older audit records.

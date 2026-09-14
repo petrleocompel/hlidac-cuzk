@@ -149,6 +149,17 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
                 <SidebarMenuSubItem>
                   <SidebarMenuSubButton
                     asChild
+                    isActive={pathname.startsWith('/admin/audit')}
+                  >
+                    <Link to="/admin/audit" search={{}}>
+                      <Activity />
+                      <span>Audit správy</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton
+                    asChild
                     isActive={pathname.startsWith('/admin/sso')}
                   >
                     <Link to="/admin/sso">

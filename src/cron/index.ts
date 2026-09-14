@@ -1,3 +1,4 @@
+import { retainAudit } from '#/lib/audit/retention'
 import { runRetention } from '#/lib/maintenance/retention'
 import cron from 'node-cron'
 import { recordHeartbeat, trackWorkerJob } from '#/lib/monitoring/worker'
@@ -25,7 +26,10 @@ const JOBS: ReadonlyArray<Job> = [
   {
     schedule: '17 * * * *',
     name: 'retention',
-    run: () => runRetention({ apply: true }),
+    run: async () => ({
+      ...(await runRetention({ apply: true })),
+      audit: await retainAudit({ apply: true }),
+    }),
   },
   {
     schedule: '0 */6 * * *',

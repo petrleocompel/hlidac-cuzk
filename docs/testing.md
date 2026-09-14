@@ -43,3 +43,7 @@ remote pipeline. The GitLab API and Git SSH endpoint were unavailable during thi
 
 QA-02 remains separate: an end-to-end installation journey including a test OIDC provider
 and real upgrade/backup/restore processes is broader than these component integrations.
+
+### Account portability and administration audit
+
+`tests/integration/account-audit.test.ts` uses a disposable PostgreSQL database and actual Better Auth handlers. It checks ownership/secret omission in export, local recovery and session revocation without privilege changes, role/ban/impersonation audit actor attribution, concurrent actor isolation, SSO redaction, transactional rollback on audit write failure, bounded retention, private password-file CLI behavior and lossless pagination across PostgreSQL microsecond timestamps. No authenticated ČÚZK requests or notification provider calls are needed.

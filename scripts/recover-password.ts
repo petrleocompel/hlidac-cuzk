@@ -21,7 +21,14 @@ try {
   if (!(await probeReadiness()))
     throw new Error('Schéma není připravené. Spusťte bootstrap.')
   const password = (await readFile(args[3], 'utf8')).replace(/\r?\n$/, '')
-  await recoverLocalPassword({ email: args[1], password })
+  try {
+    await recoverLocalPassword({ email: args[1], password })
+  } catch {
+    // Database errors may include bound credential hashes. Never print them.
+    throw new Error(
+      'Obnova selhala. Ověřte existující účet, délku hesla a dostupnost databáze.',
+    )
+  }
   console.log(
     'Heslo změněno, relace zrušeny. Role a blokace účtu zůstaly zachované.',
   )
