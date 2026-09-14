@@ -1,6 +1,11 @@
 import { eq } from 'drizzle-orm'
 import { db } from '#/db'
-import { parcelWatches, user, userNotificationSettings } from '#/db/schema'
+import {
+  parcelWatches,
+  user,
+  userNotificationSettings,
+  watchLinks,
+} from '#/db/schema'
 
 /** Explicit allowlist: webhook paths, topic URLs and all token material are omitted. */
 export async function exportAccount(userId: string) {
@@ -14,6 +19,7 @@ export async function exportAccount(userId: string) {
       if (!owner) throw new Error('Účet není dostupný.')
       const watches = await tx
         .select({
+          id: parcelWatches.id,
           objectType: parcelWatches.objectType,
           isknId: parcelWatches.isknId,
           label: parcelWatches.label,
@@ -47,8 +53,18 @@ export async function exportAccount(userId: string) {
         })
         .from(userNotificationSettings)
         .where(eq(userNotificationSettings.userId, userId))
+      const manualLinks = await tx
+        .select({
+          fromWatchId: watchLinks.fromWatchId,
+          toWatchId: watchLinks.toWatchId,
+          note: watchLinks.note,
+        })
+        .from(watchLinks)
+        .where(eq(watchLinks.userId, userId))
+        .orderBy(watchLinks.id)
       return {
         version: 1,
+        manualLinks,
         exportedAt: new Date().toISOString(),
         profile: owner,
         watches,

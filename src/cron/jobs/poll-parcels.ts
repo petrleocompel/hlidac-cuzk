@@ -1,3 +1,4 @@
+import { parcelUnavailable } from '#/lib/cuzk/availability'
 import type { ObjectCache } from '#/lib/cuzk/object-snapshot'
 import { countRemainingDue, readDueWatchPage } from '#/lib/cuzk/due-watches'
 import type { DueCursor } from '#/lib/cuzk/due-watches'
@@ -198,13 +199,15 @@ export async function pollWatchById(
       return { status: 'checked', queued, changes }
     })
   } catch (error) {
+    const unavailable = parcelUnavailable(error, watch)
     const message =
-      error instanceof Error &&
+      unavailable?.message ??
+      (error instanceof Error &&
       ['TimeoutError', 'AbortError'].includes(error.name)
         ? 'Kontrola ČÚZK překročila časový limit 90 sekund.'
         : error instanceof Error
           ? error.message
-          : String(error)
+          : String(error))
     // An older failed request must not overwrite a newer successful check.
     const recorded = await db.transaction(async (tx) => {
       const updated = await tx
@@ -216,7 +219,12 @@ export async function pollWatchById(
               ? new Date(
                   Math.max(now.getTime() + 300_000, error.retryAt.getTime()),
                 )
-              : new Date(now.getTime() + 300_000),
+              : new Date(
+                  now.getTime() +
+                    (unavailable
+                      ? Math.max(5, watch.pollIntervalMinutes) * 60_000
+                      : 300_000),
+                ),
           lastError: message,
           updatedAt: now,
           pollClaimToken: null,
@@ -228,7 +236,12 @@ export async function pollWatchById(
       await tx.insert(watchEvents).values({
         watchId: watch.id,
         kind: 'error',
-        payloadJson: { message },
+        payloadJson: {
+          message,
+          ...(unavailable
+            ? { availability: unavailable.kind, httpStatus: 404 }
+            : {}),
+        },
         createdAt: now,
       })
       return true

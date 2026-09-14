@@ -41,7 +41,10 @@ export class CuzkUnavailableError extends Error {
 }
 
 export class CuzkHttpError extends Error {
-  constructor(public readonly status: number) {
+  constructor(
+    public readonly status: number,
+    public readonly endpoint?: string,
+  ) {
     super(`ČÚZK vrátilo HTTP ${status}.`)
   }
 }

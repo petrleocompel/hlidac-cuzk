@@ -102,6 +102,7 @@ for scenario in (sys.argv[2:] or ['loopback', 'lan', 'proxy', 'external']):
             # Ensure the bootstrap did not seed watches or make API requests.
             check = "import postgres from 'postgres'; const c=postgres(process.env.DATABASE_URL); for(const t of ['parcel_watches','cuzk_api_requests']) { const r=await c.unsafe('select count(*)::int n from '+t); if(r[0].n!==0)process.exitCode=1; } await c.end();"
             compose('exec', '-T', 'app', 'node', '--input-type=module', '-e', check)
+            compose('exec', '-T', 'app', 'node', '--input-type=module', '-e', (root / 'tests/compose/auth-smoke.mjs').read_text())
             # Exercise SIGTERM and restart with the same durable DB state.
             compose('stop', '-t', '15', 'cron')
             # Compose versions serialize either one JSON array or newline objects;

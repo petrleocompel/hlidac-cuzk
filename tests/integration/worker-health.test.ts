@@ -176,8 +176,8 @@ describe('worker health, readiness and successful data age', () => {
     const first = new Date('2026-01-01T10:00:00Z')
     const second = new Date('2026-01-01T11:00:00Z')
     await pollWatchById(row.id, first)
-    status = 404
-    await expect(pollWatchById(row.id, second)).rejects.toThrow('404')
+    status = 500
+    await expect(pollWatchById(row.id, second)).rejects.toThrow('500')
     const [saved] = await db
       .select()
       .from(parcelWatches)

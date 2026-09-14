@@ -112,7 +112,7 @@ export async function requestCuzk<T>(
         15 * 60_000,
         'ČÚZK odmítlo API klíč. Zkontrolujte konfiguraci; další pokus nejdříve za 15 minut.',
       )
-      throw new CuzkHttpError(response.status)
+      throw new CuzkHttpError(response.status, path)
     }
     const retryAfter = retryAfterMilliseconds(
       response.headers.get('Retry-After'),
@@ -136,7 +136,7 @@ export async function requestCuzk<T>(
         )
       await delay(pause, undefined, { signal: overall })
     } else if (!RETRYABLE.has(response.status) || attempt === 3) {
-      throw new CuzkHttpError(response.status)
+      throw new CuzkHttpError(response.status, path)
     } else {
       await delay(250 * 2 ** (attempt - 1) + Math.random() * 250, undefined, {
         signal: overall,

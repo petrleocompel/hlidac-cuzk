@@ -1,3 +1,5 @@
+import { WatchManualLinks } from '#/components/watch/watch-manual-links'
+import { getWatchLinks } from '#/server/watch-links'
 import { WatchOrganization } from '#/components/watch/watch-organization'
 import { WatchMap } from '#/components/watch/watch-map'
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
@@ -49,6 +51,10 @@ export const Route = createFileRoute('/dashboard/watches/$id')({
     return {
       session,
       watch: data.watch,
+      manualLinks:
+        data.watch.objectType === 'parcel'
+          ? await getWatchLinks({ data: { id: params.id } })
+          : null,
       events: data.events,
       focusedEvents: data.focusedEvents,
       eventTotal: data.eventTotal,
@@ -71,6 +77,7 @@ function WatchDetailPage() {
     rizeni,
     rizeniFollowDays,
     watchedObjects,
+    manualLinks,
     now,
   } = Route.useLoaderData()
   const { event: focusedId } = Route.useSearch()
@@ -195,6 +202,13 @@ function WatchDetailPage() {
         <WatchCheckStatus watch={watch} now={now} />
         <WatchMap watches={[watch]} />
         <WatchOrganization key={watch.id} watch={watch} />
+        {manualLinks && (
+          <WatchManualLinks
+            key={watch.id + '-links'}
+            watchId={watch.id}
+            data={manualLinks}
+          />
+        )}
         {snapshot && isObjectSnapshot(snapshot) ? (
           <WatchObjectPanel
             snapshot={snapshot}

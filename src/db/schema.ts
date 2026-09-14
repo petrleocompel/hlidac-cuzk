@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
+  foreignKey,
   check,
   bigint,
   date,
@@ -238,6 +239,7 @@ export const parcelWatches = pgTable(
       'watch_tags_count',
       sql`cardinality(${table.tags}) <= 20 and coalesce(array_ndims(${table.tags}), 1) = 1 and array_position(${table.tags}, null) is null`,
     ),
+    uniqueIndex('parcel_watches_owner_id_idx').on(table.userId, table.id),
     index('parcel_watches_userId_idx').on(table.userId),
     index('parcel_watches_enabled_idx').on(table.enabled),
     index('parcel_watches_next_check_idx').on(
@@ -252,6 +254,40 @@ export const parcelWatches = pgTable(
       table.objectType,
       table.isknId,
     ),
+  ],
+)
+
+/** User-declared relationships, never an authoritative cadastral succession. */
+export const watchLinks = pgTable(
+  'watch_links',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id').notNull(),
+    fromWatchId: uuid('from_watch_id').notNull(),
+    toWatchId: uuid('to_watch_id').notNull(),
+    note: text('note').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId, table.fromWatchId],
+      foreignColumns: [parcelWatches.userId, parcelWatches.id],
+      name: 'watch_links_from_owner_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.userId, table.toWatchId],
+      foreignColumns: [parcelWatches.userId, parcelWatches.id],
+      name: 'watch_links_to_owner_fk',
+    }).onDelete('cascade'),
+    uniqueIndex('watch_links_edge_idx').on(table.fromWatchId, table.toWatchId),
+    index('watch_links_target_idx').on(table.toWatchId),
+    check(
+      'watch_links_distinct',
+      sql`${table.fromWatchId} <> ${table.toWatchId}`,
+    ),
+    check('watch_links_note_length', sql`char_length(${table.note}) <= 500`),
   ],
 )
 

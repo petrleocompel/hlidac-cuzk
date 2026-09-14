@@ -38,6 +38,7 @@ export async function probeReadiness(
       await client`select digest, urgent from notification_deliveries limit 0`
       await client`select use_instance_gotify from user_notification_settings limit 0`
       await client`select actor_id, action, details from admin_audit limit 0`
+      await client`select from_watch_id, to_watch_id from watch_links limit 0`
       return true
     }
     return await Promise.race([
