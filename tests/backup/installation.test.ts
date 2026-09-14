@@ -140,7 +140,7 @@ it('runs clean bootstrap → login → verified watch → change → durable que
     await step('restored', targetUrl)
     expect(messages).toBe(1) // Restore does not silently launch delivery.
     expect(
-      (await target`select sum(attempts)::int n from cuzk_api_daily_usage`)[0]
+      (await target`select sum(reserved)::int n from cuzk_api_daily_usage`)[0]
         .n,
     ).toBe(2)
     // Explicitly resumed restored consumer can redeliver a pre-ack backup: documented behavior.
