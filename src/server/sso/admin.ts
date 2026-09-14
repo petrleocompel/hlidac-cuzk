@@ -1,3 +1,4 @@
+import { withAuditActor } from '#/lib/audit/context'
 import { and, eq, ne } from 'drizzle-orm'
 import { discoverOIDCConfig } from '@better-auth/sso'
 import { createServerFn } from '@tanstack/react-start'
@@ -82,9 +83,7 @@ async function hydrateOidc(input: {
   })
 }
 
-function toAdminRow(
-  row: typeof ssoProvider.$inferSelect,
-): AdminSsoProvider {
+function toAdminRow(row: typeof ssoProvider.$inferSelect): AdminSsoProvider {
   const oidc = parseOidc(row.oidcConfig)
   return {
     id: row.id,
@@ -150,24 +149,22 @@ export const createSsoProviderAdmin = createServerFn({ method: 'POST' })
     const domain = domainToStore(data.domainMode, data.domain ?? '')
     const id = crypto.randomUUID()
 
-    await db.insert(ssoProvider).values({
-      id,
-      issuer: data.issuer.replace(/\/$/, ''),
-      domain,
-      providerId: data.providerId,
-      userId: session.user.id,
-      oidcConfig,
-      samlConfig: null,
-      organizationId: null,
-      name: data.name?.trim() || data.providerId,
-    })
+    await withAuditActor(session.user.id, (tx) =>
+      tx.insert(ssoProvider).values({
+        id,
+        issuer: data.issuer.replace(/\/$/, ''),
+        domain,
+        providerId: data.providerId,
+        userId: session.user.id,
+        oidcConfig,
+        samlConfig: null,
+        organizationId: null,
+        name: data.name?.trim() || data.providerId,
+      }),
+    )
 
     const created = (
-      await db
-        .select()
-        .from(ssoProvider)
-        .where(eq(ssoProvider.id, id))
-        .limit(1)
+      await db.select().from(ssoProvider).where(eq(ssoProvider.id, id)).limit(1)
     ).at(0)
     if (!created) throw new Error('Provider se nepodařilo vytvořit')
     return toAdminRow(created)
@@ -181,7 +178,7 @@ export const updateSsoProviderAdmin = createServerFn({ method: 'POST' })
   .inputValidator((d) => UpdateInput.parse(d))
   .handler(async ({ data }): Promise<AdminSsoProvider> => {
     await ensureDbReady()
-    await requireAdmin()
+    const session = await requireAdmin()
 
     if (data.domainMode === 'specific' && !data.domain?.trim()) {
       throw new Error('Zadejte alespoň jednu e-mailovou doménu')
@@ -218,16 +215,18 @@ export const updateSsoProviderAdmin = createServerFn({ method: 'POST' })
       clientSecret: secret,
     })
 
-    await db
-      .update(ssoProvider)
-      .set({
-        providerId: data.providerId,
-        issuer: data.issuer.replace(/\/$/, ''),
-        domain: domainToStore(data.domainMode, data.domain ?? ''),
-        oidcConfig,
-        name: data.name?.trim() || data.providerId,
-      })
-      .where(eq(ssoProvider.id, data.id))
+    await withAuditActor(session.user.id, (tx) =>
+      tx
+        .update(ssoProvider)
+        .set({
+          providerId: data.providerId,
+          issuer: data.issuer.replace(/\/$/, ''),
+          domain: domainToStore(data.domainMode, data.domain ?? ''),
+          oidcConfig,
+          name: data.name?.trim() || data.providerId,
+        })
+        .where(eq(ssoProvider.id, data.id)),
+    )
 
     const updated = (
       await db
@@ -244,7 +243,7 @@ export const deleteSsoProviderAdmin = createServerFn({ method: 'POST' })
   .inputValidator((d) => z.object({ id: z.string().min(1) }).parse(d))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
-    await requireAdmin()
+    const session = await requireAdmin()
 
     const existing = (
       await db
@@ -255,9 +254,11 @@ export const deleteSsoProviderAdmin = createServerFn({ method: 'POST' })
     ).at(0)
     if (!existing) throw new Error('Provider nenalezen')
 
-    await db
-      .delete(account)
-      .where(eq(account.providerId, existing.providerId))
-    await db.delete(ssoProvider).where(eq(ssoProvider.id, data.id))
+    await withAuditActor(session.user.id, async (tx) => {
+      await tx
+        .delete(account)
+        .where(eq(account.providerId, existing.providerId))
+      await tx.delete(ssoProvider).where(eq(ssoProvider.id, data.id))
+    })
     return { ok: true }
   })

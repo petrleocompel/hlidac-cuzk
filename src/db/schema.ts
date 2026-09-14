@@ -546,3 +546,21 @@ export const backupStatus = pgTable('backup_status', {
   snapshotId: text('snapshot_id'),
   lastError: text('last_error'),
 })
+
+/** Minimal administration trail; no passwords, token values or provider configuration. */
+export const adminAudit = pgTable(
+  'admin_audit',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    actorId: text('actor_id'),
+    targetId: text('target_id').notNull(),
+    action: text('action').notNull(),
+    details: jsonb('details')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index('admin_audit_created_idx').on(table.createdAt, table.id)],
+)

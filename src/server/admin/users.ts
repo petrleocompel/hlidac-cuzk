@@ -4,7 +4,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { requireAdmin } from '#/auth/session'
-import { auth } from '#/auth/server'
+import { withAuditedAuth } from '#/auth/audited'
 import { db } from '#/db'
 import { ensureDbReady } from '#/db/migrate'
 import { parcelWatches, user, userNotificationSettings } from '#/db/schema'
@@ -223,10 +223,12 @@ export const setUserRoleAdmin = createServerFn({ method: 'POST' })
     if (data.userId === session.user.id) {
       throw new Error('cannot_change_own_role')
     }
-    await auth.api.setRole({
-      body: { userId: data.userId, role: data.role },
-      headers: getRequest().headers,
-    })
+    await withAuditedAuth(getRequest().headers, (scoped) =>
+      scoped.api.setRole({
+        body: { userId: data.userId, role: data.role },
+        headers: getRequest().headers,
+      }),
+    )
     return { ok: true }
   })
 
@@ -261,10 +263,12 @@ export const updateUserAdmin = createServerFn({ method: 'POST' })
       return { ok: true, changed: false }
     }
 
-    await auth.api.adminUpdateUser({
-      body: { userId: data.userId, data: changes },
-      headers: getRequest().headers,
-    })
+    await withAuditedAuth(getRequest().headers, (scoped) =>
+      scoped.api.adminUpdateUser({
+        body: { userId: data.userId, data: changes },
+        headers: getRequest().headers,
+      }),
+    )
     return { ok: true, changed: true }
   })
 
@@ -278,10 +282,12 @@ export const setUserPasswordAdmin = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
     await requireAdmin()
-    await auth.api.setUserPassword({
-      body: { userId: data.userId, newPassword: data.newPassword },
-      headers: getRequest().headers,
-    })
+    await withAuditedAuth(getRequest().headers, (scoped) =>
+      scoped.api.setUserPassword({
+        body: { userId: data.userId, newPassword: data.newPassword },
+        headers: getRequest().headers,
+      }),
+    )
     return { ok: true }
   })
 
@@ -298,10 +304,12 @@ export const banUserAdmin = createServerFn({ method: 'POST' })
     if (data.userId === session.user.id) {
       throw new Error('cannot_ban_self')
     }
-    await auth.api.banUser({
-      body: { userId: data.userId, banReason: data.reason },
-      headers: getRequest().headers,
-    })
+    await withAuditedAuth(getRequest().headers, (scoped) =>
+      scoped.api.banUser({
+        body: { userId: data.userId, banReason: data.reason },
+        headers: getRequest().headers,
+      }),
+    )
     return { ok: true }
   })
 
@@ -310,9 +318,11 @@ export const unbanUserAdmin = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
     await requireAdmin()
-    await auth.api.unbanUser({
-      body: { userId: data.userId },
-      headers: getRequest().headers,
-    })
+    await withAuditedAuth(getRequest().headers, (scoped) =>
+      scoped.api.unbanUser({
+        body: { userId: data.userId },
+        headers: getRequest().headers,
+      }),
+    )
     return { ok: true }
   })

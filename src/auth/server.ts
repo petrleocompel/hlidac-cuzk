@@ -1,3 +1,4 @@
+import type { AuditTransaction } from '#/lib/audit/context'
 import { authorizeRegistration } from './registration'
 import { authPolicy, MIN_PASSWORD_LENGTH } from './policy'
 import { betterAuth } from 'better-auth'
@@ -8,7 +9,9 @@ import { db } from '#/db'
 import * as schema from '#/db/schema'
 import { issuerOrigin } from '#/lib/sso'
 
-async function ssoTrustedOrigins(): Promise<string[]> {
+async function ssoTrustedOrigins(
+  database: typeof db | AuditTransaction,
+): Promise<string[]> {
   const baseURL = process.env.BETTER_AUTH_URL ?? 'http://127.0.0.1:3000'
   const origins = new Set<string>([baseURL])
   try {
@@ -24,7 +27,7 @@ async function ssoTrustedOrigins(): Promise<string[]> {
   }
 
   try {
-    const rows = await db
+    const rows = await database
       .select({ issuer: schema.ssoProvider.issuer })
       .from(schema.ssoProvider)
     for (const row of rows) {
@@ -38,13 +41,13 @@ async function ssoTrustedOrigins(): Promise<string[]> {
   return [...origins]
 }
 
-export function createAuth() {
+export function createAuth(database: typeof db | AuditTransaction = db) {
   return betterAuth({
     appName: 'Hlídač ČÚZK',
     baseURL: process.env.BETTER_AUTH_URL ?? 'http://127.0.0.1:3000',
     secret: process.env.BETTER_AUTH_SECRET!,
-    trustedOrigins: ssoTrustedOrigins,
-    database: drizzleAdapter(db, {
+    trustedOrigins: () => ssoTrustedOrigins(database),
+    database: drizzleAdapter(database, {
       provider: 'pg',
       schema: {
         user: schema.user,
