@@ -20,3 +20,10 @@ deploy/.env
 # Private backup repository credentials
 .backup.env
 **/.backup.env
+
+# design-sync (claude.ai/design) — scratch/regenerated; see .design-sync/ for durable state
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
