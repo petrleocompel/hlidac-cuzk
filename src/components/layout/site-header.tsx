@@ -19,7 +19,12 @@ import type { NavStats } from '#/server/nav-stats'
 
 type Crumb = {
   label: string
-  to?: '/dashboard' | '/admin' | '/dashboard/settings' | '/dashboard/account'
+  to?:
+    | '/dashboard'
+    | '/dashboard/watches'
+    | '/admin'
+    | '/dashboard/settings'
+    | '/dashboard/account'
 }
 
 function crumbsForPath(pathname: string): Crumb[] {
@@ -40,17 +45,26 @@ function crumbsForPath(pathname: string): Crumb[] {
   if (pathname.startsWith('/admin/cuzk')) {
     return [{ label: 'Admin', to: '/admin' }, { label: 'ČÚZK API' }]
   }
+  if (pathname.startsWith('/admin/design-system')) {
+    return [{ label: 'Admin', to: '/admin' }, { label: 'Design systém' }]
+  }
   if (pathname.startsWith('/admin')) {
     return [{ label: 'Admin', to: '/admin' }, { label: 'Uživatelé' }]
   }
   if (pathname.startsWith('/dashboard/watches/new')) {
-    return [{ label: 'Sledování', to: '/dashboard' }, { label: 'Nová parcela' }]
+    return [
+      { label: 'Sledování', to: '/dashboard/watches' },
+      { label: 'Nová parcela' },
+    ]
   }
   if (pathname.startsWith('/dashboard/watches/')) {
     return [
-      { label: 'Sledování', to: '/dashboard' },
+      { label: 'Sledování', to: '/dashboard/watches' },
       { label: 'Detail parcely' },
     ]
+  }
+  if (pathname.startsWith('/dashboard/watches')) {
+    return [{ label: 'Sledování' }]
   }
   if (pathname.startsWith('/dashboard/settings')) {
     return [{ label: 'Notifikace' }]
@@ -59,7 +73,7 @@ function crumbsForPath(pathname: string): Crumb[] {
     return [{ label: 'Účet' }]
   }
   if (pathname.startsWith('/dashboard')) {
-    return [{ label: 'Sledování' }]
+    return [{ label: 'Přehled' }]
   }
   return [{ label: 'Hlídač ČÚZK' }]
 }

@@ -6,7 +6,9 @@ import {
   KeyRound,
   Layers,
   LayoutDashboard,
+  ListChecks,
   MapPinned,
+  Palette,
   Users,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -38,11 +40,17 @@ type NavItem = {
 }
 
 const mainNav: NavItem[] = [
+  {
+    title: 'Přehled',
+    to: '/dashboard',
+    icon: LayoutDashboard,
+    exact: true,
+  },
   { title: 'Mapa sledování', to: '/dashboard/map', icon: MapPinned },
   {
     title: 'Sledování',
-    to: '/dashboard',
-    icon: LayoutDashboard,
+    to: '/dashboard/watches',
+    icon: ListChecks,
     exact: true,
   },
   {
@@ -93,7 +101,7 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
         <SidebarMenu>
           {mainNav.map((item) => {
             const active = pathActive(pathname, item.to, item.exact)
-            const isWatches = item.to === '/dashboard'
+            const isWatches = item.to === '/dashboard/watches'
             return (
               <SidebarMenuItem key={item.to}>
                 <SidebarMenuButton
@@ -209,6 +217,17 @@ export function NavMain({ isAdmin }: { isAdmin?: boolean }) {
                     <Link to="/admin/notifications">
                       <KeyRound />
                       <span>Pravidla notifikací</span>
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+                <SidebarMenuSubItem>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={pathname.startsWith('/admin/design-system')}
+                  >
+                    <Link to="/admin/design-system">
+                      <Palette />
+                      <span>Design systém</span>
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>

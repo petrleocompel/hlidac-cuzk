@@ -18,6 +18,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAccessRouteImport } from './routes/admin/access'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
 import { Route as AdminCuzkRouteImport } from './routes/admin/cuzk'
+import { Route as AdminDesignSystemRouteImport } from './routes/admin/design-system'
 import { Route as AdminMonitoringRouteImport } from './routes/admin/monitoring'
 import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
 import { Route as AdminSsoRouteImport } from './routes/admin/sso'
@@ -31,6 +32,7 @@ import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settin
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users/$userId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiSsoLinkCallbackRouteImport } from './routes/api/sso-link/callback'
+import { Route as DashboardWatchesIndexRouteImport } from './routes/dashboard/watches/index'
 import { Route as DashboardWatchesIdRouteImport } from './routes/dashboard/watches/$id'
 import { Route as DashboardWatchesNewRouteImport } from './routes/dashboard/watches/new'
 
@@ -77,6 +79,11 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
 const AdminCuzkRoute = AdminCuzkRouteImport.update({
   id: '/admin/cuzk',
   path: '/admin/cuzk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDesignSystemRoute = AdminDesignSystemRouteImport.update({
+  id: '/admin/design-system',
+  path: '/admin/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminMonitoringRoute = AdminMonitoringRouteImport.update({
@@ -144,6 +151,11 @@ const ApiSsoLinkCallbackRoute = ApiSsoLinkCallbackRouteImport.update({
   path: '/api/sso-link/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardWatchesIndexRoute = DashboardWatchesIndexRouteImport.update({
+  id: '/dashboard/watches/',
+  path: '/dashboard/watches/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardWatchesIdRoute = DashboardWatchesIdRouteImport.update({
   id: '/dashboard/watches/$id',
   path: '/dashboard/watches/$id',
@@ -164,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/admin/access': typeof AdminAccessRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/cuzk': typeof AdminCuzkRoute
+  '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/sso': typeof AdminSsoRoute
@@ -180,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/api/sso-link/callback': typeof ApiSsoLinkCallbackRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
+  '/dashboard/watches/': typeof DashboardWatchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -190,6 +204,7 @@ export interface FileRoutesByTo {
   '/admin/access': typeof AdminAccessRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/cuzk': typeof AdminCuzkRoute
+  '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/sso': typeof AdminSsoRoute
@@ -206,6 +221,7 @@ export interface FileRoutesByTo {
   '/api/sso-link/callback': typeof ApiSsoLinkCallbackRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
+  '/dashboard/watches': typeof DashboardWatchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -217,6 +233,7 @@ export interface FileRoutesById {
   '/admin/access': typeof AdminAccessRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/cuzk': typeof AdminCuzkRoute
+  '/admin/design-system': typeof AdminDesignSystemRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/sso': typeof AdminSsoRoute
@@ -233,6 +250,7 @@ export interface FileRoutesById {
   '/api/sso-link/callback': typeof ApiSsoLinkCallbackRoute
   '/dashboard/watches/$id': typeof DashboardWatchesIdRoute
   '/dashboard/watches/new': typeof DashboardWatchesNewRoute
+  '/dashboard/watches/': typeof DashboardWatchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -245,6 +263,7 @@ export interface FileRouteTypes {
     | '/admin/access'
     | '/admin/audit'
     | '/admin/cuzk'
+    | '/admin/design-system'
     | '/admin/monitoring'
     | '/admin/notifications'
     | '/admin/sso'
@@ -261,6 +280,7 @@ export interface FileRouteTypes {
     | '/api/sso-link/callback'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
+    | '/dashboard/watches/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -271,6 +291,7 @@ export interface FileRouteTypes {
     | '/admin/access'
     | '/admin/audit'
     | '/admin/cuzk'
+    | '/admin/design-system'
     | '/admin/monitoring'
     | '/admin/notifications'
     | '/admin/sso'
@@ -287,6 +308,7 @@ export interface FileRouteTypes {
     | '/api/sso-link/callback'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
+    | '/dashboard/watches'
   id:
     | '__root__'
     | '/'
@@ -297,6 +319,7 @@ export interface FileRouteTypes {
     | '/admin/access'
     | '/admin/audit'
     | '/admin/cuzk'
+    | '/admin/design-system'
     | '/admin/monitoring'
     | '/admin/notifications'
     | '/admin/sso'
@@ -313,6 +336,7 @@ export interface FileRouteTypes {
     | '/api/sso-link/callback'
     | '/dashboard/watches/$id'
     | '/dashboard/watches/new'
+    | '/dashboard/watches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -324,6 +348,7 @@ export interface RootRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminCuzkRoute: typeof AdminCuzkRoute
+  AdminDesignSystemRoute: typeof AdminDesignSystemRoute
   AdminMonitoringRoute: typeof AdminMonitoringRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminSsoRoute: typeof AdminSsoRoute
@@ -340,6 +365,7 @@ export interface RootRouteChildren {
   ApiSsoLinkCallbackRoute: typeof ApiSsoLinkCallbackRoute
   DashboardWatchesIdRoute: typeof DashboardWatchesIdRoute
   DashboardWatchesNewRoute: typeof DashboardWatchesNewRoute
+  DashboardWatchesIndexRoute: typeof DashboardWatchesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -405,6 +431,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/cuzk'
       fullPath: '/admin/cuzk'
       preLoaderRoute: typeof AdminCuzkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/design-system': {
+      id: '/admin/design-system'
+      path: '/admin/design-system'
+      fullPath: '/admin/design-system'
+      preLoaderRoute: typeof AdminDesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/monitoring': {
@@ -498,6 +531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSsoLinkCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/watches/': {
+      id: '/dashboard/watches/'
+      path: '/dashboard/watches'
+      fullPath: '/dashboard/watches/'
+      preLoaderRoute: typeof DashboardWatchesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/watches/$id': {
       id: '/dashboard/watches/$id'
       path: '/dashboard/watches/$id'
@@ -524,6 +564,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminCuzkRoute: AdminCuzkRoute,
+  AdminDesignSystemRoute: AdminDesignSystemRoute,
   AdminMonitoringRoute: AdminMonitoringRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminSsoRoute: AdminSsoRoute,
@@ -540,6 +581,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSsoLinkCallbackRoute: ApiSsoLinkCallbackRoute,
   DashboardWatchesIdRoute: DashboardWatchesIdRoute,
   DashboardWatchesNewRoute: DashboardWatchesNewRoute,
+  DashboardWatchesIndexRoute: DashboardWatchesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

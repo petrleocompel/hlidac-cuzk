@@ -21,6 +21,9 @@ export default [
       'drizzle/**',
       '.output/**',
       'src/routeTree.gen.ts',
+      'ds-bundle/**',
+      '.ds-sync/**',
+      '.design-sync/**',
     ],
   },
 ]
