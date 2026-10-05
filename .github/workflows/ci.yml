@@ -105,5 +105,6 @@ jobs:
         with:
           name: output
           path: .output
+          include-hidden-files: true
           retention-days: 7
           if-no-files-found: error
