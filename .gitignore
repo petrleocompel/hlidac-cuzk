@@ -13,7 +13,7 @@ todos.json
 *.log
 coverage
 
-# Local secrets — use GitLab CI/CD vars for deploy (see .gitlab-ci.yml)
+# Local secrets — never commit real env files (templates: *.env.example)
 .env
 deploy/.env
 
@@ -21,9 +21,7 @@ deploy/.env
 .backup.env
 **/.backup.env
 
-# design-sync (claude.ai/design) — scratch/regenerated; see .design-sync/ for durable state
+# Local design tooling output
 .ds-sync/
 ds-bundle/
-.design-sync/.cache/
-.design-sync/learnings/
-.design-sync/node_modules
+.design-sync/

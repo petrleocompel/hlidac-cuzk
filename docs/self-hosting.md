@@ -83,12 +83,12 @@ openssl rand -base64 48   # BETTER_AUTH_SECRET / POSTGRES_PASSWORD
 
 ### 3. Pull or build the image
 
-**From the project registry (authenticated access may be required):**
+**From GitHub Container Registry (public, no `docker login` needed):**
 
 ```bash
-docker login ghcr.io
-# Select a successful pipeline commit tag, then pin its digest for deployment.
-export HLIDAC_CUZK_IMAGE=ghcr.io/petrleocompel/hlidac-cuzk:5d541204
+# Pick a release from https://github.com/petrleocompel/hlidac-cuzk/releases,
+# then pin its digest for deployment (see "Container registry" below).
+export HLIDAC_CUZK_IMAGE=ghcr.io/petrleocompel/hlidac-cuzk:X.Y.Z
 docker pull "$HLIDAC_CUZK_IMAGE"
 ```
 
@@ -206,7 +206,7 @@ location / {
 }
 ```
 
-The Peelco test overlay (`docker-compose.test.yml`) shows Traefik labels; adapt for your proxy.
+The nginx example above and the Caddy setup in `docker-compose.proxy.yml` / `Caddyfile` can be adapted to any other reverse proxy (Traefik, HAProxy, …).
 
 ---
 
@@ -469,10 +469,10 @@ docker compose -f docker-compose.yml -f docker-compose.selfhost.yml -p hlidac_cu
 
 ### Upgrade
 
-Use an image from a successful pipeline, pin its immutable registry digest, and keep
-its matching deployment files. Do not deploy `latest` automatically. GitLab publishes
-only after lint, typecheck, tests and build; GitHub image publishing calls the same CI
-workflow for the exact checkout before publishing. A green image build alone does not
+Use a released image version, pin its immutable registry digest, and keep its matching
+deployment files. Do not deploy `latest` or `edge` automatically. GitHub Actions publishes
+an image only after CI (lint, typecheck, tests and production build) passes for the same
+commit. A green image build alone does not
 prove that your deployment or SSO provider is healthy. See [release notes](../CHANGELOG.md).
 
 Before the maintenance window, record the current image digest, copy the configuration
@@ -484,8 +484,8 @@ from the backup section. The local safety copy below cannot survive loss of this
 For an **existing stack with the bundled PostgreSQL database**, from `deploy/`:
 
 ```bash
-# Set the full registry reference with @sha256:<verified digest> from the successful build.
-export HLIDAC_CUZK_IMAGE='your-registry/hlidac-cuzk@sha256:your-verified-digest'
+# Set the full image reference with @sha256:<verified digest> of the selected release.
+export HLIDAC_CUZK_IMAGE='ghcr.io/petrleocompel/hlidac-cuzk@sha256:your-verified-digest'
 sh upgrade.sh docker-compose.selfhost.yml hlidac_cuzk
 ```
 
@@ -509,8 +509,8 @@ Bootstrap runs exactly once in a recreated migration service. Any dump or bootst
 failure stops the script and leaves web/worker stopped. After migration, the web starts
 and must pass `/readyz` within 120 seconds before the worker starts. Runtime HTTP/auth
 and cron paths validate the schema without applying migrations in production. Readiness
-also rejects a database newer than the image. GitLab uses the same script and serializes
-deployments with `resource_group`.
+also rejects a database newer than the image. If you automate deployments, use the same
+script and make sure two deployments never run concurrently.
 
 After deployment, check login, **Admin → Stav kontrol a workeru → Verze instance**,
 worker progress, SSO if configured, and notification delivery. That page shows image
@@ -572,23 +572,40 @@ The repository `.dockerignore` excludes local `.env` variants (including nested 
 
 ## Container registry
 
-The active GitLab registry is `ghcr.io/petrleocompel/hlidac-cuzk`.
-[Select a successful pipeline](https://github.com/petrleocompel/hlidac-cuzk/actions)
-and its eight-character commit tag, then pin the resolved digest. Authenticate with
-`docker login ghcr.io`; access depends on project permissions.
-The [registry page](https://github.com/petrleocompel/hlidac-cuzk/pkgs/container/hlidac-cuzk)
-lists published tags. The mutable `latest` tag is not an upgrade policy.
+Images are built only by GitHub Actions and published as a public multiarch
+(`linux/amd64` + `linux/arm64`) package at `ghcr.io/petrleocompel/hlidac-cuzk`
+([package page](https://github.com/petrleocompel/hlidac-cuzk/pkgs/container/hlidac-cuzk)).
+No `docker login` is needed to pull.
 
-GitHub mirrors can publish into their own `ghcr.io/owner/repository` namespace on `main`
-and `v*` tags, after the reusable CI checks pass. This does not imply a public GHCR
-package exists for this private GitLab repository.
+| Source | Published tags |
+|--------|----------------|
+| Release tag `vX.Y.Z` | `X.Y.Z`, `X.Y`, `X`, `latest` |
+| Every push to `main` | `edge`, `sha-<7-character-commit>` |
+
+Pick a version from [GitHub Releases](https://github.com/petrleocompel/hlidac-cuzk/releases)
+and pin `X.Y.Z` or, better, its digest:
+
+```bash
+docker pull ghcr.io/petrleocompel/hlidac-cuzk:X.Y.Z
+docker buildx imagetools inspect ghcr.io/petrleocompel/hlidac-cuzk:X.Y.Z  # shows the digest
+export HLIDAC_CUZK_IMAGE=ghcr.io/petrleocompel/hlidac-cuzk@sha256:<digest>
+```
+
+The mutable `latest` and `edge` tags are not an upgrade policy; never deploy them
+automatically. Published images carry SLSA build provenance and SBOM attestations.
+Verify them with the [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify oci://ghcr.io/petrleocompel/hlidac-cuzk:X.Y.Z --owner petrleocompel
+```
 
 Workflow files:
 
 | Workflow | Purpose |
 |----------|---------|
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Lint, typecheck, Vitest, production `pnpm build` (on `main` + PRs) |
-| [`.github/workflows/docker.yml`](../.github/workflows/docker.yml) | Docker image build; push to GHCR on `main` / `v*` (PRs build only) |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Lint, typecheck, unit + PostgreSQL integration + backup tests, production `pnpm build` (on `main` + PRs) |
+| [`.github/workflows/docker.yml`](../.github/workflows/docker.yml) | Smoke-tests the amd64 + arm64 image; publishes to GHCR on `main` / `v*` tags (PRs build only) |
+| [`.github/workflows/release.yml`](../.github/workflows/release.yml) | On `v*` tags: creates the GitHub Release with notes from `CHANGELOG.md` |
 
 ---
 
@@ -599,7 +616,6 @@ Workflow files:
 | `deploy/docker-compose.yml` | Base: `db`, `migrate`, `app`, `cron` |
 | `deploy/docker-compose.selfhost.yml` | Publish `app` on `${APP_HOST_PORT:-3000}` |
 | `deploy/docker-compose.dev.yml` | Publish Postgres on loopback for local `pnpm dev` |
-| `deploy/docker-compose.test.yml` | Peelco Traefik / fixed host port overlay |
 
 ---
 
@@ -631,11 +647,11 @@ Workflow files:
 
 ## License / support
 
-See the repository root for license and issue tracker. For ČÚZK API access and rate limits, follow ČÚZK’s own documentation for your API key.
+Licensed under [AGPL-3.0-only](../LICENSE); report bugs in the [issue tracker](https://github.com/petrleocompel/hlidac-cuzk/issues). For ČÚZK API access and rate limits, follow ČÚZK’s own documentation for your API key.
 
 ### Notification destinations and encrypted credentials
 
-**Upgrade requirement (HOST-03):** configure `NOTIFICATION_ENCRYPTION_KEY` for both app and cron, then run the credential migration before resuming delivery. Without the key or with legacy plaintext credentials, delivery fails closed; existing accounts, watches and their history remain available. Failed deliveries can be retried from their event after configuration is repaired. GitLab deployments accept the same named CI/CD variable (masked, environment scope `test`); the application does not generate or derive this key from the authentication secret.
+**Upgrade requirement (HOST-03):** configure `NOTIFICATION_ENCRYPTION_KEY` for both app and cron, then run the credential migration before resuming delivery. Without the key or with legacy plaintext credentials, delivery fails closed; existing accounts, watches and their history remain available. Failed deliveries can be retried from their event after configuration is repaired. The application does not generate or derive this key from the authentication secret.
 
 Generate a separate 32-byte key with `openssl rand -base64 32` and put the result in the instance's private env file or secret manager. Do not commit it. New Gotify tokens and complete Slack/Discord webhook URLs use AES-256-GCM with a random nonce and authenticated owner/field identity. User settings and admin user details return configured flags, never the saved token/webhook URL. In the form, choose **Ponechat / Nahradit / Odebrat**; replacement fields start empty and are cleared after saving. Tests send using the saved settings. Changing the Gotify server requires replacing or removing its token.
 
@@ -674,7 +690,7 @@ The single installation command is `pnpm bootstrap`. It validates central config
 
 `pnpm start` and the Docker entrypoint validate configuration and current DB schema before starting HTTP. The worker also validates config before scheduling. `PUBLIC_URL` is accepted as the public-origin fallback and copied to `BETTER_AUTH_URL` for auth consumers. Auth policies and ČÚZK limits share their schema definitions with central validation. Optional empty env values are treated as absent; enabling SSO bootstrap requires all provider credentials, and trusted forwarding headers require an explicit proxy list. Missing notification encryption is allowed for instances without notifications and is reported by doctor; a supplied invalid key fails validation.
 
-Deployment scripts must keep runtime configuration consistent between app, cron and bootstrap. The GitLab generated env now includes registration/proxy policy, API limits, monitor token and notification encryption configuration. After changing env, recreate the affected containers so they receive it. Build does not require runtime credentials; startup does. Running `.output/server/index.mjs` directly bypasses this startup validation and is not the supported selfhosting entrypoint.
+Deployment scripts must keep runtime configuration consistent between app, cron and bootstrap. Deployment automation that generates the env file must include registration/proxy policy, API limits, monitor token and notification encryption configuration. After changing env, recreate the affected containers so they receive it. Build does not require runtime credentials; startup does. Running `.output/server/index.mjs` directly bypasses this startup validation and is not the supported selfhosting entrypoint.
 
 ### Scheduled encrypted backups and verified restore
 
@@ -733,10 +749,8 @@ See the [network dependency table](self-hosting.cs.md#síťové-závislosti).
 
 ## ARM64, runtime permissions and container storage
 
-Release workflows differ by registry: GitHub Actions builds, smoke-tests under QEMU,
-and publishes a multiarch manifest for `linux/amd64` and `linux/arm64` to GHCR. GitLab
-CI builds, smokes and publishes `linux/amd64` only to the Peelco registry (test deploy
-runners are amd64). Docker selects the platform for your host when a multiarch tag is
+GitHub Actions builds, smoke-tests under QEMU, and publishes a multiarch manifest for
+`linux/amd64` and `linux/arm64` to GHCR. Docker selects the platform for your host when a multiarch tag is
 pulled; inspect a published reference with `docker buildx imagetools inspect IMAGE`.
 Building uses the native builder for architecture-independent JS/assets and installs
 runtime dependencies for the target platform. Native hardware testing remains useful

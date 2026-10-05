@@ -2,6 +2,9 @@
 
 ## Unreleased — selfhosting and safe upgrades
 
+- Published as open source under AGPL-3.0-only on GitHub; images are built by GitHub Actions
+  and published multiarch to `ghcr.io/petrleocompel/hlidac-cuzk` with provenance and SBOM
+  attestations.
 - Opt-in bounded retention for events, historical snapshots, errors and API attempt detail;
   undelivered messages protect their source history, and daily quota totals are retained.
   Hourly maintenance reports counts; the manual CLI defaults to a dry run.
@@ -19,8 +22,6 @@
   a parcel for explicit verification and daily subscription. Map failure preserves text details.
 - Development/tests require Node 22.13 or later (including the DOM geometry test environment).
 
-- GitLab container job builds, smokes and publishes `linux/amd64` only; multiarch
-  `linux/amd64,linux/arm64` remains on GitHub Actions / GHCR.
 - Watches can be added by address: RÚIAN suggests address places, the exact match yields the
   address place code and ČÚZK turns it into the building, which is offered together with its
   units and parcels. An ambiguous or unmatched address is confirmed by the user; coordinates
@@ -74,7 +75,7 @@
   in Czech. Fonts are served locally; no DSN means no Sentry initialization.
 - Image publishing now requires successful lint, typecheck, tests and production build.
 - `deploy/upgrade.sh` stops writers, creates a protected local PostgreSQL dump, runs one
-  bootstrap and waits for web readiness before starting the worker. GitLab deploys are serialized.
+  bootstrap and waits for web readiness before starting the worker.
 - The administration monitoring page reports image version, full commit and schema state.
 - Production requests and workers no longer run implicit migrations. Start with `pnpm bootstrap`.
 - Readiness refuses a database with newer migration metadata than the running image.

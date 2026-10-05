@@ -1,16 +1,15 @@
 # Vlastní instance Hlídače ČÚZK
 
-Aplikace, worker a PostgreSQL běží na vašem serveru. GitHub Actions publikuje multiarch image (AMD64 i ARM64) do GHCR; GitLab CI publikuje jen AMD64 do Peelco registry. Docker z multiarch tagu vybere architekturu hostitele. Web, migrace a worker běží pod UID 1000, s read-only filesystémem a zapisovatelným `/tmp`. Výchozí registrace je soukromá:
+Aplikace, worker a PostgreSQL běží na vašem serveru. GitHub Actions publikuje veřejný multiarch image (AMD64 i ARM64) do GHCR. Docker z multiarch tagu vybere architekturu hostitele. Web, migrace a worker běží pod UID 1000, s read-only filesystémem a zapisovatelným `/tmp`. Výchozí registrace je soukromá:
 nové účty zakládá správce. Pro běžný přístup použijte HTTPS, i v domácí síti.
 
 ## Stažení a konfigurace
 
-Zdrojový projekt: [GitLab](https://github.com/petrleocompel/hlidac-cuzk),
-[úspěšná vydání a pipeline](https://github.com/petrleocompel/hlidac-cuzk/actions),
-[registry](https://github.com/petrleocompel/hlidac-cuzk/pkgs/container/hlidac-cuzk).
-Image má adresu `ghcr.io/petrleocompel/hlidac-cuzk`. Projekt i registry mohou
-vyžadovat váš GitLab účet nebo read-only deploy token; veřejný přístup není zaručen.
-Heslo zadávejte interaktivně přes `docker login ghcr.io`.
+Zdrojový projekt: [GitHub](https://github.com/petrleocompel/hlidac-cuzk),
+[vydání (Releases)](https://github.com/petrleocompel/hlidac-cuzk/releases),
+[balíček v GHCR](https://github.com/petrleocompel/hlidac-cuzk/pkgs/container/hlidac-cuzk).
+Image má adresu `ghcr.io/petrleocompel/hlidac-cuzk`. Projekt i image jsou veřejné,
+`docker login` není potřeba.
 
 ```bash
 git clone https://github.com/petrleocompel/hlidac-cuzk.git
@@ -26,10 +25,14 @@ Soubor `deploy/.env` obsahuje unikátní klíče a má práva `0600`. Doplňte `
 `APP_HOST` je pouze DNS jméno. Nezapínejte demo: `SEED_DEMO_WATCH=0`.
 Nikdy nekopírujte skutečný `.env` do repozitáře ani výpisu podpory.
 
-V registry vyberte osmiznakový commit tag z úspěšné pipeline. Image stáhněte a zjistěte
-jeho digest příkazem `docker image inspect IMAGE --format '{{json .RepoDigests}}'`.
+V [GitHub Releases](https://github.com/petrleocompel/hlidac-cuzk/releases) vyberte verzi
+`X.Y.Z` (tag vydání `vX.Y.Z` publikuje image `X.Y.Z`, `X.Y`, `X` a `latest`; každý push do
+`main` publikuje `edge` a `sha-<7 znaků commitu>`). Image `ghcr.io/petrleocompel/hlidac-cuzk:X.Y.Z`
+stáhněte a zjistěte jeho digest příkazem `docker image inspect IMAGE --format '{{json .RepoDigests}}'`.
 Do `deploy/.env` uložte `HLIDAC_CUZK_IMAGE=ghcr.io/petrleocompel/hlidac-cuzk@sha256:...`
-s **celým skutečným digestem**, nikoli doslovně třemi tečkami. Nepřipínejte `latest`.
+s **celým skutečným digestem**, nikoli doslovně třemi tečkami. Nepřipínejte `latest` ani `edge`.
+Původ image (SLSA provenance a SBOM) ověříte příkazem
+`gh attestation verify oci://ghcr.io/petrleocompel/hlidac-cuzk:X.Y.Z --owner petrleocompel`.
 Alternativně sestavte vlastní image: `docker build -t hlidac-cuzk:local .` a nastavte
 `HLIDAC_CUZK_IMAGE=hlidac-cuzk:local`. Tento lokální image před upgradem publikujte do
 vlastní registry, protože upgrade skript vždy provede pull.

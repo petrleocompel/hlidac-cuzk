@@ -14,7 +14,7 @@ concurrent workers. Never point these commands at an operator database.
 The integration configuration supplies a fixture ČÚZK key and authentication/encryption
 settings. Tests bind local HTTP/SMTP fixtures and set the ČÚZK base URL to those fixtures.
 No production API key, webhook, SMTP account or delivered human message is required.
-Do not replace fixture destinations with real credentials. GitLab and GitHub CI run unit
+Do not replace fixture destinations with real credentials. GitHub Actions runs unit
 and integration suites before publishing; backup and Compose smoke checks cover separate
 installation concerns described in the selfhosting guide.
 
@@ -39,7 +39,7 @@ All referenced files are under `tests/integration/`. On 13 September 2026 the co
 suite passed **115 integration tests on PostgreSQL 16** and **82 unit tests**. Lint,
 typecheck and production build also passed. These results establish the fixture behaviors;
 they do not claim live ČÚZK data coverage, delivery to real providers or a successful current
-remote pipeline. The GitLab API and Git SSH endpoint were unavailable during this run.
+remote pipeline.
 
 QA-02 remains separate: an end-to-end installation journey including a test OIDC provider
 and real upgrade/backup/restore processes is broader than these component integrations.

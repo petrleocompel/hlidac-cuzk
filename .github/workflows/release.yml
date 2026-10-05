@@ -1,0 +1,88 @@
+name: Release
+
+# Push a `vX.Y.Z` tag (or `vX.Y.Z-rc.N` for a pre-release) whose version matches
+# package.json and has a `## X.Y.Z` section in CHANGELOG.md.
+on:
+  push:
+    tags: ['v*.*.*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag matches package.json and CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          package_version=$(node -p "require('./package.json').version")
+          if [ "$version" != "$package_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $package_version"
+            exit 1
+          fi
+          if ! grep -Eq "^## v?${version//./\\.}([^0-9.-]|$)" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## $version' section"
+            exit 1
+          fi
+
+  image:
+    needs: [verify]
+    uses: ./.github/workflows/docker.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+  release:
+    name: GitHub Release
+    needs: [image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Release notes
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          TAGS: ${{ needs.image.outputs.tags }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Body of the matching CHANGELOG section, without its heading.
+          awk -v v="$version" '
+            /^## / { if (found) exit; h=$2; sub(/^v/, "", h); found = (h == v); next }
+            found
+          ' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "## Container image"
+            echo
+            echo '```text'
+            echo "${IMAGE}@${DIGEST}"
+            echo "$TAGS"
+            echo '```'
+            echo
+            echo "Pin the digest in \`deploy/.env\` (\`HLIDAC_CUZK_IMAGE=${IMAGE}@${DIGEST}\`)."
+            echo "See the [upgrade guide](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/self-hosting.md#upgrade)."
+          } >> notes.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=()
+          case "$GITHUB_REF_NAME" in *-*) prerelease=(--prerelease);; esac
+          gh release create "$GITHUB_REF_NAME" --verify-tag \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md "${prerelease[@]}"
