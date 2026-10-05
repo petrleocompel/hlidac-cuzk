@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # The frontend/server bundle is architecture independent; dependency installs are not.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build-base
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build-base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH COREPACK_HOME=/opt/corepack
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -13,7 +13,7 @@ FROM deps AS build
 COPY . .
 RUN pnpm build
 
-FROM node:22-alpine AS runtime-base
+FROM node:26-alpine AS runtime-base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH COREPACK_HOME=/opt/corepack
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
