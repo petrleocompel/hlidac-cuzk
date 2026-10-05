@@ -62,11 +62,20 @@ jobs:
       - uses: ./.github/actions/setup
 
       # Backup tests drive the real pg_dump/pg_restore and restic binaries.
+      # Ubuntu's restic (0.16) lacks --stdin-from-command, so use a pinned release.
       - name: Install PostgreSQL 16 client and restic
+        env:
+          RESTIC_VERSION: 0.19.1
+          RESTIC_SHA256: f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends postgresql-client-16 restic
+          sudo apt-get install -y -qq --no-install-recommends postgresql-client-16
           echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+          curl -fsSLo restic.bz2 "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2"
+          echo "${RESTIC_SHA256}  restic.bz2" | sha256sum -c -
+          bunzip2 restic.bz2
+          sudo install -m 0755 restic /usr/local/bin/restic
+          restic version
 
       - name: Unit tests
         run: pnpm test
