@@ -21,8 +21,20 @@ updates:
     directories: [/, /deploy]
     schedule:
       interval: weekly
+    # Node and PostgreSQL majors need a deliberate upgrade (runtime support, pg_upgrade).
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: docker-compose
     directory: /deploy
     schedule:
       interval: weekly
+    # Node and PostgreSQL majors need a deliberate upgrade (runtime support, pg_upgrade).
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
