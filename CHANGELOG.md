@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.1.1 — Security update (2026-10-06)
+
+- Raise transitive dependency floors flagged by Dependabot: `seroval` ≥ 1.6.8 (pulled in by
+  Better Auth's optional Solid integration; the app does not call the affected
+  deserialisation path, but the package shipped in the image), `source-map-js` ≥ 1.2.2 and
+  `esbuild` ≥ 0.25 for development tooling.
+- Website build uses Vite 6.4 instead of Vite 5 (development-server advisories only; the
+  published static site was not affected).
+- Documentation explains how to obtain the ČÚZK API key (registration, terms of use, expiry
+  and rotation).
+
 ## 0.1.0 — First public release (2026-10-06)
 
 First open-source release of Hlídač ČÚZK: a self-hosted watcher for parcels, buildings, units,

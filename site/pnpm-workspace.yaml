@@ -2,3 +2,8 @@
 # not part of the application workspace in the repository root.
 allowBuilds:
   esbuild: true
+
+# Security floors (Dependabot): VitePress 1.6 still resolves vite 5 / esbuild 0.21.
+overrides:
+  vite: ^6.4.3
+  esbuild: ^0.25.12

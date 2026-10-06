@@ -1,3 +1,12 @@
 allowBuilds:
   esbuild: true
   lightningcss: true
+
+# Security floors for transitive dependencies (Dependabot alerts).
+overrides:
+  # better-auth pulls solid-js, whose seroval range lacks GHSA fixes.
+  seroval: ^1.6.8
+  seroval-plugins: ^1.6.8
+  source-map-js: ^1.2.2
+  # drizzle-kit → @esbuild-kit still asks for esbuild 0.18 (dev only).
+  '@esbuild-kit/core-utils>esbuild': ^0.25.12
