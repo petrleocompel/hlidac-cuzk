@@ -1,6 +1,6 @@
 {
   "name": "hlidac-cuzk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Self-hosted watcher for Czech cadastre (ČÚZK) parcels, buildings and proceedings with change notifications",
   "license": "AGPL-3.0-only",
