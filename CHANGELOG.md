@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Digest notifications: two workers running at the same moment could split one owner's
+  pending changes into two summary messages. Claims are now serialized per owner and channel,
+  so each run sends a single digest.
+
 ## 0.1.1 — Security update (2026-10-06)
 
 - Raise transitive dependency floors flagged by Dependabot: `seroval` ≥ 1.6.8 (pulled in by

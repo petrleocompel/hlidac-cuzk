@@ -486,8 +486,13 @@ export async function deliverDueDigests(
     const quietEnd = quietHoursEnd(rulesFromSettings(settings), at)
     if (quietEnd) continue
     const claimToken = crypto.randomUUID()
-    // Claim the whole group in one transaction; a parallel worker skips locked rows.
+    // Claim the whole group in one transaction. SKIP LOCKED alone lets two
+    // concurrent scans split a group into two digests, so serialize claims per
+    // owner and channel; the waiting worker then sees the rows already leased.
     const claimed = await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`hlidac:digest:${group.userId}:${group.channel}`}))`,
+      )
       const ids = await tx
         .select({
           id: notificationDeliveries.id,

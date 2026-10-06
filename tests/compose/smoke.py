@@ -117,7 +117,12 @@ for scenario in (sys.argv[2:] or ['loopback', 'lan', 'proxy', 'external']):
         except subprocess.CalledProcessError as error:
             # No rendered env or database URL in diagnostics.
             print('FAIL Compose command exit:', error.returncode, 'scenario:', scenario, file=sys.stderr)
+            # Inline scripts are long; name them instead of echoing them.
+            print('Command:', ' '.join(arg if len(arg) <= 80 else '<script>' for arg in error.cmd), file=sys.stderr)
             print(error.stderr, file=sys.stderr)
+            # `config` output is the rendered env; everything else is safe to show.
+            if 'config' not in error.cmd:
+                print(error.stdout[-4000:], file=sys.stderr)
             logs = subprocess.run(base + ['logs', '--tail', '30', 'migrate', 'app'], cwd=directory, capture_output=True, text=True)
             print(logs.stdout, file=sys.stderr)
             raise SystemExit(1) from None
