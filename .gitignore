@@ -25,3 +25,8 @@ deploy/.env
 .ds-sync/
 ds-bundle/
 .design-sync/
+
+# Website (VitePress): build output, cache and docs generated from ../docs
+site/.vitepress/dist/
+site/.vitepress/cache/
+site/docs/

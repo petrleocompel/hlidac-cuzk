@@ -24,6 +24,7 @@ export default [
       'ds-bundle/**',
       '.ds-sync/**',
       '.design-sync/**',
+      'site/**',
     ],
   },
 ]
