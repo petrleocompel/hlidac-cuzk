@@ -3,6 +3,28 @@
 Aplikace, worker a PostgreSQL běží na vašem serveru. GitHub Actions publikuje veřejný multiarch image (AMD64 i ARM64) do GHCR. Docker z multiarch tagu vybere architekturu hostitele. Web, migrace a worker běží pod UID 1000, s read-only filesystémem a zapisovatelným `/tmp`. Výchozí registrace je soukromá:
 nové účty zakládá správce. Pro běžný přístup použijte HTTPS, i v domácí síti.
 
+## API klíč ČÚZK
+
+Hlídač čte data z bezplatného [REST API katastru nemovitostí](https://api-kn.cuzk.gov.cz/)
+(API KN). Každá instance potřebuje vlastní klíč:
+
+1. Otevřete [Registrace ke službám ČÚZK](https://registrace.cuzk.gov.cz/) a vyberte službu
+   **REST API dat katastru nemovitostí**.
+2. Přihlaste se. Fyzická osoba přes **Identitu občana** (např. bankovní identita, eObčanka
+   nebo Mobilní klíč eGovernmentu), právnická osoba účtem **Dálkového přístupu do KN**.
+3. Přečtěte si [podmínky užívání](https://api-kn.cuzk.gov.cz/PodminkyUzivani), dokončete
+   registraci a zkopírujte přidělený API klíč.
+4. Uložte ho do `deploy/.env` jako `CUZK_API_KEY=…`. Aplikace ho posílá v hlavičce `ApiKey`
+   pouze ze serveru; do prohlížeče se nedostane.
+
+Užívání API je zdarma, ČÚZK ale stanovuje maximální počet volání. Tato instance navíc drží
+vlastní denní rozpočet 500 pokusů (viz [Self-hosting – ČÚZK API budget](self-hosting.md#čúzk-api-budget-and-metrics)).
+Klíč podle podmínek nesmíte sdílet s jinými osobami ani ho vkládat do klientských aplikací;
+zneužití údajů je přestupek. Klíč má omezenou platnost: v administraci na stránce **ČÚZK** je
+vidět datum jeho expirace a týden předem se zobrazí upozornění. Prošlý klíč obnovte
+v registraci, změňte `CUZK_API_KEY` a restartujte služby `app` a `cron`. S problémy
+registrace pomůže [podpora ČÚZK](https://podpora.cuzk.gov.cz/).
+
 ## Stažení a konfigurace
 
 Zdrojový projekt: [GitHub](https://github.com/petrleocompel/hlidac-cuzk),
@@ -21,7 +43,7 @@ pnpm env:init deploy/.env
 ```
 
 Soubor `deploy/.env` obsahuje unikátní klíče a má práva `0600`. Doplňte `ADMIN_EMAIL`,
-`CUZK_API_KEY`, `APP_HOST` a `PUBLIC_URL`; uchovejte vygenerované heslo správce.
+`CUZK_API_KEY` ([jak ho získat](#api-klíč-čúzk)), `APP_HOST` a `PUBLIC_URL`; uchovejte vygenerované heslo správce.
 `PUBLIC_URL` musí přesně odpovídat URL v prohlížeči, včetně případného portu, bez cesty.
 `APP_HOST` je pouze DNS jméno. Nezapínejte demo: `SEED_DEMO_WATCH=0`.
 Nikdy nekopírujte skutečný `.env` do repozitáře ani výpisu podpory.

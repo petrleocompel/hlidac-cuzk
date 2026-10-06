@@ -130,7 +130,7 @@ Všechny části běží z jednoho Docker image na vašem serveru. Ven se instan
 </ol>
 
 <div class="landing-note">
-<p><strong>Potřebujete vlastní API klíč ČÚZK.</strong> Hlídač čte data z REST API katastru nemovitostí <a href="https://api-kn.cuzk.gov.cz">api-kn.cuzk.gov.cz</a>; přístup a klíč získáte podle dokumentace ČÚZK. Instalace hlídá denní limit 500 pokusů. Projekt není oficiální službou ČÚZK.</p>
+<p><strong>Potřebujete vlastní API klíč ČÚZK.</strong> Hlídač čte data z REST API katastru nemovitostí <a href="https://api-kn.cuzk.gov.cz">api-kn.cuzk.gov.cz</a>; klíč je zdarma a získáte ho registrací přes Identitu občana — <a :href="withBase('/docs/instalace#api-klíč-čúzk')">návod</a>. Instalace hlídá denní limit 500 pokusů. Projekt není oficiální službou ČÚZK.</p>
 </div>
 
 </div>

@@ -13,9 +13,29 @@ This guide covers production-style Docker Compose deployment, configuration, SSO
 | Docker Engine + Compose v2 | Recommended |
 | PostgreSQL 16 | Bundled in Compose, or use your own |
 | HTTPS URL (public or trusted LAN certificate) | Required for reliable production auth cookies / SSO callbacks |
-| ČÚZK API key | [api-kn.cuzk.gov.cz](https://api-kn.cuzk.gov.cz) access |
+| ČÚZK API key | Free, see [ČÚZK API key](#čúzk-api-key) |
 
 Hardware: a small VPS (1 vCPU, 1–2 GB RAM) is enough for personal / small-team use.
+
+## ČÚZK API key
+
+Hlídač ČÚZK reads cadastral data from the free [ČÚZK REST API](https://api-kn.cuzk.gov.cz/)
+(API KN). Every installation needs its own key:
+
+1. Open [Registrace ke službám ČÚZK](https://registrace.cuzk.gov.cz/) and choose the service
+   **REST API dat katastru nemovitostí**.
+2. Sign in. Natural persons use the Czech **Identita občana** (e.g. bank identity, eObčanka or
+   Mobilní klíč eGovernmentu); legal entities use their **Dálkový přístup do KN** account.
+3. Read the [terms of use](https://api-kn.cuzk.gov.cz/PodminkyUzivani), finish the
+   registration and copy the issued API key.
+4. Store it in `deploy/.env` as `CUZK_API_KEY=…`. The server sends it in the `ApiKey` header;
+   it never reaches the browser.
+
+The API is free of charge, but ČÚZK sets a maximum number of calls; this installation also
+enforces its own [daily budget](#čúzk-api-budget-and-metrics). The terms forbid sharing the key or
+embedding it in client applications. Keys expire: **Admin → ČÚZK** shows the expiry date and
+warns seven days ahead. Renew the key in the registration portal, update `CUZK_API_KEY` and
+restart the `app` and `cron` services. Registration problems: [ČÚZK support](https://podpora.cuzk.gov.cz/).
 
 ## Architecture
 

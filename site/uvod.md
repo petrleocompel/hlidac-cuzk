@@ -12,7 +12,7 @@ oficiální službou ČÚZK.
 ## Co budete potřebovat
 
 - server s Dockerem a Docker Compose v2 (pro osobní použití stačí malý VPS, 1 vCPU a 1–2 GB RAM),
-- vlastní API klíč ČÚZK pro [REST API katastru nemovitostí](https://api-kn.cuzk.gov.cz),
+- vlastní API klíč ČÚZK pro [REST API katastru nemovitostí](https://api-kn.cuzk.gov.cz) — zdarma, [návod k získání](/docs/instalace#api-klíč-čúzk),
 - doménu a HTTPS (reverzní proxy na stejném hostiteli, nebo Caddy jako kontejner),
 - volitelně notifikační kanál (Gotify, Slack, Discord, ntfy, SMTP) a poskytovatele SSO (OIDC).
 
