@@ -16,7 +16,7 @@
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=26.0.0"
   },
   "imports": {
     "#/*": "./src/*"
@@ -89,7 +89,7 @@
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/router-cli": "^1.167.40",
-    "@types/node": "^22.10.2",
+    "@types/node": "^26.6.4",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.2.0",

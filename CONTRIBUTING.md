@@ -11,7 +11,8 @@ Thanks for your interest in Hlídač ČÚZK. Issues and pull requests are welcom
 
 ## Development
 
-Requirements: Node.js 22.13+, pnpm via Corepack, Docker (for PostgreSQL).
+Requirements: Node.js 26+ (`.nvmrc`, e.g. `nvm install && nvm use`), pnpm via Corepack (`npm install --global corepack`;
+Node 25+ no longer bundles it), Docker (for PostgreSQL).
 Follow [Local development](README.md#local-development); you need your own ČÚZK API key only for
 real requests — the test suites use local fixtures.
 

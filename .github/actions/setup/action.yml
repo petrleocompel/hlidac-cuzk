@@ -3,8 +3,8 @@ description: Install the pinned pnpm, Node.js and locked dependencies.
 
 inputs:
   node-version:
-    description: Node.js version
-    default: '22'
+    description: Node.js version (defaults to .nvmrc)
+    default: ''
 
 runs:
   using: composite
@@ -17,6 +17,7 @@ runs:
       uses: actions/setup-node@v7
       with:
         node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ inputs.node-version == '' && '.nvmrc' || '' }}
         cache: pnpm
 
     - name: Install dependencies

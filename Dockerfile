@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1
 # The frontend/server bundle is architecture independent; dependency installs are not.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build-base
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build-base
+# Node 25+ no longer bundles Corepack; install a pinned copy from npm.
+ARG COREPACK_VERSION=0.36.0
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH COREPACK_HOME=/opt/corepack
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN corepack enable && corepack install
+RUN npm install --global --no-fund --no-audit corepack@${COREPACK_VERSION} && corepack enable && corepack install
 
 FROM build-base AS deps
 RUN --mount=type=cache,id=pnpm-build,target=/pnpm/store pnpm install --frozen-lockfile
@@ -13,12 +15,14 @@ FROM deps AS build
 COPY . .
 RUN pnpm build
 
-FROM node:22-alpine AS runtime-base
+FROM node:26-alpine AS runtime-base
+# Node 25+ no longer bundles Corepack; install a pinned copy from npm.
+ARG COREPACK_VERSION=0.36.0
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH COREPACK_HOME=/opt/corepack
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Download the pinned package manager at build time, never on container startup.
-RUN corepack enable && corepack install
+RUN npm install --global --no-fund --no-audit corepack@${COREPACK_VERSION} && corepack enable && corepack install
 
 FROM runtime-base AS production-deps
 RUN --mount=type=cache,id=pnpm-production,target=/pnpm/store pnpm install --prod --frozen-lockfile

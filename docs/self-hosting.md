@@ -554,6 +554,7 @@ Point `DATABASE_URL` at your server and remove / don’t start the `db` service 
 ## Local development (non-Docker app)
 
 ```bash
+npm install --global corepack  # Node 25+ no longer bundles Corepack
 corepack enable
 pnpm install
 cp .env.example .env  # fill unique secrets; alternatively use env:init from the repo root   # fill secrets + CUZK_API_KEY
