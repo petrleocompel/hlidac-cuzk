@@ -1,6 +1,6 @@
 # Regression coverage
 
-Use Node **22.13+** (or a current newer release). The geometry suite uses jsdom and
+Use Node **26+** (see `.nvmrc`). The geometry suite uses jsdom and
 OpenLayers to verify GML parsing, CRS axes, polygon selection, identity and bounded responses.
 This is a DOM test, not a visual browser or mobile test.
 

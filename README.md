@@ -34,6 +34,7 @@ TanStack Start · pnpm · Tailwind 4 · shadcn/ui · Better Auth (+ SSO) · Post
 ## Local development
 
 ```bash
+npm install --global corepack  # Node 25+ no longer bundles Corepack
 corepack enable
 pnpm install
 pnpm env:init deploy/.env

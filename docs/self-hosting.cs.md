@@ -14,6 +14,7 @@ Image má adresu `ghcr.io/petrleocompel/hlidac-cuzk`. Projekt i image jsou veře
 ```bash
 git clone https://github.com/petrleocompel/hlidac-cuzk.git
 cd hlidac-cuzk
+npm install --global corepack  # Node 25+ už Corepack nepřibaluje
 corepack enable
 pnpm install --frozen-lockfile
 pnpm env:init deploy/.env
