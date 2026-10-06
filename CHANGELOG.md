@@ -1,7 +1,19 @@
 # Release notes
 
-## Unreleased — selfhosting and safe upgrades
+## Unreleased
 
+## 0.1.0 — First public release (2026-10-06)
+
+First open-source release of Hlídač ČÚZK: a self-hosted watcher for parcels, buildings, units,
+rights of superficies and proceedings in the Czech cadastre (ČÚZK) with change history and
+notifications. Install with Docker Compose following the
+[self-hosting guide](https://petrleocompel.github.io/hlidac-cuzk/docs/instalace) (CZ) or
+[self-hosting guide](https://petrleocompel.github.io/hlidac-cuzk/docs/self-hosting) (EN).
+
+- Project website with documentation: https://petrleocompel.github.io/hlidac-cuzk/
+- Dependencies refreshed: Better Auth 1.7 (account unlinking now uses the account id),
+  Sentry SDK 11 (still initialised only with `SENTRY_DSN`, `sendDefaultPii: false`),
+  ESLint 10, jsdom 30, Vite 8.3 and current TanStack Start/Router.
 - Published as open source under AGPL-3.0-only on GitHub; images are built by GitHub Actions
   and published multiarch to `ghcr.io/petrleocompel/hlidac-cuzk` with provenance and SBOM
   attestations.
@@ -81,9 +93,9 @@
 - Production requests and workers no longer run implicit migrations. Start with `pnpm bootstrap`.
 - Readiness refuses a database with newer migration metadata than the running image.
 
-### Migration from d63f2c9 (schema 0008)
+### Upgrading pre-release installations (schema 0008)
 
-The upgrade adds `0009_backup_status`, `0010_watch_rizeni`, `0011_event_history`,
+Installations created from pre-release builds at schema `0008` are upgraded in place. The upgrade adds `0009_backup_status`, `0010_watch_rizeni`, `0011_event_history`,
 `0012_watch_uniqueness` (which consolidates duplicate watches while preserving their
 histories and deliveries), `0013_notification_rules` and `0014_object_watches` (watched
 register plus uniqueness per user, register and ISKN id). Existing accounts, watches, events and pending
