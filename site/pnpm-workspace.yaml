@@ -1,0 +1,4 @@
+# The site is a standalone package with its own lockfile; it is deliberately
+# not part of the application workspace in the repository root.
+allowBuilds:
+  esbuild: true
