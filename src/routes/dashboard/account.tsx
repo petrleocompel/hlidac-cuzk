@@ -122,10 +122,11 @@ function AccountPage() {
     setPasswordMsg('Heslo změněno')
   }
 
-  async function onUnlink(providerId: string) {
-    if (!confirm(`Odpojit ${providerId}?`)) return
+  async function onUnlink(account: LinkedAccount) {
+    if (!confirm(`Odpojit ${providerLabel(account.providerId)}?`)) return
     setAccountsError(null)
-    const { error } = await authClient.unlinkAccount({ providerId })
+    // Better Auth 1.7 identifies the link by its own account row id.
+    const { error } = await authClient.unlinkAccount({ accountId: account.id })
     if (error) {
       setAccountsError(error.message ?? 'Odpojení selhalo')
       return
@@ -242,7 +243,7 @@ function AccountPage() {
                         disabled={
                           a.providerId === 'credential' && accounts.length === 1
                         }
-                        onClick={() => void onUnlink(a.providerId)}
+                        onClick={() => void onUnlink(a)}
                       >
                         Odpojit
                       </Button>
