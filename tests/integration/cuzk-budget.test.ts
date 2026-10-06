@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { scryptSync } from 'node:crypto'
 import { promisify } from 'node:util'
 import { createServer } from 'node:http'
 import { eq, sql } from 'drizzle-orm'
@@ -174,14 +174,14 @@ describe('durable shared CUZK budget and telemetry', () => {
     await expect(requestCuzk(parcel)).rejects.toThrow('500')
     expect(calls).toBe(1)
   })
-  it('stores a slow-hash key fingerprint that changes with key and endpoint', async () => {
+  it('stores a scrypt key fingerprint that changes with the key', async () => {
     await requestCuzk(parcel)
     const [control] = await db.select().from(cuzkApiControl)
     const { key, base, fingerprint } = apiIdentity()
     expect(control.keyFingerprint).toBe(fingerprint)
     expect(fingerprint).toMatch(/^[0-9a-f]{64}$/)
-    expect(fingerprint).not.toBe(
-      createHash('sha256').update(`${base}\0${key}`).digest('hex'),
+    expect(fingerprint).toBe(
+      scryptSync(key, `hlidac-cuzk:${base}`, 32).toString('hex'),
     )
     expect(JSON.stringify(control)).not.toContain(key)
     process.env.CUZK_API_KEY = 'rotated-fixture-key'
