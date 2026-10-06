@@ -31,5 +31,9 @@ export function applyThemeClass(resolved: ResolvedTheme) {
   root.style.colorScheme = resolved
 }
 
-/** Inline script for <head> — prevents light flash before React hydrates. */
-export const themeInitScript = `(function(){try{var k=${JSON.stringify(THEME_STORAGE_KEY)};var t=localStorage.getItem(k);if(t!=='light'&&t!=='dark'&&t!=='system')t='dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`
+/**
+ * Inline script for <head> — prevents light flash before React hydrates.
+ * A static literal with no interpolation; tests keep the key in sync with
+ * THEME_STORAGE_KEY.
+ */
+export const themeInitScript = `(function(){try{var t=localStorage.getItem('hlidac-theme');if(t!=='light'&&t!=='dark'&&t!=='system')t='dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`

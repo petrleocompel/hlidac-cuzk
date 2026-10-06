@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { scryptSync } from 'node:crypto'
 import { and, eq, ne, sql } from 'drizzle-orm'
 import { db } from '#/db'
 import { cuzkApiControl, cuzkApiDailyUsage, cuzkApiRequests } from '#/db/schema'
@@ -11,16 +11,30 @@ import {
   CuzkUnavailableError,
 } from './policy'
 
+const fingerprints = new Map<string, string>()
+
+/**
+ * Stored only to detect key/endpoint rotation. Derived with scrypt so a
+ * database dump never exposes a cheaply checkable hash of the API key.
+ */
+function keyFingerprint(base: string, key: string) {
+  const cacheKey = `${base}\0${key}`
+  let fingerprint = fingerprints.get(cacheKey)
+  if (!fingerprint) {
+    fingerprint = scryptSync(key, `hlidac-cuzk:${base}`, 32).toString('hex')
+    fingerprints.clear()
+    fingerprints.set(cacheKey, fingerprint)
+  }
+  return fingerprint
+}
+
 export function apiIdentity() {
   const key = process.env.CUZK_API_KEY
   if (!key) throw new CuzkUnavailableError('Není nastavený klíč ČÚZK API.')
   const base = (
     process.env.CUZK_API_BASE_URL ?? 'https://api-kn.cuzk.gov.cz'
   ).replace(/\/$/, '')
-  const fingerprint = createHash('sha256')
-    .update(`${base}\0${key}`)
-    .digest('hex')
-  return { key, base, fingerprint }
+  return { key, base, fingerprint: keyFingerprint(base, key) }
 }
 
 export async function ensureApiControl() {

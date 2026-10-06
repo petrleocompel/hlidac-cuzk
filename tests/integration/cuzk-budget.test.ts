@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { promisify } from 'node:util'
 import { createServer } from 'node:http'
 import { eq, sql } from 'drizzle-orm'
@@ -13,7 +14,7 @@ import {
   user,
 } from '../../src/db/schema'
 import { requestCuzk, refreshCuzkAccount } from '../../src/lib/cuzk/http'
-import { reserveApiRequest } from '../../src/lib/cuzk/budget'
+import { apiIdentity, reserveApiRequest } from '../../src/lib/cuzk/budget'
 import { getCuzkMetrics } from '../../src/lib/cuzk/metrics'
 import { renderCuzkMetrics } from '../../src/lib/cuzk/prometheus'
 import { insertWatchWithinLimit } from '../../src/lib/cuzk/watch-limits'
@@ -172,6 +173,21 @@ describe('durable shared CUZK budget and telemetry', () => {
     process.env.CUZK_API_KEY = 'rotated-fixture-key'
     await expect(requestCuzk(parcel)).rejects.toThrow('500')
     expect(calls).toBe(1)
+  })
+  it('stores a slow-hash key fingerprint that changes with key and endpoint', async () => {
+    await requestCuzk(parcel)
+    const [control] = await db.select().from(cuzkApiControl)
+    const { key, base, fingerprint } = apiIdentity()
+    expect(control.keyFingerprint).toBe(fingerprint)
+    expect(fingerprint).toMatch(/^[0-9a-f]{64}$/)
+    expect(fingerprint).not.toBe(
+      createHash('sha256').update(`${base}\0${key}`).digest('hex'),
+    )
+    expect(JSON.stringify(control)).not.toContain(key)
+    process.env.CUZK_API_KEY = 'rotated-fixture-key'
+    expect(apiIdentity().fingerprint).not.toBe(fingerprint)
+    process.env.CUZK_API_KEY = key
+    expect(apiIdentity().fingerprint).toBe(fingerprint)
   })
   it('counts every retry, records durations, and normalizes identifiers out of metrics', async () => {
     statuses = [503, 500, 200]

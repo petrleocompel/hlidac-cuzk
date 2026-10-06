@@ -5,6 +5,10 @@
 - Digest notifications: two workers running at the same moment could split one owner's
   pending changes into two summary messages. Claims are now serialized per owner and channel,
   so each run sends a single digest.
+- The stored ČÚZK API key fingerprint (used only to detect key rotation) is now derived with
+  scrypt instead of plain SHA-256. After upgrading, the instance treats the key as rotated once:
+  the cached ČÚZK account info is refreshed; the daily call budget is kept.
+- The inline theme script in `<head>` is a static literal (no interpolated values).
 
 ## 0.1.1 — Security update (2026-10-06)
 
