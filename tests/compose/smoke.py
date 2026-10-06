@@ -108,7 +108,10 @@ for scenario in (sys.argv[2:] or ['loopback', 'lan', 'proxy', 'external']):
             # Compose versions serialize either one JSON array or newline objects;
             # inspect directly to keep the exit-code check stable.
             cron_id = compose('ps', '--all', '-q', 'cron')
-            assert command(['docker', 'inspect', '--format', '{{.State.ExitCode}}', cron_id]) == '0'
+            cron_exit = command(['docker', 'inspect', '--format', '{{.State.ExitCode}} {{.State.OOMKilled}}', cron_id])
+            if cron_exit.split()[0] != '0':
+                print(compose('logs', '--no-color', '--tail', '40', 'cron'), file=sys.stderr)
+            assert cron_exit.split()[0] == '0', 'cron exit code/OOMKilled after SIGTERM: ' + cron_exit
             compose('up', '-d', '--no-deps', 'cron')
             print('PASS clean installation, readiness, login page, admin and no CUZK calls:', scenario, flush=True)
         except subprocess.CalledProcessError as error:
