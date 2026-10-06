@@ -5,6 +5,8 @@
 
 Sledování parcel ČÚZK a notifikace změn (Gotify, Slack, Discord).
 
+Website & documentation: https://petrleocompel.github.io/hlidac-cuzk/
+
 Full-stack TanStack Start app with Better Auth (email/password + optional OIDC SSO), Postgres, and Docker Compose.
 
 ## Stack

@@ -1,0 +1,463 @@
+/*
+ * Design tokens copied from the application (src/styles.css) and mapped onto
+ * the VitePress default theme variables. Keep them in sync with the app.
+ */
+:root {
+  --hc-background: oklch(0.99 0.005 95);
+  --hc-foreground: oklch(0.22 0.02 250);
+  --hc-card: oklch(1 0 0);
+  --hc-primary: oklch(0.42 0.09 230);
+  --hc-primary-foreground: oklch(0.98 0.01 95);
+  --hc-secondary: oklch(0.94 0.02 95);
+  --hc-muted: oklch(0.95 0.01 95);
+  --hc-muted-foreground: oklch(0.5 0.02 250);
+  --hc-accent: oklch(0.93 0.03 200);
+  --hc-accent-foreground: oklch(0.28 0.04 230);
+  --hc-border: oklch(0.88 0.015 95);
+  --hc-ring: oklch(0.5 0.09 230);
+  --hc-warning: oklch(0.92 0.06 85);
+  --hc-warning-foreground: oklch(0.35 0.06 55);
+  --hc-success: oklch(0.92 0.07 150);
+  --hc-success-foreground: oklch(0.32 0.08 150);
+  --hc-destructive: oklch(0.55 0.2 25);
+  --hc-sidebar: oklch(0.985 0.005 95);
+  --hc-surface-glow-a: oklch(0.9 0.05 200 / 0.5);
+  --hc-surface-glow-b: oklch(0.92 0.04 95 / 0.6);
+  --hc-radius: 0.6rem;
+
+  /* Marketing hero palette (identical in light and dark mode, as in the app). */
+  --hc-hero-bg: #1a3f52;
+  --hc-hero-ink: #f7f5f0;
+  --hc-hero-muted: #d7e6ec;
+  --hc-hero-line: #8ec4d4;
+  --hc-hero-mark: #245a72;
+}
+
+.dark {
+  --hc-background: oklch(0.16 0.02 250);
+  --hc-foreground: oklch(0.95 0.01 95);
+  --hc-card: oklch(0.2 0.02 250);
+  --hc-primary: oklch(0.72 0.1 230);
+  --hc-primary-foreground: oklch(0.18 0.03 250);
+  --hc-secondary: oklch(0.26 0.02 250);
+  --hc-muted: oklch(0.24 0.02 250);
+  --hc-muted-foreground: oklch(0.72 0.02 250);
+  --hc-accent: oklch(0.28 0.04 220);
+  --hc-accent-foreground: oklch(0.94 0.02 200);
+  --hc-border: oklch(1 0 0 / 0.1);
+  --hc-ring: oklch(0.68 0.1 230);
+  --hc-warning: oklch(0.32 0.06 75);
+  --hc-warning-foreground: oklch(0.92 0.05 90);
+  --hc-success: oklch(0.3 0.07 150);
+  --hc-success-foreground: oklch(0.88 0.08 150);
+  --hc-destructive: oklch(0.62 0.2 25);
+  --hc-sidebar: oklch(0.18 0.02 250);
+  --hc-surface-glow-a: oklch(0.3 0.06 230 / 0.35);
+  --hc-surface-glow-b: oklch(0.28 0.04 200 / 0.25);
+}
+
+:root,
+.dark {
+  --vp-font-family-base:
+    'IBM Plex Sans Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+
+  --vp-c-bg: var(--hc-background);
+  --vp-c-bg-alt: var(--hc-sidebar);
+  --vp-c-bg-elv: var(--hc-card);
+  --vp-c-bg-soft: var(--hc-muted);
+
+  --vp-c-text-1: var(--hc-foreground);
+  --vp-c-text-2: var(--hc-muted-foreground);
+  --vp-c-text-3: var(--hc-muted-foreground);
+
+  --vp-c-border: var(--hc-border);
+  --vp-c-divider: var(--hc-border);
+  --vp-c-gutter: var(--hc-border);
+
+  --vp-c-brand-1: var(--hc-primary);
+  --vp-c-brand-2: color-mix(
+    in oklch,
+    var(--hc-primary) 85%,
+    var(--hc-foreground)
+  );
+  --vp-c-brand-3: var(--hc-primary);
+  --vp-c-brand-soft: color-mix(in oklch, var(--hc-primary) 14%, transparent);
+
+  --vp-c-default-soft: var(--hc-secondary);
+
+  --vp-c-warning-1: var(--hc-warning-foreground);
+  --vp-c-warning-soft: var(--hc-warning);
+  --vp-c-success-1: var(--hc-success-foreground);
+  --vp-c-success-soft: var(--hc-success);
+
+  --vp-button-brand-text: var(--hc-primary-foreground);
+  --vp-button-brand-hover-text: var(--hc-primary-foreground);
+  --vp-button-brand-active-text: var(--hc-primary-foreground);
+
+  --vp-code-block-bg: var(--hc-muted);
+  --vp-sidebar-bg-color: var(--hc-sidebar);
+  --vp-nav-logo-height: 28px;
+}
+
+.dark {
+  --vp-code-block-bg: oklch(0.2 0.02 250);
+}
+
+::selection {
+  background: color-mix(in oklch, var(--hc-primary) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--hc-ring);
+  outline-offset: 2px;
+}
+
+/* Wide tables from the operator docs scroll instead of overflowing. */
+.vp-doc table {
+  display: block;
+  overflow-x: auto;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Landing page                                                               */
+/* -------------------------------------------------------------------------- */
+
+.landing {
+  overflow-x: clip;
+}
+
+.landing-container {
+  margin-inline: auto;
+  max-width: 72rem;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .landing-container {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 960px) {
+  .landing-container {
+    padding-inline: 2.5rem;
+  }
+}
+
+.landing-section {
+  padding-block: 4rem;
+}
+
+@media (min-width: 640px) {
+  .landing-section {
+    padding-block: 5rem;
+  }
+}
+
+@media (min-width: 960px) {
+  .landing-section {
+    padding-block: 7rem;
+  }
+}
+
+.landing-section--muted {
+  border-block: 1px solid var(--hc-border);
+  background: color-mix(in oklch, var(--hc-muted) 40%, transparent);
+}
+
+.landing-eyebrow {
+  margin: 0;
+  color: var(--hc-muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.landing-title {
+  margin: 0.75rem 0 0;
+  max-width: 42rem;
+  border: 0;
+  padding: 0;
+  color: var(--hc-foreground);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+@media (min-width: 640px) {
+  .landing-title {
+    font-size: 1.875rem;
+  }
+}
+
+@media (min-width: 960px) {
+  .landing-title {
+    font-size: 2.25rem;
+  }
+}
+
+.landing-lead {
+  margin: 1rem 0 0;
+  max-width: 42rem;
+  color: var(--hc-muted-foreground);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+@media (min-width: 960px) {
+  .landing-lead {
+    font-size: 1.125rem;
+  }
+}
+
+.landing-lead a,
+.landing-prose a {
+  color: var(--hc-primary);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Buttons (mirror the app's shadcn/ui button sizes). */
+.landing-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--hc-radius);
+  height: 3rem;
+  padding-inline: 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.landing-button svg {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.landing-button--primary {
+  background: var(--hc-primary);
+  color: var(--hc-primary-foreground);
+}
+
+.landing-button--primary:hover {
+  background: color-mix(in oklch, var(--hc-primary) 90%, var(--hc-foreground));
+}
+
+.landing-button--outline {
+  border-color: var(--hc-border);
+  background: var(--hc-background);
+  color: var(--hc-foreground);
+}
+
+.landing-button--outline:hover {
+  background: var(--hc-accent);
+  color: var(--hc-accent-foreground);
+}
+
+/* Feature list (same rhythm as the app's "Co sledujeme" list). */
+.landing-features {
+  display: grid;
+  gap: 2rem;
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .landing-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.5rem;
+    margin-top: 3rem;
+  }
+}
+
+@media (min-width: 960px) {
+  .landing-features {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 3rem;
+  }
+}
+
+.landing-feature {
+  margin: 0;
+  border-top: 1px solid var(--hc-border);
+  padding-top: 1.25rem;
+}
+
+.landing-feature-number {
+  margin: 0;
+  color: var(--hc-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-feature h3 {
+  margin: 0.75rem 0 0;
+  color: var(--hc-foreground);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+@media (min-width: 640px) {
+  .landing-feature h3 {
+    font-size: 1.25rem;
+  }
+}
+
+.landing-feature p:last-child {
+  margin: 0.75rem 0 0;
+  color: var(--hc-muted-foreground);
+  line-height: 1.6;
+}
+
+/* Numbered steps ("Jak to funguje", "Rychlá instalace"). */
+.landing-steps {
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  margin: 0;
+  border-top: 1px solid var(--hc-border);
+  padding-block: 1.75rem;
+}
+
+@media (min-width: 960px) {
+  .landing-step {
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 2.5rem;
+    padding-block: 2rem;
+  }
+}
+
+.landing-step-number {
+  margin: 0;
+  color: color-mix(in oklch, var(--hc-primary) 80%, transparent);
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+@media (min-width: 640px) {
+  .landing-step-number {
+    font-size: 2.25rem;
+  }
+}
+
+.landing-step h3 {
+  margin: 0;
+  color: var(--hc-foreground);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+@media (min-width: 640px) {
+  .landing-step h3 {
+    font-size: 1.25rem;
+  }
+}
+
+.landing-prose {
+  min-width: 0;
+  max-width: 48rem;
+  color: var(--hc-muted-foreground);
+  line-height: 1.65;
+}
+
+.landing-prose p {
+  margin: 0.5rem 0 0;
+}
+
+.landing-prose code {
+  border-radius: 4px;
+  background: var(--hc-muted);
+  padding: 0.1em 0.35em;
+  color: var(--hc-foreground);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.875em;
+}
+
+/* Fenced code blocks inside the landing reuse the VitePress code styles. */
+.landing-prose.vp-doc div[class*='language-'] {
+  margin: 1rem 0 0;
+  border-radius: var(--hc-radius);
+}
+
+@media (max-width: 639px) {
+  .landing-prose.vp-doc div[class*='language-'] {
+    margin-inline: 0;
+  }
+}
+
+.landing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--hc-border);
+  padding-top: 2rem;
+}
+
+@media (min-width: 640px) {
+  .landing-actions {
+    flex-flow: row wrap;
+    padding-top: 2.5rem;
+  }
+}
+
+.landing-note {
+  margin: 2rem 0 0;
+  border: 1px solid var(--hc-border);
+  border-radius: var(--hc-radius);
+  background: var(--hc-card);
+  padding: 1rem 1.25rem;
+  max-width: 48rem;
+  color: var(--hc-muted-foreground);
+  line-height: 1.6;
+}
+
+.landing-note strong {
+  color: var(--hc-foreground);
+}
+
+.landing-note a {
+  color: var(--hc-primary);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Landing page has no doc chrome around it (no outline, so no local nav bar). */
+.landing-page .VPLocalNav {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-button {
+    transition: none;
+  }
+}

@@ -49,3 +49,6 @@ dist-ssr
 **/*.tar
 **/*.tar.gz
 **/*.tgz
+
+# Website sources (published to GitHub Pages, not part of the image)
+site
