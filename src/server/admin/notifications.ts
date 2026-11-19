@@ -22,7 +22,7 @@ export const getNotificationPolicyAdmin = createServerFn({
   }
 })
 export const saveNotificationPolicyAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((value) =>
+  .validator((value) =>
     z
       .object({
         gotifyEnabled: z.boolean(),

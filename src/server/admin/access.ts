@@ -38,14 +38,14 @@ export const getAccessAdmin = createServerFn({ method: 'GET' }).handler(
   },
 )
 export const createInvitationAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((value) => z.object({ email: z.email() }).parse(value))
+  .validator((value) => z.object({ email: z.email() }).parse(value))
   .handler(async ({ data }) => {
     const session = await requireAdmin()
     const result = await issueInvitation(data.email, session.user.id)
     return { ...result, expiresAt: result.expiresAt.toISOString() }
   })
 export const revokeInvitationAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((value) => z.object({ id: z.uuid() }).parse(value))
+  .validator((value) => z.object({ id: z.uuid() }).parse(value))
   .handler(async ({ data }) => {
     await requireAdmin()
     await db
@@ -55,7 +55,7 @@ export const revokeInvitationAdmin = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 export const createAccountAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((value) =>
+  .validator((value) =>
     z
       .object({
         email: z.email(),

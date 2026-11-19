@@ -20,7 +20,7 @@ export const getNotificationSettings = createServerFn({
 })
 
 export const saveNotificationSettings = createServerFn({ method: 'POST' })
-  .inputValidator((value) => SettingsInput.parse(value))
+  .validator((value) => SettingsInput.parse(value))
   .handler(async ({ data }) => {
     const session = await requireSession()
     return updateNotificationSettings(session.user.id, data)
@@ -28,7 +28,7 @@ export const saveNotificationSettings = createServerFn({ method: 'POST' })
 
 /** Tests use saved credentials so secret values never need to round-trip to the browser. */
 export const testNotificationSettings = createServerFn({ method: 'POST' })
-  .inputValidator((value) =>
+  .validator((value) =>
     z.enum(['gotify', 'slack', 'discord', 'ntfy', 'email']).parse(value),
   )
   .handler(async ({ data: channel }) => {

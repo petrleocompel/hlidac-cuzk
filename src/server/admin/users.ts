@@ -73,7 +73,7 @@ const ListInput = z.object({
 })
 
 export const listUsersAdmin = createServerFn({ method: 'GET' })
-  .inputValidator((d) => ListInput.parse(d))
+  .validator((d) => ListInput.parse(d))
   .handler(async ({ data }): Promise<AdminUsersPage> => {
     await ensureDbReady()
     await requireAdmin()
@@ -153,7 +153,7 @@ export const listUsersAdmin = createServerFn({ method: 'GET' })
 const UserIdInput = z.object({ userId: z.string().min(1) })
 
 export const getUserAdmin = createServerFn({ method: 'GET' })
-  .inputValidator((d) => UserIdInput.parse(d))
+  .validator((d) => UserIdInput.parse(d))
   .handler(async ({ data }): Promise<AdminUserDetail | null> => {
     await ensureDbReady()
     await requireAdmin()
@@ -216,7 +216,7 @@ const SetRoleInput = z.object({
 })
 
 export const setUserRoleAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => SetRoleInput.parse(d))
+  .validator((d) => SetRoleInput.parse(d))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
     const session = await requireAdmin()
@@ -239,7 +239,7 @@ const UpdateUserInput = z.object({
 })
 
 export const updateUserAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => UpdateUserInput.parse(d))
+  .validator((d) => UpdateUserInput.parse(d))
   .handler(async ({ data }): Promise<{ ok: true; changed: boolean }> => {
     await ensureDbReady()
     await requireAdmin()
@@ -278,7 +278,7 @@ const SetPasswordInput = z.object({
 })
 
 export const setUserPasswordAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => SetPasswordInput.parse(d))
+  .validator((d) => SetPasswordInput.parse(d))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
     await requireAdmin()
@@ -297,7 +297,7 @@ const BanInput = z.object({
 })
 
 export const banUserAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => BanInput.parse(d))
+  .validator((d) => BanInput.parse(d))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
     const session = await requireAdmin()
@@ -314,7 +314,7 @@ export const banUserAdmin = createServerFn({ method: 'POST' })
   })
 
 export const unbanUserAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => UserIdInput.parse(d))
+  .validator((d) => UserIdInput.parse(d))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
     await requireAdmin()

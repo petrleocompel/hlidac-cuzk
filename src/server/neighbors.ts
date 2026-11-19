@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { NeighborSelection } from '#/lib/cuzk/neighbor-types'
 
 export const getNeighbors = createServerFn({ method: 'POST' })
-  .inputValidator((value) =>
+  .validator((value) =>
     z.object({ watchId: z.string().uuid() }).parse(value),
   )
   .handler(async ({ data }) => {
@@ -13,7 +13,7 @@ export const getNeighbors = createServerFn({ method: 'POST' })
   })
 
 export const addNeighbors = createServerFn({ method: 'POST' })
-  .inputValidator((value) => NeighborSelection.parse(value))
+  .validator((value) => NeighborSelection.parse(value))
   .handler(async ({ data }) => {
     const { requireSession } = await import('#/auth/session')
     const { addSelectedNeighbors } = await import('#/lib/cuzk/neighbors.server')

@@ -25,7 +25,7 @@ export const Route = createFileRoute('/admin/audit')({
   },
   component: AuditPage,
 })
-const labels: Record<string, string> = {
+const labels: Partial<Record<string, string>> = {
   'user.deleted': 'Smazání účtu',
   'user.role_changed': 'Změna role',
   'user.ban_changed': 'Změna blokace',

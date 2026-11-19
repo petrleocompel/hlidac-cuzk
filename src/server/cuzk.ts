@@ -23,7 +23,7 @@ const SearchKuInput = z.object({
 })
 
 export const searchKu = createServerFn({ method: 'GET' })
-  .inputValidator((v) => SearchKuInput.parse(v))
+  .validator((v) => SearchKuInput.parse(v))
   .handler(async ({ data }) => {
     await requireSession()
     const rows = await searchKatastralniUzemi(data.query)
@@ -43,7 +43,7 @@ const LookupParcelInput = z.object({
  * name come from the API answer, so editing the form cannot decouple them.
  */
 export const lookupParcel = createServerFn({ method: 'POST' })
-  .inputValidator((v) => LookupParcelInput.parse(v))
+  .validator((v) => LookupParcelInput.parse(v))
   .handler(async ({ data }): Promise<ParcelLookup> => {
     const session = await requireSession()
     const parsed = parseParcelNumber(data.parcel)
@@ -61,7 +61,7 @@ const SearchCastObceInput = z.object({
 
 /** RÚIAN parts of municipalities; their codes are never KN identifiers. */
 export const searchCastiObci = createServerFn({ method: 'GET' })
-  .inputValidator((v) => SearchCastObceInput.parse(v))
+  .validator((v) => SearchCastObceInput.parse(v))
   .handler(async ({ data }) => {
     await requireSession()
     const rows = await searchCastObce(data.query)
@@ -79,7 +79,7 @@ const LookupObjectInput = z.object({
 
 /** Verifies a building, unit or right of superficies by its ISKN id. */
 export const lookupObject = createServerFn({ method: 'POST' })
-  .inputValidator((v) => LookupObjectInput.parse(v))
+  .validator((v) => LookupObjectInput.parse(v))
   .handler(async ({ data }): Promise<ObjectLookup> => {
     const session = await requireSession()
     return lookupObjectForWatch(session.user.id, data.objectType, data.isknId)
@@ -106,7 +106,7 @@ const LookupBuildingInput = z
 
 /** Searches a building or unit; the confirmed detail decides what is stored. */
 export const lookupBuilding = createServerFn({ method: 'POST' })
-  .inputValidator((v) => LookupBuildingInput.parse(v))
+  .validator((v) => LookupBuildingInput.parse(v))
   .handler(async ({ data }): Promise<ObjectLookup> => {
     const session = await requireSession()
     return lookupBuildingOrUnit(session.user.id, {
@@ -124,7 +124,7 @@ const SuggestAddressInput = z.object({
 
 /** RÚIAN suggestions; this service is free of the ČÚZK KN request budget. */
 export const suggestAddress = createServerFn({ method: 'GET' })
-  .inputValidator((v) => SuggestAddressInput.parse(v))
+  .validator((v) => SuggestAddressInput.parse(v))
   .handler(async ({ data }): Promise<{ suggestions: string[] }> => {
     await requireSession()
     const rows = await suggestAddresses(data.query)
@@ -147,7 +147,7 @@ export type AddressLookupResult = {
  * unmatched address returns the candidates instead of a silent best guess.
  */
 export const lookupAddress = createServerFn({ method: 'POST' })
-  .inputValidator((v) => LookupAddressInput.parse(v))
+  .validator((v) => LookupAddressInput.parse(v))
   .handler(async ({ data }): Promise<AddressLookupResult> => {
     const session = await requireSession()
     const places = await resolveAddressPlaces(data.address)
