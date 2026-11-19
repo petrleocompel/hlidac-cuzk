@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 export const startSsoLink = createServerFn({ method: 'POST' })
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         providerId: z.string().min(1),

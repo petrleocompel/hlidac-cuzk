@@ -122,7 +122,7 @@ const UpsertInput = z.object({
 })
 
 export const createSsoProviderAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => UpsertInput.parse(d))
+  .validator((d) => UpsertInput.parse(d))
   .handler(async ({ data }): Promise<AdminSsoProvider> => {
     await ensureDbReady()
     const session = await requireAdmin()
@@ -175,7 +175,7 @@ const UpdateInput = UpsertInput.extend({
 })
 
 export const updateSsoProviderAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => UpdateInput.parse(d))
+  .validator((d) => UpdateInput.parse(d))
   .handler(async ({ data }): Promise<AdminSsoProvider> => {
     await ensureDbReady()
     const session = await requireAdmin()
@@ -240,7 +240,7 @@ export const updateSsoProviderAdmin = createServerFn({ method: 'POST' })
   })
 
 export const deleteSsoProviderAdmin = createServerFn({ method: 'POST' })
-  .inputValidator((d) => z.object({ id: z.string().min(1) }).parse(d))
+  .validator((d) => z.object({ id: z.string().min(1) }).parse(d))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     await ensureDbReady()
     const session = await requireAdmin()

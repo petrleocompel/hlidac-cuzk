@@ -154,7 +154,7 @@ export const listWatches = createServerFn({ method: 'GET' }).handler(
 )
 
 export const getWatch = createServerFn({ method: 'GET' })
-  .inputValidator((v) =>
+  .validator((v) =>
     IdInput.extend({ eventId: z.string().uuid().optional() }).parse(v),
   )
   .handler(
@@ -215,7 +215,7 @@ async function requireOwnedWatch(id: string, userId: string) {
 }
 
 export const listWatchEvents = createServerFn({ method: 'GET' })
-  .inputValidator((v) => EventPageInput.parse(v))
+  .validator((v) => EventPageInput.parse(v))
   .handler(async ({ data }): Promise<WatchEventPage> => {
     const session = await requireSession()
     const watch = await requireOwnedWatch(data.id, session.user.id)
@@ -229,7 +229,7 @@ const ExportInput = z.object({
 })
 
 export const exportWatchEvents = createServerFn({ method: 'POST' })
-  .inputValidator((v) => ExportInput.parse(v))
+  .validator((v) => ExportInput.parse(v))
   .handler(async ({ data }): Promise<WatchHistoryExport> => {
     const session = await requireSession()
     const watch = await requireOwnedWatch(data.id, session.user.id)
@@ -237,7 +237,7 @@ export const exportWatchEvents = createServerFn({ method: 'POST' })
   })
 
 export const createWatch = createServerFn({ method: 'POST' })
-  .inputValidator((v) => CreateWatchInput.parse(v))
+  .validator((v) => CreateWatchInput.parse(v))
   .handler(async ({ data }): Promise<WatchDto> => {
     const session = await requireSession()
     await assertWatchCapacity(session.user.id)
@@ -261,7 +261,7 @@ export const createWatch = createServerFn({ method: 'POST' })
 
 /** Validation and duplicate detection only; no ČÚZK call is spent on a preview. */
 export const previewWatchImport = createServerFn({ method: 'POST' })
-  .inputValidator((v) => ImportInput.parse(v))
+  .validator((v) => ImportInput.parse(v))
   .handler(async ({ data }): Promise<ImportPlan & { error?: string }> => {
     const session = await requireSession()
     const existing = await db
@@ -277,7 +277,7 @@ export const previewWatchImport = createServerFn({ method: 'POST' })
   })
 
 export const runWatchImport = createServerFn({ method: 'POST' })
-  .inputValidator((v) => ImportInput.parse(v))
+  .validator((v) => ImportInput.parse(v))
   .handler(async ({ data }): Promise<ImportOutcome> => {
     const session = await requireSession()
     // Re-planned server side: the preview the browser saw is not authoritative.
@@ -299,7 +299,7 @@ export const runWatchImport = createServerFn({ method: 'POST' })
   })
 
 export const updateWatch = createServerFn({ method: 'POST' })
-  .inputValidator((v) => UpdateWatchInput.parse(v))
+  .validator((v) => UpdateWatchInput.parse(v))
   .handler(async ({ data }): Promise<WatchDto> => {
     const session = await requireSession()
     const existing = await db.query.parcelWatches.findFirst({
@@ -340,7 +340,7 @@ export const updateWatch = createServerFn({ method: 'POST' })
   })
 
 export const refreshWatch = createServerFn({ method: 'POST' })
-  .inputValidator((v) => IdInput.parse(v))
+  .validator((v) => IdInput.parse(v))
   .handler(
     async ({
       data,
@@ -376,7 +376,7 @@ export const refreshWatch = createServerFn({ method: 'POST' })
   )
 
 export const deleteWatch = createServerFn({ method: 'POST' })
-  .inputValidator((v) => IdInput.parse(v))
+  .validator((v) => IdInput.parse(v))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     const session = await requireSession()
     const existing = await db.query.parcelWatches.findFirst({
@@ -391,7 +391,7 @@ export const deleteWatch = createServerFn({ method: 'POST' })
   })
 
 export const retryDelivery = createServerFn({ method: 'POST' })
-  .inputValidator((v) => IdInput.parse(v))
+  .validator((v) => IdInput.parse(v))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     const session = await requireSession()
     await retryNotificationDelivery(data.id, session.user.id)
